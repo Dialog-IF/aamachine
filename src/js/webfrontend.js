@@ -1,4 +1,4 @@
-// Copyright 2019 Linus Åkesson
+// Copyright 2019-2020 Linus Åkesson
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -219,7 +219,7 @@ function createdoc() {
 	cont.setAttribute("id", "aaaboutlink");
 	cont.setAttribute("target", "_blank");
 	cont.setAttribute("href", "https://linusakesson.net/dialog/aamachine/");
-	cont.innerHTML = "&Aring;-machine web interpreter v0.3.1";
+	cont.innerHTML = "&Aring;-machine web interpreter v0.4.1";
 	line = document.createElement("div");
 	line.setAttribute("class", "aaaboutline");
 	line.appendChild(cont);
@@ -333,7 +333,7 @@ window.run_game = function(story64, options) {
 		in_status: false,
 		n_inner: 0,
 		current: document.getElementById("aamain"),
-		divs: [],
+		status_context: null,
 		aainput: null,
 		history: [],
 		histpos: 0,
@@ -342,6 +342,8 @@ window.run_game = function(story64, options) {
 		sticky_focus: false,
 		always_refocus: false,
 		scroll_anchor: null,
+		self_link_span: null,
+		self_link_str: "",
 		flush: function() {
 		},
 		reset: function() {
@@ -367,9 +369,21 @@ window.run_game = function(story64, options) {
 				this.in_par = false;
 				this.after_text = false;
 				this.n_inner = 0;
-				this.divs = [];
 				this.transcript.par();
 			}
+		},
+		clear_links: function() {
+			var list = $('#aamain .aalink');
+			list.off('mouseover click');
+			list.removeClass('aalink').addClass('aadeadlink');
+		},
+		leave_all: function() {
+			this.current = document.getElementById("aamain");
+			this.in_status = false;
+			this.in_par = false;
+			this.after_text = false;
+			this.n_inner = 0;
+			this.transcript.par();
 		},
 		ensure_par: function() {
 			if(!this.in_par) {
@@ -396,6 +410,9 @@ window.run_game = function(story64, options) {
 			if(!this.in_status) {
 				this.transcript.print(str);
 			}
+			if(this.self_link_span) {
+				this.self_link_str += str.toLowerCase();
+			}
 		},
 		space: function() {
 			this.print(" ");
@@ -413,6 +430,9 @@ window.run_game = function(story64, options) {
 				for(i = 0; i < n; i++) {
 					this.transcript.print(" ");
 				}
+			}
+			if(this.self_link_span) {
+				this.self_link_str += " ";
 			}
 		},
 		leave_inner: function() {
@@ -507,9 +527,9 @@ window.run_game = function(story64, options) {
 			}
 		},
 		enter_div: function(id) {
-			var k, sty;
+			var div, sty, k;
 			this.leave_inner();
-			var div = document.createElement("div");
+			div = document.createElement("div");
 			sty = this.styles[id];
 			for(k in sty) {
 				if(sty.hasOwnProperty(k)) {
@@ -517,7 +537,6 @@ window.run_game = function(story64, options) {
 				}
 			}
 			this.current.appendChild(div);
-			this.divs.push(this.current);
 			this.current = div;
 			if(!this.in_status) {
 				this.transcript.line();
@@ -525,17 +544,37 @@ window.run_game = function(story64, options) {
 		},
 		leave_div: function(id) {
 			this.leave_inner();
-			this.divs.pop();
 			this.current = this.current.parentNode;
 			if(!this.in_status) {
 				this.transcript.line();
+			}
+		},
+		enter_span: function(id) {
+			var span, sty, k;
+			if(!this.in_status) {
+				this.unstyle();
+				this.ensure_par();
+				span = document.createElement("span");
+				sty = this.styles[id];
+				for(k in sty) {
+					if(sty.hasOwnProperty(k)) {
+						span.style[k] = sty[k];
+					}
+				}
+				this.current.appendChild(span);
+				this.current = span;
+			}
+		},
+		leave_span: function() {
+			if(!this.in_status) {
+				this.current = this.current.parentNode;
 			}
 		},
 		enter_status: function(id) {
 			this.leave_inner();
 			if(!this.in_status) {
 				var div, sty, k;
-				this.divs.push(this.current);
+				this.status_context = this.current;
 				$(this.aainput).detach();
 				div = document.getElementById("aastatus");
 				$(div).empty();
@@ -549,10 +588,10 @@ window.run_game = function(story64, options) {
 				this.in_status = true;
 			}
 		},
-		leave_status: function(id) {
+		leave_status: function() {
 			this.leave_inner();
 			if(this.in_status) {
-				this.current = this.divs.pop();
+				this.current = this.status_context;
 				this.after_text = true;
 				if(!this.status_visible) {
 					document.getElementById("aastatus").style.display = "block";
@@ -566,14 +605,9 @@ window.run_game = function(story64, options) {
 				this.in_status = false;
 			}
 		},
-		enter_link: function(str) {
-			var span, old;
-			this.ensure_par();
-			span = document.createElement("span");
-			$(span).addClass("aalink");
-			span.href = "#0";
-			this.current.appendChild(span);
+		install_link: function(span, str) {
 			$(span).on("mouseover", function() {
+				var old;
 				if(status == aaengine.status.get_input) {
 					old = io.protected_inp;
 					if(old && old.length && old[old.length - 1] != " ") old += " ";
@@ -586,6 +620,7 @@ window.run_game = function(story64, options) {
 				}
 			});
 			$(span).on("click", function() {
+				var old;
 				if(status == aaengine.status.get_input) {
 					old = io.protected_inp;
 					if(old && old.length && old[old.length - 1] != " ") old += " ";
@@ -595,10 +630,35 @@ window.run_game = function(story64, options) {
 				}
 				return false;
 			});
+		},
+		enter_link: function(str) {
+			var span;
+			this.ensure_par();
+			span = document.createElement("span");
+			$(span).addClass("aalink");
+			span.href = "#0";
+			this.current.appendChild(span);
+			this.install_link(span, str);
 			this.current = span;
 		},
 		leave_link: function() {
 			this.current = this.current.parentNode;
+		},
+		enter_self_link: function() {
+			var span;
+			this.ensure_par();
+			span = document.createElement("span");
+			$(span).addClass("aalink");
+			span.href = "#0";
+			this.current.appendChild(span);
+			this.self_link_span = span;
+			this.self_link_str = "";
+			this.current = span;
+		},
+		leave_self_link: function() {
+			this.current = this.current.parentNode;
+			this.install_link(this.self_link_span, this.self_link_str);
+			this.self_link_span = null;
 		},
 		transform_url: function(url) {
 			if(url.match(/^file:/i)) {

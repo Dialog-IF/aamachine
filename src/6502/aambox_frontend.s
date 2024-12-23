@@ -258,7 +258,7 @@ io_getc
 
 	.(
 	jsr	io_mflush
-	lda	$0201
+	jsr	io_get_utf8
 	cmp	#10
 	bne	noret
 
@@ -276,7 +276,7 @@ io_gets
 	jsr	io_mflush
 	ldy	#0
 loop
-	lda	$0201
+	jsr	io_get_utf8
 	cmp	#10
 	beq	done
 
@@ -290,6 +290,69 @@ done
 	lda	#0
 	sta	xpos
 	sta	pendspc
+	rts
+	.)
+
+io_get_utf8
+	; output a = char
+
+	.(
+again
+	lda	$0201
+	bpl	done
+
+	and	#$1f
+	sta	f_temp
+	lda	$0201
+	asl
+	asl
+	lsr	f_temp
+	ror
+	lsr	f_temp
+	ror
+	sta	f_temp2
+
+	tya
+	pha
+	lda	ioparam
+	pha
+	lda	ioparam+1
+	pha
+
+	ldx	#$80
+loop
+	txa
+	jsr	lookupchar
+	bcs	badchar
+
+	ldy	#2
+	lda	(ioparam),y
+	bne	next
+
+	iny
+	lda	(ioparam),y
+	cmp	f_temp
+	bne	next
+
+	iny
+	lda	(ioparam),y
+	cmp	f_temp2
+	beq	found
+next
+	inx
+	jmp	loop
+badchar
+	jsr	found
+	jmp	again
+found
+	pla
+	sta	ioparam+1
+	pla
+	sta	ioparam
+	pla
+	tay
+	txa
+done
 	rts
 	.)
 

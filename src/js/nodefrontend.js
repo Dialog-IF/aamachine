@@ -52,6 +52,8 @@ const io = {
 	clear_all: function() {
 		this.par();
 	},
+	clear_links: function() {
+	},
 	print: function(str) {
 		if(!this.hidden) {
 			for(let i = 0; i < str.length; i++) {
@@ -123,11 +125,15 @@ const io = {
 			this.vspace_n(this.parse_em(id, "margin-bottom", 0));
 		}
 	},
+	enter_span: function(id) {
+	},
+	leave_span: function() {
+	},
 	enter_status: function(id) {
 		this.line();
 		this.hidden = true;
 	},
-	leave_status: function(id) {
+	leave_status: function() {
 		this.hidden = false;
 	},
 	enter_link: function(str) {
@@ -137,6 +143,14 @@ const io = {
 	enter_link_res: function(res) {
 	},
 	leave_link_res: function() {
+	},
+	enter_self_link: function() {
+	},
+	leave_self_link: function() {
+	},
+	leave_all: function() {
+		this.line();
+		this.hidden = false;
 	},
 	embed_res: function(res) {
 		this.print("[");

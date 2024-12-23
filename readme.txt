@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
-This archive contains version 0.3 of the Å-machine specification, and version
-0.3.1 of the tools and official interpreters.
+This archive contains version 0.4 of the Å-machine specification, and version
+0.4.1 of the tools and official interpreters.
 
 The following interpreters are included:
 
@@ -18,7 +18,7 @@ Version number:
 	to the specification.
 
 	* The second part changes when there are backwards-compatible changes
-	to the specification (i.e. a 0.3 interpreter must be able to run any
+	to the specification (i.e. a 0.4 interpreter must be able to run any
 	0.1 story), or when errors are corrected in the specification document.
 
 	* The third part is incremented when the tools are improved without
@@ -121,6 +121,41 @@ Project website:
 	https://linusakesson.net/dialog/aamachine/
 
 Release notes:
+
+	0.4.1:
+
+		Specification (and engines): Support for hyperlinks where the
+		target text is determined from the displayed text.
+
+		Specification (and engines): Clear Links opcode to transform
+		old hyperlinks into plain text.
+
+		Specification (and engines): Spans, i.e. inline text segments
+		with style attributes.
+
+		Specification (and engines): New runtime error: Invalid output
+		state.
+		
+		Specification (and engines): Ability to check whether a value
+		is a dictionary word that doesn't appear in the game dictionary
+		(i.e. is represented internally by a list of characters).
+
+		Specification (and engines): Ability to split and join
+		dictionary words.
+
+		Specification (and engines): Inhibit whitespace around certain
+		stop characters when they are printed as a value.
+
+		Specification (and engines): Several new opcodes and opcode
+		variants to reduce bytecode footprint.
+
+		Specification (and engines): Better text string encoding.
+
+		Specification: Several improvements and clarifications,
+		including an attempt at formalizing the output model.
+
+		Javascript engine: Now handles extremely long input lines
+		gracefully.
 
 	0.3.1:
 

@@ -23,6 +23,9 @@ uint8_t *extchars;
 uint32_t actual_crc;
 int savefile;
 int strshift;
+struct chunk *dictch;
+
+int escape_decode_bits = 7, escape_decode_boundary;
 
 typedef void (*decoder_func_t)(struct chunk *ch);
 
@@ -274,18 +277,44 @@ void decode_lang(struct chunk *ch) {
 	show_bitstream_decoder(ch->data + get16(ch->data + 0), 0, 0, 0);
 	printf("Word endings decoder:\n");
 	show_endings_decoder(ch->data + get16(ch->data + 4), 0, 1);
-	printf("Stop characters:");
+	printf("Stop characters:  ");
 	ptr = get16(ch->data + 6);
 	while(ch->data[ptr]) {
-		printf(" ");
 		put_aachar(ch->data[ptr++]);
 	}
 	printf("\n");
+	if(chunk[0].data[1] >= 4) {
+		ptr++;
+		printf("No space before:  ");
+		while(ch->data[ptr]) {
+			put_aachar(ch->data[ptr++]);
+		}
+		printf("\n");
+		ptr++;
+		printf("No space after:   ");
+		while(ch->data[ptr]) {
+			put_aachar(ch->data[ptr++]);
+		}
+		printf("\n");
+	}
+}
+
+static int put_dict(int num) {
+	int j, len, ptr;
+
+	len = dictch->data[2 + num * 3 + 0];
+	ptr = get16(dictch->data + 2 + num * 3 + 1);
+	for(j = 0; j < len; j++) {
+		put_aachar(dictch->data[ptr++]);
+	}
+	return len;
 }
 
 static int put_string(uint8_t *writ, uint8_t *decoder, uint32_t *addr) {
 	int charcount = 2, nbit = 0, state = 0;
-	uint8_t bits, code;
+	int i;
+	uint8_t bits;
+	uint32_t code;
 
 	printf("\"");
 	for(;;) {
@@ -301,8 +330,8 @@ static int put_string(uint8_t *writ, uint8_t *decoder, uint32_t *addr) {
 		} else if(code == 0x80) {
 			break;
 		} else if(code == 0x5f) {
-			code = 0x01;
-			while(!(code & 0x80)) {
+			code = 0;
+			for(i = 0; i < escape_decode_bits; i++) {
 				if(!nbit) {
 					bits = writ[(*addr)++];
 					nbit = 8;
@@ -312,8 +341,16 @@ static int put_string(uint8_t *writ, uint8_t *decoder, uint32_t *addr) {
 				bits <<= 1;
 				nbit--;
 			}
-			put_aachar(code);
-			charcount++;
+			if(chunk[0].data[1] < 4) {
+				put_aachar(0x80 + code);
+				charcount++;
+			} else if(code < escape_decode_boundary) {
+				put_aachar(0xa0 + code);
+				charcount++;
+			} else {
+				put_aachar(0x20);
+				charcount += 1 + put_dict(code - escape_decode_boundary);
+			}
 			state = 0;
 		} else {
 			put_aachar(code + 0x20);
@@ -339,24 +376,13 @@ void decode_writ(struct chunk *ch) {
 	}
 }
 
-static int put_dict(struct chunk *dict, int num) {
-	int j, len, ptr;
-
-	len = dict->data[2 + num * 3 + 0];
-	ptr = get16(dict->data + 2 + num * 3 + 1);
-	for(j = 0; j < len; j++) {
-		put_aachar(dict->data[ptr++]);
-	}
-	return len;
-}
-
 void decode_dict(struct chunk *ch) {
 	int i, n;
 
 	n = get16(ch->data);
 	for(i = 0; i < n; i++) {
 		printf("%04x: @", 0x2000 | i);
-		put_dict(ch, i);
+		put_dict(i);
 		printf("\n");
 	}
 }
@@ -365,7 +391,6 @@ void decode_maps(struct chunk *ch) {
 	int i, nmap, j, k, n, id;
 	uint8_t *map;
 	uint16_t key, value;
-	struct chunk *dictch = findchunk("DICT");
 	struct chunk *tagsch = findchunk("TAGS");
 
 	nmap = get16(ch->data);
@@ -378,7 +403,7 @@ void decode_maps(struct chunk *ch) {
 			value = get16(map + 2 + j * 4 + 2);
 			if(key >= 0x2000 && key < 0x3e00) {
 				printf("    @");
-				k = put_dict(dictch, key & 0x1fff);
+				k = put_dict(key & 0x1fff);
 			} else if(key >= 3e00 && key < 0x3f00) {
 				printf("    @");
 				put_aachar(key & 0xff);
@@ -544,7 +569,7 @@ static aaoper_t decode_oper(int type, uint8_t *code, uint32_t *addr) {
 	}
 }
 
-static int put_value(uint16_t v, struct chunk *dictch, struct chunk *tagsch) {
+static int put_value(uint16_t v, struct chunk *tagsch) {
 	int len;
 
 	if(v == 0) {
@@ -555,7 +580,7 @@ static int put_value(uint16_t v, struct chunk *dictch, struct chunk *tagsch) {
 		len += printf(")");
 	} else if(v >= 0x2000 && v < 0x3e00) {
 		len = printf("@");
-		len += put_dict(dictch, v & 0x1fff);
+		len += put_dict(v & 0x1fff);
 	} else if(v >= 0x3e20 && v < 0x3f00) {
 		printf("@");
 		put_aachar(v & 0xff);
@@ -577,7 +602,6 @@ static void decode_code(struct chunk *ch) {
 	uint8_t op;
 	aaoper_t aao[4];
 	int i, nbyte, len;
-	struct chunk *dictch = findchunk("DICT");
 	struct chunk *tagsch = findchunk("TAGS");
 	struct chunk *writch = findchunk("WRIT");
 	struct chunk *langch = findchunk("LANG");
@@ -647,20 +671,20 @@ static void decode_code(struct chunk *ch) {
 						len = printf("%d", aao[i].value);
 						break;
 					case AAO_VBYTE:
-						len = put_value(aao[i].value, dictch, tagsch);
+						len = put_value(aao[i].value, tagsch);
 						break;
 					case AAO_WORD:
 						if(op == AA_TRACEPOINT) {
 							len = printf("%d", aao[i].value);
 						} else {
-							len = put_value(aao[i].value, dictch, tagsch);
+							len = put_value(aao[i].value, tagsch);
 						}
 						break;
 					case AAO_INDEX:
 						len = printf("%d", aao[i].value);
 						break;
 					case AAO_CONST:
-						len = put_value(aao[i].value, dictch, tagsch);
+						len = put_value(aao[i].value, tagsch);
 						break;
 					case AAO_REG:
 						if(aaopinfo[op].oper[i] == AAO_DEST) {
@@ -784,11 +808,11 @@ static void decode_file(struct chunk *ch) {
 	int i;
 	uint8_t c;
 
-	printf("%-20s %6ld bytes %7.1f kB: ",
+	printf("%-20s %7ld bytes %7.1f kB: ",
 		(char *) ch->data,
 		(long) ch->size - offs,
 		(ch->size - offs) / 1024.0);
-	for(i = 0; i < 33 && offs + i < ch->size; i++) {
+	for(i = 0; i < 32 && offs + i < ch->size; i++) {
 		c = ch->data[offs + i];
 		if(c >= 0x20 && c < 0x7f) {
 			printf("%c", c);
@@ -856,7 +880,7 @@ int main(int argc, char **argv) {
 
 	if(argc < 2) {
 		fprintf(stderr, "Aa-machine tools " VERSION "\n");
-		fprintf(stderr, "Copyright 2019 Linus Akesson.\n");
+		fprintf(stderr, "Copyright 2019-2020 Linus Akesson.\n");
 		fprintf(stderr, "Usage: %s filename.aastory [chunk ...]\n", argv[0]);
 		exit(1);
 	}
@@ -909,7 +933,7 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	if(chunk[0].data[0] != 0 || chunk[0].data[1] > 3) {
+	if(chunk[0].data[0] != 0 || chunk[0].data[1] > 4) {
 		fprintf(stderr, "Error: Unsupported aastory file format version (%d.%d)\n",
 			chunk[0].data[0],
 			chunk[0].data[1]);
@@ -924,9 +948,25 @@ int main(int argc, char **argv) {
 
 	strshift = chunk[0].data[3];
 
+	dictch = findchunk("DICT");
+	if(chunk[0].data[1] >= 4 && !dictch && !savefile) {
+		fprintf(stderr, "Error: No DICT chunk.\n");
+		exit(1);
+	}
+
 	ch = findchunk("LANG");
 	if(ch) {
 		extchars = ch->data + get16(ch->data + 2);
+		if(chunk[0].data[1] >= 4) {
+			escape_decode_boundary = extchars[0] - 32;
+			if(escape_decode_boundary < 0) escape_decode_boundary = 0;
+			i = escape_decode_boundary + get16(dictch->data) - 1;
+			escape_decode_bits = 0;
+			while(i) {
+				i >>= 1;
+				escape_decode_bits++;
+			}
+		}
 	} else if(!savefile) {
 		fprintf(stderr, "Error: No LANG chunk.\n");
 		exit(1);

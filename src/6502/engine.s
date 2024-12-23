@@ -1,4 +1,5 @@
-; Aa-machine engine by Linus Akesson.
+; Aa-machine engine.
+; Copyright 2019-2020 Linus Akesson.
 
 ; Generic 6502 code; no undocumented op
 ; codes are used. Can execute from ROM.
@@ -26,8 +27,9 @@ rsta	= $54	; word, b-e
 rstc	= $56	; word, b-e
 rcwl	= $58
 rspc	= $59
-rstyle	= $5a
-divsp	= $5b
+
+divsp	= $5a
+rstyle	= $5b
 rtrace	= $5c
 rupper	= $5d
 phytmp	= $5e	; word
@@ -67,7 +69,7 @@ endpos	= $9c
 wordend	= $9d
 dictlen	= $9e
 
-stflag	= $a0
+stflag	= $a0	; 00/ff
 screenw	= $a1
 undosz	= $a2	; word
 stybase	= $a4	; word
@@ -78,15 +80,20 @@ stsizey	= $a9
 stendx	= $aa
 stdivsp	= $ab
 stfullw	= $ac
+nspan	= $ad
 
 numer	= $b0	; word
 denom	= $b2	; word
 quot	= $b4	; word
 remain	= $b6	; word
 hdbase	= $b8	; word
+escbits	= $ba
+escbnd	= $bb	; ff if old encoding
+stoptbl	= $bc	; word
+nosbpos	= $be	; index in stoptbl
+nosapos	= $bf	; index in stoptbl
 
 codeseg	= $c0	; 3 bytes, b-e, minus 1
-
 envbase	= $c8	; word
 heapsz	= $ca	; word, b-e
 auxsz	= $cc	; word, b-e
@@ -129,9 +136,13 @@ filesz	= HEAPEND+$0f8	; 3 bytes, b-e
 phy2lsb = HEAPEND+$100	; 256 bytes
 phy2msb = HEAPEND+$200	; 256 bytes
 
-; (vectors at $fffa are safe
+; CPU vectors at $fffa are safe
 ; because the heap ends more than
-; six pages from the end)
+; six pages from the end.
+; Likewise, there are six free
+; bytes at the end of phy2lsb.
+
+intbuf	= phy2lsb + $fa	; 6 bytes
 
 ridx	= regs+2*$3f
 
@@ -657,6 +668,7 @@ restartvm
 	sta	rupper
 	sta	rstyle
 	sta	divsp
+	sta	nspan
 	ldy	#2
 clrreg
 	sta	regs,y
@@ -1403,6 +1415,29 @@ heaperr
 	jmp	error
 	.)
 
+push_pair
+	; input result = tail
+	; output phydata
+	; output result
+	; output y = 1
+	; clobbers rpair
+
+	.(
+	jsr	alloc_pair
+	ldy	#3
+	lda	result+1
+	sta	(phydata),y
+	lda	result+0
+	dey
+	sta	(phydata),y
+	dey
+	lda	rpair+0
+	sta	result+0
+	lda	rpair+1
+	sta	result+1
+	rts
+	.)
+
 alloc_pair
 	; output rpair = tagged value
 	; output phydata
@@ -2145,11 +2180,11 @@ no
 
 printvalue
 	; input oper0 (clobbered)
-	; clobbers phydata, virdata
+	; clobbers phydata, virdata, phytmp
 	; clobbers oper4 or workptr ?
 	; clobbers physize
 	; clobbers databuf, memptr
-	; clobbers count, ioparam
+	; clobbers count, ioparam, temp
 
 	.(
 	jsr	derefoper0y
@@ -2183,60 +2218,34 @@ nonil
 	cmp	#$20
 	bcc	noword
 
-	; phydata = word id * 3
-
 	and	#$1f
-	sta	temp
-	sta	phydata+1
+	tay
 	lda	operlsb+0
-	sta	phydata
-	asl
-	rol	temp
-	;clc
-	adc	phydata
-	sta	phydata
-	lda	temp
-	adc	phydata+1
-	sta	phydata+1
 
-	; phydata = dict entry
+	;jmp	printdict
 
-	lda	phydata
-	clc
-	adc	dicttbl
-	sta	phydata
-	lda	phydata+1
-	adc	dicttbl+1
-	sta	phydata+1
++printdict
+	; input a = word id lsb
+	; input y = word id msb
+	; clobbers temp, phytmp, count
 
-	ldy	#0
-	lda	(phydata),y
-	sta	count
-	ldy	#2
-	lda	(phydata),y
-	clc
-	adc	dictch
-	pha
-	dey
-	lda	(phydata),y
-	adc	dictch+1
-	sta	phydata+1
-	pla
-	sta	phydata
+	.(
+	jsr	find_dict
 dictloop
 	ldy	#0
-	lda	(phydata),y
+	lda	(phytmp),y
 	jsr	vio_putc
 
-	inc	phydata
+	inc	phytmp
 	bne	noc3
 
-	inc	phydata+1
+	inc	phytmp+1
 noc3
 	dec	count
 	bne	dictloop
 
 	rts
+	.)
 noword
 	lda	#$23
 	jsr	vio_putc
@@ -2434,6 +2443,58 @@ done
 	rts
 	.)
 
+find_dict
+	; input a = word id lsb
+	; input y = word id msb
+	; output count = length
+	; output phytmp = chars
+	; clobbers temp
+
+	.(
+	; phytmp = word id * 3
+
+	sty	temp
+	sty	phytmp+1
+	sta	phytmp
+	asl
+	rol	temp
+	;clc
+	adc	phytmp
+	sta	phytmp
+	lda	temp
+	adc	phytmp+1
+	sta	phytmp+1
+
+	; phytmp = dict entry
+
+	lda	phytmp
+	clc
+	adc	dicttbl
+	sta	phytmp
+	lda	phytmp+1
+	adc	dicttbl+1
+	sta	phytmp+1
+
+	; count = length
+	; phytmp = actual chars
+
+	ldy	#0
+	lda	(phytmp),y
+	sta	count
+	ldy	#2
+	lda	(phytmp),y
+	clc
+	adc	dictch
+	pha
+	dey
+	lda	(phytmp),y
+	adc	dictch+1
+	sta	phytmp+1
+	pla
+	sta	phytmp
+	rts
+	.)
+
 convertnumber
 	; input ioparam (l-e)
 	; output ioparam = pointer
@@ -2477,14 +2538,14 @@ skip
 	lda	#$30
 	jsr	putbyte
 nonzero
-	lda	#<inpbuf
+	lda	#<intbuf
 	sta	ioparam
-	lda	#>inpbuf
+	lda	#>intbuf
 	sta	ioparam+1
 	lda	#0
 putbyte
 	ldy	temp
-	sta	inpbuf,y
+	sta	intbuf,y
 	inc	temp
 	rts
 
@@ -2504,8 +2565,8 @@ pow10msb
 
 printstring
 	; input virdata
-	; input count = expand dollar
-	; clobbers bits
+	; input quot = expand dollar
+	; clobbers bits, numer, denom
 
 	.(
 	lda	virdata+2
@@ -2539,7 +2600,7 @@ in0
 	bmi	ctrl
 
 	cmp	#$5f
-	beq	extchar
+	beq	escchar
 
 	clc
 	adc	#$20
@@ -2547,7 +2608,7 @@ in0
 	cmp	#$24
 	bne	nodollar
 
-	ldx	count
+	ldx	quot
 	bmi	nodollar
 
 	lda	regs,x
@@ -2576,7 +2637,7 @@ in0
 	pla
 	sta	virdata+0
 	pla
-	sta	count
+	sta	quot
 	jmp	wasdollar
 nodollar
 	jsr	vio_putc
@@ -2606,21 +2667,60 @@ postwrap1
 	bne	bitloop	; always
 done
 	rts
-extchar
-	lda	#$01
-	sta	count
-extloop
-	asl	bits
-	beq	extbyte
-extloop2
-	rol	count
-	bpl	extloop
+escchar
+	lda	escbits
+	sta	denom
 
-	lda	count
+	lda	#0
+	sta	numer
+	sta	numer+1
+escloop
+	asl	bits
+	beq	escbyte
+escloop2
+	rol	numer
+	rol	numer+1
+	dec	denom
+	bne	escloop
+
+	bit	escbnd
+	bmi	oldesc
+
+	lda	numer+1
+	bne	escdict
+
+	lda	numer
+	cmp	escbnd
+	bcs	escdict
+
+	;clc
+	adc	#$a0
+esccommon
 	jsr	vio_putc
 	ldy	#0
 	beq	nextbit
-extbyte
+oldesc
+	lda	numer
+	ora	#$80
+	bmi	esccommon ; always
+escdict
+	lda	numer
+	sec
+	sbc	escbnd
+	sta	numer
+	bcs	noc3
+
+	dec	numer+1
+noc3
+	lda	#$20
+	jsr	vio_putc
+
+	lda	numer
+	ldy	numer+1
+	jsr	printdict
+	ldy	#0
+	beq	nextbit
+escbyte
 	inc	virdata+2
 	beq	wrap2
 postwrap2
@@ -2629,7 +2729,7 @@ postwrap2
 	sec
 	rol
 	sta	bits
-	bne	extloop2 ; always
+	bne	escloop2 ; always
 wrap1
 	inc	virdata+1
 	bne	noc1
@@ -2714,7 +2814,13 @@ wasinc
 
 op_assign
 	.(
+	bcs	wasbyte
+
 	jsr	fetchvalue
+	jmp	wasval
+wasbyte
+	jsr	fetchvbyte
+wasval
 	lda	opermsb+0
 	sta	result+0
 	lda	operlsb+0
@@ -3042,6 +3148,37 @@ op_chk_eq
 
 	jmp	jumpvirdata
 no
+	jmp	fetchnext
+	.)
+
+op_chk_eq_2
+	.(
+	php
+	jsr	fetchwordorvbyte
+	plp
+	jsr	fetchwordorvbyte
+	jsr	fetchcode
+
+	lda	ridx+1
+	eor	operlsb+0
+	bne	no1
+
+	lda	ridx+0
+	eor	opermsb+0
+	bne	no1
+
+	jmp	jumpvirdata
+no1
+	lda	ridx+1
+	eor	operlsb+1
+	bne	no2
+
+	lda	ridx+0
+	eor	opermsb+1
+	bne	no2
+
+	jmp	jumpvirdata
+no2
 	jmp	fetchnext
 	.)
 
@@ -3385,7 +3522,7 @@ noc1
 	lda	databuf+2
 	sta	virdata+2
 	lda	#$ff
-	sta	count
+	sta	quot
 	jsr	printstring
 
 	lda	#']'
@@ -3408,11 +3545,17 @@ op_en_lv_div
 	jmp	leave
 skip
 	jmp	ldyfetchnext
+err
+	lda	#7
+	jmp	error
 enter
 	jsr	fetchindex
 	sty	`pclsb
 	lda	rcwl
 	bne	skip
+
+	lda	nspan
+	bne	err
 
 	ldx	divsp
 	lda	opermsb+0
@@ -3572,10 +3715,8 @@ post_lv_fl
 	jmp	ldyfetchnext
 	.)
 
-op_en_lv_st
+op_en_lv_span
 	.(
-	lda	#SPC_PAR
-	sta	rspc
 	bcs	leave
 
 	jsr	fetchindex
@@ -3583,8 +3724,49 @@ op_en_lv_st
 	lda	rcwl
 	bne	skip
 
-	bit	stflag
-	bmi	fail
+	ldx	divsp
+	lda	opermsb+0
+	sta	divstk,x
+	lda	operlsb+0
+	sta	divstk+1,x
+	inx
+	inx
+	stx	divsp
+
+	inc	nspan
+done
+	jsr	unstyle
+skip
+	jmp	ldyfetchnext
+leave
+	sty	`pclsb
+	lda	rcwl
+	bne	skip
+
+	dec	nspan
+
+	dec	divsp
+	dec	divsp
+	bpl	done ; always
+	.)
+
+op_en_lv_st
+	.(
+	bcs	leave
+
+	jsr	fetchindex
+	sty	`pclsb
+
+	jsr	vio_line
+	lda	#SPC_PAR
+	sta	rspc
+
+	lda	rcwl
+	bne	skip
+
+	lda	stflag
+	ora	nspan
+	bne	err
 
 	ldx	divsp
 	lda	opermsb+0
@@ -3641,10 +3823,13 @@ nobig
 	jsr	io_slocate
 skip
 	jmp	ldyfetchnext
-fail
-	jmp	failure
+err
+	lda	#7
+	jmp	error
 leave
 	sty	`pclsb
+	lda	#SPC_PAR
+	sta	rspc
 
 	lda	rcwl
 	bne	skip
@@ -3705,18 +3890,6 @@ op_get_input
 	lda	count
 	sta	wordend
 
-	; phytmp = stop chars
-
-	ldy	#7
-	lda	(lngbase),y
-	clc
-	adc	lngbase
-	sta	phytmp
-	dey
-	lda	(lngbase),y
-	adc	lngbase+1
-	sta	phytmp+1
-
 	lda	#$3f
 	sta	result+0
 	lda	#0
@@ -3732,7 +3905,7 @@ charloop
 
 	ldy	#0
 findstop
-	lda	(phytmp),y
+	lda	(stoptbl),y
 	beq	charloop
 
 	cmp	inpbuf,x
@@ -3784,43 +3957,46 @@ parseword
 	sbc	count
 	beq	done
 
+	jsr	parseword_sub
+	jsr	push_pair
+	lda	operlsb+4
+	sta	(phydata),y
+	dey
+	lda	opermsb+4
+	sta	(phydata),y
+done
+	rts
+	.)
+
+parseword_sub
+	; input count = first pos
+	; input wordend = past last pos
+	; input a = length = wordend - count
+	; output oper4
+	; store count into wordend
+	; clobbers rpair, phydata, endpos
+
+	.(
 	cmp	#1
 	bne	long
 
-	jsr	alloc_pair
-	ldy	#0
-	lda	#$3e
-	sta	(phydata),y
 	dec	wordend
 	ldx	wordend
 	lda	inpbuf,x
 
+	ldx	#$3e
+
 	cmp	#$30
-	bcc	cons
+	bcc	done1
 
 	cmp	#$3a
-	bcs	cons
+	bcs	done1
 
-	pha
-	lda	#$40
-	sta	(phydata),y
-	pla
+	ldx	#$40
 	and	#$0f
-cons
-	iny
-	sta	(phydata),y
-	iny
-	lda	result+0
-	sta	(phydata),y
-	iny
-	lda	result+1
-	sta	(phydata),y
-
-	lda	rpair+0
-	sta	result+0
-	lda	rpair+1
-	sta	result+1
-done
+done1
+	stx	opermsb+4
+	sta	operlsb+4
 	rts
 long
 	; use oper4 to build ending
@@ -3836,7 +4012,7 @@ endloop
 	ldy	endpos
 endloop2
 	lda	(endbase),y
-	beq	fail
+	beq	endfail
 
 	cmp	#$01
 	bne	nocheck
@@ -3850,11 +4026,11 @@ nocheck
 
 	iny
 	sty	endpos
-	jmp	endloop2
+	bne	endloop2 ; always
 match
 	lda	(endbase),y
 	sta	endpos
-fail
+endfail
 	; shift char and keep going
 
 	jsr	alloc_pair
@@ -3898,22 +4074,14 @@ fail
 	sta	opermsb+4
 	lda	rpair+1
 	sta	operlsb+4
-
-	jsr	alloc_pair
-	ldy	#0
-	lda	opermsb+4
-	sta	(phydata),y
-	lda	operlsb+4
-	jmp	cons
+	rts
 check
 	lda	wordend
 	sec
 	sbc	count
 	cmp	#2
-	bcs	not1
+	bcc	endfail
 
-	jmp	fail
-not1
 	ldy	#0
 	sty	dicta
 	sty	dicta+1
@@ -3971,7 +4139,7 @@ chknum
 	lda	numer+1
 	adc	#0
 	cmp	#$40
-	bcs	numfail; too large
+	bcs	numfail ; too large
 	sta	quot+1
 
 	inx
@@ -3981,13 +4149,12 @@ chknum
 	lda	count
 	sta	wordend
 
-	jsr	alloc_pair
-	ldy	#0
 	lda	quot+1
 	ora	#$40
-	sta	(phydata),y
+	sta	opermsb+4
 	lda	quot
-	jmp	cons
+	sta	operlsb+4
+	rts
 numfail
 	jmp	endloop2
 dictnofail
@@ -4066,7 +4233,7 @@ dictcmp
 
 	inx
 	iny
-	jmp	dictcmp
+	bne	dictcmp ; always
 inp_end
 	cpy	dictlen
 	beq	dictfound
@@ -4108,23 +4275,207 @@ dictfound
 	iny
 	lda	operlsb+4
 	sta	(phydata),y
+	ldx	rpair+1
 	lda	rpair+0
-	sta	dictpiv+1
-	lda	rpair+1
-	sta	dictpiv
+	bmi	tag ; always
 noextra
-	jsr	alloc_pair
-	ldy	#0
+	ldx	dictpiv
 	lda	dictpiv+1
-
+tag
 	; either turn index into
 	; dictword (noextra) or
 	; turn cons cell into extdict
-	ora	#$20
 
-	sta	(phydata),y
-	lda	dictpiv
-	jmp	cons
+	ora	#$20
+	sta	opermsb+4
+	stx	operlsb+4
+	rts
+	.)
+
+words_to_string
+	; input/output wordend = buffer pos
+	; inpbuf = buffer
+	; input oper1 = deref'd head
+	; input oper2 = deref'd tail
+
+	.(
+loop
+	lda	opermsb+1
+	bmi	neg
+
+	cmp	#$3e
+	bcc	less3e
+
+	bne	nochar
+
+	; single-character word
+
+	lda	operlsb+1
+	ldx	wordend
+	cpx	#64
+	bcs	fail
+
+	sta	inpbuf,x
+	inc	wordend
+
+	cmp	#$21
+	bcc	fail
+
+	ldy	#0
+stoploop
+	lda	(stoptbl),y
+	beq	next1
+
+	cmp	operlsb+1
+	beq	fail
+
+	iny
+	bpl	stoploop ; always
+nochar
+	cmp	#$40
+	bcc	fail
+
+	; number
+
+	and	#$3f
+	sta	ioparam+1
+	lda	operlsb+1
+	sta	ioparam
+	jsr	convertnumber
+	ldy	#0
+	ldx	wordend
+numloop
+	lda	(ioparam),y
+	beq	numdone
+
+	cpx	#64
+	bcs	fail
+	sta	inpbuf,x
+	inx
+	iny
+	bpl	numloop ; always
+numdone
+	stx	wordend
+next1
+	beq	next ; always
+fail
+	jmp	failure
+less3e
+	and	#$e0
+	cmp	#$20
+	bne	fail
+
+	; dictionary word
+
+	eor	opermsb+1
+	tay
+	lda	operlsb+1
+	jsr	find_dict
+
+	ldx	wordend
+	txa
+	clc
+	adc	count
+	cmp	#65
+	bcs	fail
+
+	ldy	#0
+dictloop
+	lda	(phytmp),y
+	sta	inpbuf,x
+	inx
+	iny
+	cpy	count
+	bne	dictloop
+
+	stx	wordend
+	beq	next ; always
+neg
+	cmp	#$e0
+	bcc	fail
+
+	; extended word
+
+	and	#$1f
+	sta	temp
+	lda	operlsb+1
+	asl
+	rol	temp
+	;clc
+	adc	hpbase
+	sta	phydata
+	lda	temp
+	adc	hpbase+1
+	sta	phydata+1
+
+	lda	opermsb+2
+	pha
+	lda	operlsb+2
+	pha
+
+	ldy	#0
+	lda	(phydata),y
+	bpl	combined
+
+	sta	opermsb+2
+	iny
+	lda	(phydata),y
+dorecurse
+	sta	operlsb+2
+	ldx	#3
+	jsr	dereflastoper
+	jsr	recurse
+
+	pla
+	sta	operlsb+2
+	pla
+	sta	opermsb+2
+	jmp	next
+combined
+	lda	opermsb+1
+	sta	opermsb+2
+	lda	operlsb+1
+	jmp	dorecurse
+next
+	lda	opermsb+2
+	cmp	#$3f
+	beq	done
+
+	and	#$e0
+	cmp	#$c0
+	bne	fail
+recurse
+	lda	opermsb+2
+	and	#$1f
+	sta	temp
+	lda	operlsb+2
+	asl
+	rol	temp
+	;clc
+	adc	hpbase
+	sta	phydata
+	lda	temp
+	adc	hpbase+1
+	sta	phydata+1
+	ldy	#0
+	lda	(phydata),y
+	sta	opermsb+1
+	iny
+	lda	(phydata),y
+	sta	operlsb+1
+	iny
+	lda	(phydata),y
+	sta	opermsb+2
+	iny
+	lda	(phydata),y
+	sta	operlsb+2
+	ldx	#2
+	jsr	dereflastoper
+	inx
+	jsr	dereflastoper
+	jmp	loop
+done
+	rts
 	.)
 
 op_if_bound
@@ -4240,14 +4591,14 @@ no
 	jmp	ifno
 	.)
 
-op_if_mem_eq
+op_if_mem_eq_1
 	.(
 	jsr	fetchfield0
 	sty	`pclsb
 	jsr	readfield
 	ldy	`pclsb
 	jsr	fetchvalue
-
+common
 	lda	operlsb+2
 	cmp	result+1
 	bne	no
@@ -4259,6 +4610,14 @@ op_if_mem_eq
 	jmp	ifyes
 no
 	jmp	ifno
+
++op_if_mem_eq_2
+	jsr	fetchfield0
+	sty	`pclsb
+	jsr	readfield
+	ldy	`pclsb
+	jsr	fetchvbyte
+	jmp	common
 	.)
 
 op_if_num
@@ -4356,6 +4715,8 @@ no
 
 op_if_word
 	.(
+	bcs	unknown
+
 	jsr	fetchvalderef
 
 	lda	opermsb+0
@@ -4370,6 +4731,28 @@ op_if_word
 	beq	yes
 no
 	jmp	ifno
+unknown
+	jsr	fetchvalderef
+
+	lda	opermsb+0
+	cmp	#$e0
+	bcc	no
+
+	and	#$1f
+	sta	temp
+	lda	operlsb+0
+	asl
+	rol	temp
+	;clc
+	adc	hpbase
+	sta	phydata
+	lda	temp
+	adc	hpbase+1
+	sta	phydata+1
+
+	ldx	#0
+	lda	(phydata,x)
+	bpl	no
 yes
 	jmp	ifyes
 	.)
@@ -4450,8 +4833,19 @@ op_link
 	bcs	leave
 
 	jsr	fetchvalue
+	inc	nspan
+	inc	nspan
 leave
+	dec	nspan
 	jmp	fetchnext
+
++op_selflink
+	bcs	leave
+
+	sty	`pclsb
+	jsr	syncspace
+	inc	nspan
+	jmp	ldyfetchnext
 	.)
 
 op_load_byte
@@ -5143,24 +5537,57 @@ printstr_common
 	jsr	fetchstring
 	sty	`pclsb
 	lda	#$ff
-	sta	count
+	sta	quot
 	jsr	printstring
 	jmp	ldyfetchnext
 	.)
 
 op_print_val
 	.(
-	jsr	fetchvalue
+	jsr	fetchvalderef
 	sty	`pclsb
 
 	lda	rcwl
 	bne	collect
 
+	lda	opermsb+0
+	cmp	#$3e
+	bne	nochar
+
+	ldy	nosbpos
+loop1
+	lda	(stoptbl),y
+	beq	done1
+
+	iny
+	cmp	operlsb+0
+	bne	loop1
+
+	lda	#SPC_NO
+	sta	rspc
+done1
+	jsr	syncspace
+	lda	operlsb+0
+	jsr	vio_putc
+
+	ldy	nosapos
+loop2
+	lda	(stoptbl),y
+	beq	done2
+
+	iny
+	cmp	operlsb+0
+	bne	loop2
+
+	lda	#SPC_NO
+	bne	done ; always
+nochar
 	jsr	syncspace
 
 	jsr	printvalue
-
+done2
 	lda	#SPC_AUTO
+done
 	sta	rspc
 	jmp	ldyfetchnext
 collect
@@ -5545,13 +5972,15 @@ badtype
 op_save
 	.(
 	lda	stflag
-	bmi	fail
+	ora	nspan
+	bne	err
 
 	bcc	savegame
 
 	jmp	saveundo
-fail
-	jmp	failure
+err
+	lda	#7
+	jmp	error
 savegame
 	.(
 	sty	`pclsb
@@ -5730,6 +6159,15 @@ loop
 	.)
 
 	.(
+	lda	#SPC_PAR
+	cmp	rspc
+	bcs	nosat
+
+	sta	rspc
+nosat
+	.)
+
+	.(
 	ldy	`pclsb
 	jsr	fetchcode
 	sty	`pclsb
@@ -5811,9 +6249,10 @@ saveundo
 	;	inbase..
 	;	regs
 	;	inpbuf = special regs
+	;	divstk
 	; total size in undosz
 
-	ldx	#25
+	ldx	#25+1	;+1 for divsp
 copy
 	lda	specreg,x
 	sta	inpbuf,x
@@ -6501,6 +6940,207 @@ done
 	jmp	ldystorefetchnext
 	.)
 
+op_split_word
+	.(
+	bcc	split
+
+	; join_words
+
+	jsr	fetchvalderef
+	sty	`pclsb
+
+	lda	opermsb+0
+	and	#$e0
+	cmp	#$c0
+	bne	fail
+
+	lda	opermsb+0
+	and	#$1f
+	sta	temp
+	lda	operlsb+0
+	asl
+	rol	temp
+	;clc
+	adc	hpbase
+	sta	phydata
+	lda	temp
+	adc	hpbase+1
+	sta	phydata+1
+
+	ldy	#0
+	lda	(phydata),y
+	sta	opermsb+1
+	iny
+	lda	(phydata),y
+	sta	operlsb+1
+	iny
+	lda	(phydata),y
+	sta	opermsb+2
+	iny
+	lda	(phydata),y
+	sta	operlsb+2
+	ldx	#2
+	jsr	dereflastoper
+	inx
+	jsr	dereflastoper
+
+	lda	opermsb+2
+	cmp	#$3f
+	bne	nosingle
+
+	lda	opermsb+1
+	cmp	#$3e
+	bne	nosingle
+
+	sta	result+0
+	lda	operlsb+1
+	sta	result+1
+	jmp	ldystorefetchnext
+nosingle
+	ldx	#0
+	stx	wordend
+	jsr	words_to_string
+	lda	#0
+	sta	count
+	lda	wordend
+	jsr	parseword_sub
+	lda	opermsb+4
+	sta	result+0
+	lda	operlsb+4
+	sta	result+1
+	jmp	ldystorefetchnext
+fail
+	jmp	failure
+split
+	jsr	fetchvalderef
+
+	lda	#$3f
+	sta	result+0
+	lda	#0
+	sta	result+1
+	sty	`pclsb
+
+	lda	opermsb+0
+	bmi	neg
+
+	cmp	#$40
+	bcs	num
+
+	cmp	#$3e
+	beq	char
+
+	bcs	fail
+
+	cmp	#$20
+	bcc	fail
+
+	and	#$1f
+	tay
+	lda	operlsb+0
+	jmp	prepend
+neg
+	cmp	#$e0
+	bcc	fail
+
+	and	#$1f
+	sta	temp
+	lda	operlsb+0
+	asl
+	rol	temp
+	;clc
+	adc	hpbase
+	sta	phydata
+	lda	temp
+	adc	hpbase+1
+	sta	phydata+1
+	ldy	#0
+	lda	(phydata),y
+	bpl	combined
+
+	sta	result+0
+	iny
+	lda	(phydata),y
+	sta	result+1
+	jmp	ldystorefetchnext
+num
+	and	#$3f
+	sta	ioparam+1
+	lda	operlsb+0
+	sta	ioparam
+	jsr	convertnumber
+	ldy	#$ff
+find0
+	iny
+	lda	(ioparam),y
+	bne	find0
+
+	sty	count
+mknum
+	jsr	push_pair
+	ldy	count
+	dey
+	lda	(ioparam),y
+	and	#$0f
+	ldy	#1
+	sta	(phydata),y
+	dey
+	lda	#$40
+	sta	(phydata),y
+	dec	count
+	bne	mknum
+
+	jmp	ldystorefetchnext
+char
+	jsr	push_pair
+	lda	operlsb+0
+	sta	(phydata),y
+	dey
+	lda	opermsb+0
+	sta	(phydata),y
+	jmp	ldystorefetchnext
+combined
+	ldy	#3
+	lda	(phydata),y
+	sta	result+1
+	dey
+	lda	(phydata),y
+	sta	result+0
+	dey
+	lda	(phydata),y
+	tax
+	dey
+	lda	(phydata),y
+	and	#$1f
+	tay
+	txa
+prepend
+	jsr	find_dict
+chloop
+	jsr	push_pair
+	ldy	count
+	dey
+	lda	(phytmp),y
+	ldy	#1
+	ldx	#$3e
+	cmp	#$30
+	bcc	nodigit
+
+	cmp	#$3a
+	bcs	nodigit
+
+	and	#$0f
+	ldx	#$40
+nodigit
+	sta	(phydata),y
+	dey
+	txa
+	sta	(phydata),y
+	dec	count
+	bne	chloop
+
+	jmp	ldystorefetchnext
+	.)
+
 op_stop
 	.(
 	lda	rstc
@@ -7010,21 +7650,21 @@ op_trace
 	sty	`pclsb
 	jsr	vio_line
 	lda	#$ff
-	sta	count
+	sta	quot
 	jsr	printstring
 	lda	#'('
 	jsr	vio_putc
 	ldy	`pclsb
 	jsr	fetchstring
 	sty	`pclsb
-	inc	count
+	inc	quot
 	jsr	printstring
 	lda	#')'
 	jsr	vio_putc
 	lda	#$20
 	jsr	vio_putc
 	ldy	`pclsb
-	dec	count
+	dec	quot
 	jsr	fetchstring
 	sty	`pclsb
 	jsr	printstring
@@ -7200,7 +7840,7 @@ cdone
 	jmp	ldystorefetchnext
 	.)
 
-N_EXT0	= $0f
+N_EXT0	= $10
 ext0_lsb
 	.byt	<ext0_quit	; 00
 	.byt	<ext0_restart	; 01
@@ -7217,6 +7857,7 @@ ext0_lsb
 	.byt	<ext0_inc_cwl	; 0c
 	.byt	<ext0_dec_cwl	; 0d
 	.byt	<ext0_upper	; 0e
+	.byt	<ext0_clr_links	; 0f
 ext0_msb
 	.byt	>ext0_quit	; 00
 	.byt	>ext0_restart	; 01
@@ -7233,6 +7874,7 @@ ext0_msb
 	.byt	>ext0_inc_cwl	; 0c
 	.byt	>ext0_dec_cwl	; 0d
 	.byt	>ext0_upper	; 0e
+	.byt	>ext0_clr_links	; 0f
 
 ext0_quit
 	jsr	io_mflush
@@ -7478,7 +8120,7 @@ ext0_undo
 
 	bcs	err
 
-	ldx	#25
+	ldx	#25+1
 copy
 	lda	inpbuf,x
 	sta	specreg,x
@@ -7528,30 +8170,39 @@ skip
 ext0_clear
 	.(
 	lda	rcwl
-	ora	stflag
 	bne	skip
+
+	lda	stflag
+	ora	nspan
+	beq	doclear
+err
+	lda	#7
+	jmp	error
+
++ext0_clear_all
+	lda	rcwl
+	bne	skip
+
+	lda	stflag
+	ora	nspan
+	bne	err
+
+	jsr	io_mclear ; more-prompt
+	lda	#0
+	jsr	io_sprepare
 doclear
 	jsr	io_mclear
 	lda	#SPC_PAR
 	sta	rspc
 skip
 	jmp	ldyfetchnext
-
-+ext0_clear_all
-	lda	rcwl
-	ora	stflag
-	bne	skip
-
-	jsr	io_mclear ; more-prompt
-	lda	#0
-	jsr	io_sprepare
-	jmp	doclear
 	.)
 
 ext0_trace_on
 	lda	#$ff
 	sta	rtrace
 ext0_scrpt_off
+ext0_clr_links
 	jmp	ldyfetchnext
 
 ext0_trace_off
@@ -8356,7 +9007,7 @@ optable
 	.word	op_stop		; 1c
 	.word	op_push_stop	; 1d
 	.word	op_pop_stop	; 1e
-	.word	op_bad		; 1f
+	.word	op_split_word	; 1f
 	.word	op_load_word	; 20
 	.word	op_load_byte	; 21
 	.word	op_load_val	; 22
@@ -8383,10 +9034,10 @@ optable
 	.word	op_if_unify	; 37
 	.word	op_if_gt	; 38
 	.word	op_if_eq	; 39
-	.word	op_if_mem_eq	; 3a
+	.word	op_if_mem_eq_1	; 3a
 	.word	op_if_flag	; 3b
 	.word	op_if_cwl	; 3c
-	.word	op_bad		; 3d
+	.word	op_if_mem_eq_2	; 3d
 	.word	op_bad		; 3e
 	.word	op_bad		; 3f
 	.word	op_if_raw_eq	; 40
@@ -8399,10 +9050,10 @@ optable
 	.word	op_if_unify	; 47
 	.word	op_if_gt	; 48
 	.word	op_if_eq	; 49
-	.word	op_if_mem_eq	; 4a
+	.word	op_if_mem_eq_1	; 4a
 	.word	op_if_flag	; 4b
 	.word	op_if_cwl	; 4c
-	.word	op_bad		; 4d
+	.word	op_if_mem_eq_2	; 4d
 	.word	op_bad		; 4e
 	.word	op_bad		; 4f
 	.word	op_add_raw	; 50
@@ -8431,11 +9082,11 @@ optable
 	.word	op_en_lv_st	; 67
 	.word	op_link		; 68
 	.word	op_link		; 69
-	.word	op_bad		; 6a
+	.word	op_selflink	; 6a
 	.word	op_style	; 6b
 	.word	op_embed	; 6c
 	.word	op_progress	; 6d
-	.word	op_bad		; 6e
+	.word	op_en_lv_span	; 6e
 	.word	op_bad		; 6f
 	.word	op_ext0		; 70
 	.word	op_bad		; 71
@@ -8450,7 +9101,7 @@ optable
 	.word	op_chk_gt_eq	; 7a
 	.word	op_chk_gt	; 7b
 	.word	op_chk_wordmap	; 7c
-	.word	op_bad		; 7d
+	.word	op_chk_eq_2	; 7d
 	.word	op_bad		; 7e
 	.word	op_trace	; 7f
 
@@ -8778,7 +9429,17 @@ initengine3
 	adc	lngbase+1
 	sta	decoder+1
 
-	ldy	#5
+	ldy	#7
+	lda	(lngbase),y
+	clc
+	adc	lngbase
+	sta	stoptbl
+	dey
+	lda	(lngbase),y
+	adc	lngbase+1
+	sta	stoptbl+1
+
+	dey
 	lda	(lngbase),y
 	clc
 	adc	lngbase
@@ -8787,6 +9448,15 @@ initengine3
 	lda	(lngbase),y
 	adc	lngbase+1
 	sta	endbase+1
+
+	ldy	#$ff
+loop1
+	iny
+	lda	(stoptbl),y
+	bne	loop1
+
+	sty	nosbpos
+	sty	nosapos
 	.)
 
 	.(
@@ -8806,6 +9476,76 @@ initengine3
 	jsr	loadchunk
 	stx	mapbase
 	sty	mapbase+1
+	.)
+
+	.(
+	lda	#7
+	sta	escbits
+	lda	#$ff
+	sta	escbnd
+
+	; check minor version
+	ldy	#1+1
+	lda	(hdbase),y
+	cmp	#4
+	bcc	done
+
+	ldy	nosbpos
+	inc	nosbpos
+nosaloop
+	iny
+	lda	(stoptbl),y
+	bne	nosaloop
+
+	iny
+	sty	nosapos
+
+	inc	escbnd
+	ldy	#3
+	lda	(lngbase),y
+	clc
+	adc	lngbase
+	sta	phytmp
+	dey
+	lda	(lngbase),y
+	adc	lngbase+1
+	sta	phytmp+1
+	ldy	#0
+	lda	(phytmp),y
+	sec
+	sbc	#32
+	bmi	satbnd
+
+	sta	escbnd
+satbnd
+	sty	escbits
+	lda	(dictch),y
+	sta	phytmp+1
+	iny
+	lda	(dictch),y
+	clc
+	adc	satbnd
+	bcc	noc1
+
+	inc	phytmp+1
+	clc
+noc1
+	sbc	#0
+	bcs	noc2
+
+	dec	phytmp+1
+noc2
+	sta	phytmp
+loop
+	lda	phytmp+1
+	ora	phytmp
+	beq	done
+
+	lsr	phytmp+1
+	ror	phytmp
+	inc	escbits
+	bne	loop	; always
+done
 	.)
 
 	rts

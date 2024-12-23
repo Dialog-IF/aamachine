@@ -1,4 +1,4 @@
-// Copyright 2019 Linus Åkesson
+// Copyright 2019-2020 Linus Åkesson
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -24,10 +24,40 @@
 
 (function() {"use strict";
 
+var HEAPFULL = 0x4001;
+var AUXFULL = 0x4002;
+var EXPECTOBJ = 0x4003;
+var EXPECTBOUND = 0x4004;
+var LTSFULL = 0x4006;
+var IOSTATE = 0x4007;
+
 if(!Uint8Array.prototype.slice) {
 	Object.defineProperty(Uint8Array.prototype, "slice", {
 		value: function(begin, end) {
 			return new Uint8Array(Array.prototype.slice.call(this, begin, end));
+		}
+	});
+}
+
+if(!String.prototype.includes) {
+	Object.defineProperty(String.prototype, "includes", {
+		value: function(search, start) {
+			if(typeof start !== 'number') start = 0;
+		        if(start + search.length > this.length) return false;
+		        return this.indexOf(search, start) !== -1;
+		}
+	});
+}
+
+if(!Uint8Array.prototype.includes) {
+	Object.defineProperty(Uint8Array.prototype, "includes", {
+		value: function(elem, start) {
+			var i;
+			if(typeof start !== 'number') start = 0;
+			for(i = start; i < this.length; i++) {
+				if(this[i] === elem) return true;
+			}
+			return false;
 		}
 	});
 }
@@ -138,6 +168,7 @@ function decodechar(e, aach) {
 function decodestr(e, addr) {
 	var decoder = get16(e.lang, 0);
 	var state = 0, code, bits = 0, nbit = 0, str = "";
+	var i, len, charaddr, entry;
 
 	while(true) {
 		if(!nbit) {
@@ -152,8 +183,8 @@ function decodestr(e, addr) {
 		} else if(code == 0x80) {
 			break;
 		} else if(code == 0x5f) {
-			code = 0x01;
-			while(!(code & 0x80)) {
+			code = 0;
+			for(i = 0; i < e.esc_bits; i++) {
 				if(!nbit) {
 					bits = e.writ[addr++];
 					nbit = 8;
@@ -163,7 +194,19 @@ function decodestr(e, addr) {
 				bits <<= 1;
 				nbit--;
 			}
-			str += decodechar(e, code);
+			if(e.head[1] < 4) {
+				str += decodechar(e, 0x80 + code);
+			} else if(code < e.esc_boundary) {
+				str += decodechar(e, 0xa0 + code);
+			} else {
+				str += " ";
+				entry = 2 + (code - e.esc_boundary) * 3;
+				len = e.dict[entry];
+				charaddr = (e.dict[entry + 1] << 8) | e.dict[entry + 2];
+				for(i = 0; i < len; i++) {
+					str += decodechar(e, e.dict[charaddr + i]);
+				}
+			}
 			state = 0;
 		} else {
 			str += decodechar(e, code + 0x20);
@@ -175,6 +218,8 @@ function decodestr(e, addr) {
 }
 
 function prepare_story(file_array, io, seed, links, quit) {
+	var e, i, stopptr, stopend;
+
 	function findch(name, mandatory) {
 		var data = findchunk(file_array, name);
 		if(!data && mandatory) {
@@ -205,8 +250,6 @@ function prepare_story(file_array, io, seed, links, quit) {
 		return list;
 	}
 
-	var e;
-
 	if(getfour(file_array, 0) != "FORM" || getfour(file_array, 8) != "AAVM") {
 		throw "Not an aastory file";
 	}
@@ -235,7 +278,12 @@ function prepare_story(file_array, io, seed, links, quit) {
 		randomseed:	seed,
 		strshift:	0,
 		extchars:	0,
+		esc_bits:	7,
+		esc_boundary:	0,
 		io:		io,
+		stopchars:	[],
+		nospcbefore:	[],
+		nospcafter:	[],
 
 		reg:		new Uint16Array(64),
 		inst:		0,
@@ -256,16 +304,30 @@ function prepare_story(file_array, io, seed, links, quit) {
 
 		upper:		false,
 		trace:		false,
-		in_status:	null,
 		divs:		[],
+		in_status:	false,
+		n_statusdiv:	0,
+		n_span:		0,
+		n_link:		0,
 
 		undodata:	[],
 		pruned_undo:	false,
 		havelinks:	links,
-		havequit:	quit
+		havequit:	quit,
+
+		create_pair:	function(head, tail, e) {
+			var addr = this.top;
+			this.top += 2;
+			if(this.top > this.env || this.top > this.cho) {
+				throw HEAPFULL;
+			}
+			this.heapdata[addr + 0] = head;
+			this.heapdata[addr + 1] = tail;
+			return addr | 0xc000;
+		}
 	};
 
-	if(e.head[0] != 0 || e.head[1] > 3) {
+	if(e.head[0] != 0 || e.head[1] > 4) {
 		throw "Unsupported aastory file format version (" + e.head[0] + "." + e.head[1] + ")";
 	}
 	if(e.head[2] != 2) {
@@ -277,6 +339,32 @@ function prepare_story(file_array, io, seed, links, quit) {
 	e.ramdata = new Uint16Array(get16(e.head, 20));
 	e.strshift = e.head[3];
 	e.extchars = get16(e.lang, 2);
+
+	if(e.head[1] >= 4) {
+		e.esc_boundary = e.lang[e.extchars] - 32;
+		if(e.esc_boundary < 0) e.esc_boundary = 0;
+		i = e.esc_boundary + get16(e.dict, 0) - 1;
+		e.esc_bits = 0;
+		while(i) {
+			i >>= 1;
+			e.esc_bits++;
+		}
+	}
+
+	stopptr = get16(e.lang, 6);
+	stopend = stopptr;
+	while(e.lang[stopend]) stopend++;
+	e.stopchars = e.lang.slice(stopptr, stopend);
+	if(e.head[1] >= 4) {
+		stopptr = stopend + 1;
+		stopend = stopptr;
+		while(e.lang[stopend]) stopend++;
+		e.nospcbefore = e.lang.slice(stopptr, stopend);
+		stopptr = stopend + 1;
+		stopend = stopptr;
+		while(e.lang[stopend]) stopend++;
+		e.nospcafter = e.lang.slice(stopptr, stopend);
+	}
 
 	vm_reinit(e);
 	vm_reset(e, 0, true);
@@ -370,7 +458,7 @@ function vm_reset(e, arg0, clear_undo) {
 	e.spc = e.SP_LINE;
 	e.divs = [];
 	e.upper = false;
-	e.in_status = null;
+	e.in_status = false;
 	if(clear_undo) {
 		e.undodata = [];
 		e.pruned_undo = false;
@@ -422,10 +510,10 @@ function vm_capture_state(e, new_inst) {
 }
 
 function vm_clear_divs(e) {
-	while(e.divs.length) {
-		e.divs.pop();
-		e.io.leave_div();
-	}
+	e.io.leave_all();
+	e.in_status = false;
+	e.n_span = 0;
+	e.n_link = 0;
 	e.divs = [];
 }
 
@@ -580,12 +668,6 @@ function vm_unwrap_savefile(e, filedata) {
 }
 
 function vm_run(e, param) {
-	var HEAPFULL = 0x4001;
-	var AUXFULL = 0x4002;
-	var EXPECTOBJ = 0x4003;
-	var EXPECTBOUND = 0x4004;
-	var LTSFULL = 0x4006;
-
 	var io = e.io;
 	var op, a1, a2, a3, a4, addr, tmp, v, i, j, flag, iter, match, curr, str;
 
@@ -1164,6 +1246,62 @@ function vm_run(e, param) {
 		}
 	}
 
+	function prepend_chars(v, list) {
+		var entry, len, addr, i, ch;
+
+		entry = 2 + (v & 0x1fff) * 3;
+		len = e.dict[entry];
+		addr = (e.dict[entry + 1] << 8) | e.dict[entry + 2];
+		for(i = len - 1; i >= 0; i--) {
+			ch = e.dict[addr + i];
+			if(ch >= '0' && ch <= '9') {
+				ch += 0x4000 - '0';
+			} else {
+				ch |= 0x3e00;
+			}
+			list = e.create_pair(ch, list);
+		}
+		return list;
+	}
+
+	function words_to_charlist(list) {
+		var buf = [], v, str, ch, entry, len, addr, part1;
+
+		do {
+			v = deref(e.heapdata[(list & 0x1fff) + 0]);
+			if(v >= 0xe000) {
+				part1 = e.heapdata[(v & 0x1fff) + 0];
+				if(part1 >= 0x8000) {
+					buf = buf.concat(words_to_charlist(part1));
+				} else {
+					buf = buf.concat(words_to_charlist(v));
+				}
+			} else if(v >= 0x4000 && v < 0x8000) {
+				str = (v & 0x3fff).toString();
+				for(i = 0; i < str.length; i++) {
+					buf.push(str.charCodeAt(i));
+				}
+			} else if(v >= 0x3e00 && v < 0x3f00) {
+				ch = v & 0xff;
+				if(ch <= 0x20) return 0;
+				if(e.stopchars.includes(ch)) return 0;
+				buf.push(ch);
+			} else if(v >= 0x2000 && v < 0x3e00) {
+				entry = 2 + (v & 0x1fff) * 3;
+				len = e.dict[entry];
+				addr = (e.dict[entry + 1] << 8) | e.dict[entry + 2];
+				for(i = 0; i < len; i++) {
+					buf.push(e.dict[addr + i]);
+				}
+			} else {
+				return 0;
+			}
+			list = deref(e.heapdata[(list & 0x1fff) + 1]);
+		} while((list & 0xe000) == 0xc000);
+		if(list != 0x3f00) return 0;
+		return buf;
+	}
+
 	if(param) {
 		store(e.code[e.inst++], param);
 	}
@@ -1276,8 +1414,8 @@ function vm_run(e, param) {
 				case 0x0f: // set_cho value
 					e.cho = fvalue();
 					break;
-				case 0x10: // assign value dest
-					a1 = fvalue();
+				case 0x10: case 0x90: // assign value/vbyte dest
+					a1 = (op & 0x80)? e.code[e.inst++] : fvalue();
 					a2 = e.code[e.inst++];
 					store(a2, a1);
 					break;
@@ -1383,6 +1521,54 @@ function vm_run(e, param) {
 					e.aux = e.sta;
 					e.sta = e.auxdata[--e.aux];
 					e.stc = e.auxdata[--e.aux];
+					break;
+				case 0x1f: // split_word value dest
+					a1 = deref(fvalue());
+					if(a1 >= 0x2000 && a1 < 0x3e00) {
+						v = prepend_chars(a1, 0x3f00);
+					} else if(a1 >= 0x3e00 && a1 < 0x3f00) {
+						v = e.create_pair(a1, 0x3f00);
+					} else if(a1 >= 0x4000 && a1 < 0x8000) {
+						i = a1 & 0x3fff;
+						v = 0x3f00;
+						do {
+							v = e.create_pair(0x4000 | (i % 10), v);
+							i = Math.floor(i / 10);
+						} while(i);
+					} else if(a1 >= 0xe000) {
+						a2 = e.heapdata[(a1 & 0x1fff) + 0];
+						if(a2 >= 0x8000) {
+							v = a2;
+						} else {
+							a3 = e.heapdata[(a1 & 0x1fff) + 1];
+							v = prepend_chars(a2, a3);
+						}
+					} else {
+						fail();
+						break;
+					}
+					store(e.code[e.inst++], v);
+					break;
+				case 0x9f: // join_words value dest
+					a1 = deref(fvalue());
+					if((a1 & 0xe000) != 0xc000) {
+						fail();
+						break;
+					}
+					a2 = deref(e.heapdata[(a1 & 0x1fff) + 0]);
+					if((a2 & 0xff00) == 0x3e00) {
+						a3 = deref(e.heapdata[(a1 & 0x1fff) + 1]);
+						if(a3 == 0x3f00) {
+							store(e.code[e.inst++], a2);
+							break;
+						}
+					}
+					tmp = words_to_charlist(a1);
+					if(tmp) {
+						store(e.code[e.inst++], parse_word(tmp, e));
+					} else {
+						fail();
+					}
 					break;
 				case 0x20: case 0xa0: // load_word value/0 index dest
 					a1 = (op & 0x80)? 0 : fvalue();
@@ -1512,6 +1698,13 @@ function vm_run(e, param) {
 						e.inst = a2;
 					}
 					break;
+				case 0xb6: // if_listword value code
+					a1 = deref(fvalue());
+					a2 = fcode();
+					if(a1 >= 0xe000 && ((e.heapdata[a1 & 0x1fff] & 0xe000) == 0xc000)) {
+						e.inst = a2;
+					}
+					break;
 				case 0x37: // if_unify value value code
 					a1 = fvalue();
 					a2 = fvalue();
@@ -1537,9 +1730,10 @@ function vm_run(e, param) {
 					}
 					break;
 				case 0x3a: case 0xba: // if_mem_eq value/0 index value code
+				case 0x3d: case 0xbd: // if_mem_eq value/0 index vbyte code
 					a1 = (op & 0x80)? 0 : fvalue();
 					a2 = findex();
-					a3 = fvalue();
+					a3 = (op & 1)? e.code[e.inst++] : fvalue();
 					a4 = fcode();
 					if(readfield(a2, a1) == a3) {
 						e.inst = a4;
@@ -1556,6 +1750,15 @@ function vm_run(e, param) {
 				case 0x3c: // if_cwl code
 					a1 = fcode();
 					if(e.cwl) e.inst = a1;
+					break;
+				case 0x3d: case 0xbd: // if_mem_eq value/0 index vbyte code
+					a1 = (op & 0x80)? 0 : fvalue();
+					a2 = findex();
+					a3 = 
+					a4 = fcode();
+					if(readfield(a2, a1) == a3) {
+						e.inst = a4;
+					}
 					break;
 				case 0x40: case 0xc0: // ifn_raw_eq word/0 value code
 					a1 = (op & 0x80)? 0 : fword();
@@ -1607,6 +1810,13 @@ function vm_run(e, param) {
 						e.inst = a2;
 					}
 					break;
+				case 0xc6: // ifn_listword value code
+					a1 = deref(fvalue());
+					a2 = fcode();
+					if(a1 < 0xe000 || ((e.heapdata[a1 & 0x1fff] & 0xe000) != 0xc000)) {
+						e.inst = a2;
+					}
+					break;
 				case 0x47: // ifn_unify value value code
 					a1 = fvalue();
 					a2 = fvalue();
@@ -1632,9 +1842,10 @@ function vm_run(e, param) {
 					}
 					break;
 				case 0x4a: case 0xca: // ifn_mem_eq value/0 index value code
+				case 0x4d: case 0xcd: // ifn_mem_eq value/0 index vbyte code
 					a1 = (op & 0x80)? 0 : fvalue();
 					a2 = findex();
-					a3 = fvalue();
+					a3 = (op & 1)? e.code[e.inst++] : fvalue();
 					a4 = fcode();
 					if(readfield(a2, a1) != a3) {
 						e.inst = a4;
@@ -1783,7 +1994,12 @@ function vm_run(e, param) {
 				case 0xe3: // par
 					if(!e.cwl) {
 						if(e.spc < e.SP_PAR) {
-							io.par();
+							if(e.n_span) {
+								io.line();
+								io.line();
+							} else {
+								io.par();
+							}
 							e.spc = e.SP_PAR;
 						}
 					}
@@ -1796,18 +2012,32 @@ function vm_run(e, param) {
 					}
 					break;
 				case 0x65: // print_val value
-					a1 = fvalue();
+					a1 = deref(fvalue());
 					if(e.cwl) {
 						push_aux(a1);
 					} else {
-						if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) io.space();
-						io.print(val2str(a1));
-						e.spc = e.SP_AUTO;
+						if((a1 & 0xff00) == 0x3e00) {
+							tmp = a1 & 0xff;
+							if(e.spc == e.SP_PENDING || (e.spc == e.SP_AUTO && !e.nospcbefore.includes(tmp))) {
+								io.space();
+							}
+							io.print(decodechar(e, tmp));
+							if(e.nospcafter.includes(tmp)) {
+								e.spc = e.SP_NOSPACE;
+							} else {
+								e.spc = e.SP_AUTO;
+							}
+						} else {
+							if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) io.space();
+							io.print(val2str(a1));
+							e.spc = e.SP_AUTO;
+						}
 					}
 					break;
 				case 0x66: // enter_div index
 					a1 = findex();
 					if(!e.cwl) {
+						if(e.n_span) throw IOSTATE;
 						io.enter_div(a1);
 						e.divs.push(a1);
 						e.spc = e.SP_PAR;
@@ -1821,9 +2051,10 @@ function vm_run(e, param) {
 					break;
 				case 0x67: // enter_status index
 					a1 = findex();
-					if(e.in_status) {
-						fail();
-					} else if(!e.cwl) {
+					if(!e.cwl) {
+						if(e.in_status || e.n_span) {
+							throw IOSTATE;
+						}
 						io.enter_status(a1);
 						e.in_status = a1;
 						e.spc = e.SP_PAR;
@@ -1831,7 +2062,7 @@ function vm_run(e, param) {
 					break;
 				case 0xe7: // leave_status
 					if(!e.cwl) {
-						io.leave_status(e.in_status);
+						io.leave_status();
 						e.in_status = null;
 						e.spc = e.SP_PAR;
 					}
@@ -1839,43 +2070,75 @@ function vm_run(e, param) {
 				case 0x68: // enter_link_res value
 					a1 = deref(fvalue());
 					if(!e.cwl) {
-						if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) {
-							io.space();
+						if(!e.n_link) {
+							if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) {
+								io.space();
+							}
+							io.enter_link_res(get_res(a1 & 0x1fff));
 							e.spc = e.SP_NOSPACE;
 						}
-						io.enter_link_res(get_res(a1 & 0x1fff));
+						e.n_link++;
+						e.n_span++;
 					}
 					break;
 				case 0xe8: // leave_link_res
 					if(!e.cwl) {
-						io.leave_link_res();
+						e.n_link--;
+						e.n_span--;
+						if(!e.n_link) io.leave_link_res();
 					}
 					break;
 				case 0x69: // enter_link value
 					a1 = deref(fvalue());
 					if(!e.cwl) {
-						if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) {
-							io.space();
+						if(!e.n_link) {
+							if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) {
+								io.space();
+							}
+							i = e.upper;
+							e.upper = false;
+							str = "";
+							while((a1 & 0xe000) == 0xc000) {
+								v = deref(a1 - 0x4000);
+								if((v >= 0x2000 && v < 0x8000) || v >= 0xe000) {
+									if(str) str += " ";
+									str += val2str(v);
+								}
+								a1 = deref(a1 - 0x3fff);
+							}
+							io.enter_link(str);
+							e.upper = i;
 							e.spc = e.SP_NOSPACE;
 						}
-						i = e.upper;
-						e.upper = false;
-						str = "";
-						while((a1 & 0xe000) == 0xc000) {
-							v = deref(a1 - 0x4000);
-							if((v >= 0x2000 && v < 0x8000) || v >= 0xe000) {
-								if(str) str += " ";
-								str += val2str(v);
-							}
-							a1 = deref(a1 - 0x3fff);
-						}
-						io.enter_link(str);
-						e.upper = i;
+						e.n_link++;
+						e.n_span++;
 					}
 					break;
 				case 0xe9: // leave_link
 					if(!e.cwl) {
-						io.leave_link();
+						e.n_link--;
+						e.n_span--;
+						if(!e.n_link) io.leave_link();
+					}
+					break;
+				case 0x6a: // enter_self_link
+					if(!e.cwl) {
+						if(!e.n_link) {
+							if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) {
+								io.space();
+							}
+							io.enter_self_link(str);
+							e.spc = e.SP_NOSPACE;
+						}
+						e.n_link++;
+						e.n_span++;
+					}
+					break;
+				case 0xea: // leave_self_link
+					if(!e.cwl) {
+						e.n_link--;
+						e.n_span--;
+						if(!e.n_link) io.leave_self_link();
 					}
 					break;
 				case 0x6b: // set_style byte
@@ -1909,6 +2172,22 @@ function vm_run(e, param) {
 						if(a1 >= 0x4000 && a1 < 0x8000 && a2 >= 0x4000 && a2 < 0x8000) {
 							io.progressbar(a1 & 0x3fff, a2 & 0x3fff);
 						}
+					}
+					break;
+				case 0x6e: // enter_span index
+					a1 = findex();
+					if(!e.cwl) {
+						if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) io.space();
+						io.enter_span(a1);
+						e.n_span++;
+						e.spc = e.SP_NOSPACE;
+					}
+					break;
+				case 0xee: // leave_span
+					if(!e.cwl) {
+						io.leave_span();
+						e.n_span--;
+						e.spc = e.SP_AUTO;
 					}
 					break;
 				case 0x70: // ext0 byte
@@ -1950,10 +2229,19 @@ function vm_run(e, param) {
 						}
 						break;
 					case 0x06: // clear
-						io.clear();
-						break;
 					case 0x07: // clear_all
-						io.clear_all();
+						if(e.in_status || e.n_span) throw IOSTATE;
+						tmp = e.divs;
+						vm_clear_divs(e);
+						if(a1 == 0x06) {
+							io.clear();
+						} else {
+							io.clear_all();
+						}
+						for(i = 0; i < tmp.length; i++) {
+							io.enter_div(tmp[i]);
+						}
+						e.divs = tmp;
 						break;
 					case 0x08: // script_on
 						if(!io.script_on()) {
@@ -1980,29 +2268,32 @@ function vm_run(e, param) {
 							e.upper = true;
 						}
 						break;
+					case 0x0f: // clear_links
+						io.clear_links();
+						break;
 					default:
 						throw 'Unimplemented ext0 ' + a1.toString(16) + ' at ' + (e.inst - 2).toString(16);
 					}
 					break;
 				case 0x72: // save code
 					a1 = fcode();
-					if(e.in_status) {
-						fail();
-					} else if(!io.save(vm_wrap_savefile(e, vm_rlenc_state(e.initstate, vm_capture_state(e, a1))))) {
+					if(e.in_status || e.n_span) {
+						throw IOSTATE;
+					}
+					if(!io.save(vm_wrap_savefile(e, vm_rlenc_state(e.initstate, vm_capture_state(e, a1))))) {
 						fail();
 					}
 					break;
 				case 0xf2: // save_undo code
 					a1 = fcode();
-					if(e.in_status) {
-						fail();
-					} else {
-						if(e.undodata.length > 50) {
-							e.undodata = e.undodata.slice(1);
-							e.pruned_undo = true;
-						}
-						e.undodata.push(vm_rlenc_state(e.initstate, vm_capture_state(e, a1)));
+					if(e.in_status || e.n_span) {
+						throw IOSTATE;
 					}
+					if(e.undodata.length > 50) {
+						e.undodata = e.undodata.slice(1);
+						e.pruned_undo = true;
+					}
+					e.undodata.push(vm_rlenc_state(e.initstate, vm_capture_state(e, a1)));
 					break;
 				case 0x73: // get_input dest
 					if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) io.space();
@@ -2084,6 +2375,12 @@ function vm_run(e, param) {
 						e.inst = a2;
 					}
 					break;
+				case 0x7d: case 0xfd: // check_eq word/vbyte word/vbyte code
+					a1 = (op & 0x80)? e.code[e.inst++] : fword();
+					a2 = (op & 0x80)? e.code[e.inst++] : fword();
+					a3 = fcode();
+					if(e.reg[0x3f] == a1 || e.reg[0x3f] == a2) e.inst = a3;
+					break;
 				case 0x7f: // tracepoint string string string word
 					a1 = fstring();
 					a2 = fstring();
@@ -2122,35 +2419,27 @@ function vm_run(e, param) {
 	}
 }
 
-function vm_proceed_with_input(e, str) {
-	var words = [];
+function parse_word(chars, e) {
+	var state = 0;
+	var rev_ending = [];
+	var v, i, instr, next;
+	var len = chars.length;
 	var enddecoder = get16(e.lang, 4);
-	var stopptr = get16(e.lang, 6);
-
-	function buildpair(head, tail) {
-		var addr = e.top;
-		e.top += 2;
-		if(e.top > e.env || e.top > e.cho) {
-			throw HEAPFULL;
-		}
-		e.heapdata[addr + 0] = head;
-		e.heapdata[addr + 1] = tail;
-		return addr | 0xc000;
-	}
 
 	function buildlist(list) {
 		var i, v = 0x3f00;
 
 		for(i = 0; i < list.length; i++) {
-			v = buildpair(0x3e00 | list[i], v);
+			v = e.create_pair(0x3e00 | list[i], v);
 		}
 		return v;
 	}
 
-	function finddict(chars, len) {
+	function finddict() {
 		var start = 0;
 		var end = get16(e.dict, 0);
 		var diff, i, mid, dictlen, dictoffs;
+
 		while(start < end) {
 			mid = (start + end) >> 1;
 			dictlen = e.dict[2 + 3 * mid];
@@ -2177,56 +2466,48 @@ function vm_proceed_with_input(e, str) {
 		return 0;
 	}
 
-	function findextdict(chars) {
-		var state = 0;
-		var rev_ending = [];
-		var ch, v, i, instr, next;
-		var len = chars.length;
+	if(len > 1 && (v = finddict())) {
+		return v;
+	}
 
-		if(len > 1 && (v = finddict(chars, len))) {
-			return v;
-		}
+	v = 0;
+	for(i = 0; i < chars.length; i++) {
+		if(chars[i] < 0x30 || chars[i] > 0x39) break;
+		v = v * 10 + chars[i] - 0x30;
+		if(v >= 16384) break;
+	}
+	if(i == chars.length) {
+		return 0x4000 | v;
+	}
 
-		v = 0;
-		for(i = 0; i < chars.length; i++) {
-			if(chars[i] < 0x30 || chars[i] > 0x39) break;
-			v = v * 10 + chars[i] - 0x30;
-			if(v >= 16384) break;
-		}
-		if(i == chars.length) {
-			return 0x4000 | v;
-		}
+	if(len == 1) {
+		return 0x3e00 | chars[0];
+	}
 
-		if(len == 1) {
-			return 0x3e00 | chars[0];
-		}
-
-		while(true) {
-			instr = e.lang[enddecoder + state++];
-			if(!instr) {
-				while(len) rev_ending.push(chars[--len]);
-				return [rev_ending, []];
-			} else if(instr == 1) {
-				if((v = finddict(chars, len))) {
-					return [v, rev_ending];
-				}
-			} else {
-				next = e.lang[enddecoder + state++];
-				if(len > 2 && instr == chars[len - 1]) {
-					rev_ending.push(instr);
-					len--;
-					state = next;
-				}
+	while(true) {
+		instr = e.lang[enddecoder + state++];
+		if(!instr) {
+			while(len) rev_ending.push(chars[--len]);
+			return e.create_pair(buildlist(rev_ending), 0x3f00) | 0xe000;
+		} else if(instr == 1) {
+			if((v = finddict())) {
+				return e.create_pair(v, buildlist(rev_ending)) | 0xe000;
+			}
+		} else {
+			next = e.lang[enddecoder + state++];
+			if(len > 2 && instr == chars[len - 1]) {
+				rev_ending.push(instr);
+				len--;
+				state = next;
 			}
 		}
 	}
+}
 
-	var stopend = stopptr;
-	var i, j, start, v, uchar, result, entry, m, o;
+function vm_proceed_with_input(e, str) {
+	var words = [];
+	var i, j, start, v, uchar, entry;
 	var chars = new Uint8Array(str.length);
-
-	while(e.lang[stopend]) stopend++;
-	var stopchars = e.lang.slice(stopptr, stopend);
 
 	for(i = 0; i < str.length; i++) {
 		uchar = str.charCodeAt(i);
@@ -2254,10 +2535,7 @@ function vm_proceed_with_input(e, str) {
 			if(i != start) words.push(chars.slice(start, i));
 			start = i + 1;
 		} else {
-			for(j = 0; j < stopchars.length; j++) {
-				if(chars[i] == stopchars[j]) break;
-			}
-			if(j < stopchars.length) {
+			if(e.stopchars.includes(chars[i])) {
 				if(i != start) words.push(chars.slice(start, i));
 				words.push(chars.slice(i, i + 1));
 				start = i + 1;
@@ -2269,18 +2547,16 @@ function vm_proceed_with_input(e, str) {
 	v = 0x3f00;
 	try {
 		for(i = words.length - 1; i >= 0; i--) {
-			result = findextdict(words[i]);
-			if(typeof result == 'number') {
-				v = buildpair(result, v);
-			} else {
-				m = (typeof result[0] == 'number')? result[0] : buildlist(result[0]);
-				o = buildlist(result[1]);
-				v = buildpair(buildpair(m, o) | 0xe000, v);
-			}
+			v = e.create_pair(parse_word(words[i], e), v);
 		}
 	} catch(x) {
-		if(x == e.HEAPFULL) {
-			throw 'heap full';
+		if(x == HEAPFULL) {
+			if(e.spc < e.SP_LINE) {
+				e.io.line();
+			}
+			vm_clear_divs(e);
+			vm_reset(e, x, false);
+			v = null;
 		} else {
 			throw x;
 		}
