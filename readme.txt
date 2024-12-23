@@ -1,7 +1,21 @@
 This textfile uses UTF-8 encoding.
 
-This archive contains version 0.1 of the Å-machine specification, and version
-0.2 of the tools and official javascript interpreter.
+This archive contains version 0.2 of the Å-machine specification, and version
+0.2.1 of the tools and official javascript interpreter.
+
+Version number:
+
+	The version number has three parts:
+
+	* The first part changes when there are compatibility-breaking changes
+	to the specification.
+
+	* The second part changes when there are backwards-compatible changes
+	to the specification (i.e. a 0.2 interpreter must be able to run any
+	0.1 story).
+
+	* The third part is incremented when the tools are improved without
+	changing the specification.
 
 About the Å-machine:
 
@@ -80,7 +94,28 @@ Project website:
 
 Release notes:
 
-	0.2 (specification 0.1):
+	0.2.1:
+
+		Specification: Support for external resources (embedded and
+		as link targets).
+
+		Specification: Ability to check at runtime whether the
+		interpreter supports quitting.
+
+		Web interpreter: Support for embedded images, downloadable
+		feelies, and external links.
+
+		Web interpreter: Added “restart” and “save story file” menu
+		items.
+
+		Web interpreter: Don't automatically focus on the input element
+		if the last command was clicked. Only do it if the last command
+		was typed.
+
+		Node.js frontend: Slight modification to the word-wrapping
+		code, to ensure compatibility with dgdebug and dumbfrotz.
+
+	0.1.2 (formerly known as 0.2):
 
 		Engine bugfix: Runtime error handler can use undo.
 
@@ -98,7 +133,7 @@ Release notes:
 		Web frontend: Simplified the HTML wrapper by moving most of the
 		initial document structure to javascript.
 
-	0.1 (specification 0.1):
+	0.1.1 (formerly known as 0.1):
 
 		First public release of the Å-machine tools, specifications,
 		and official javascript interpreter.

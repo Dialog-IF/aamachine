@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "aavm.h"
+
 #include "table_engine.h"
 #include "table_front.h"
 #include "table_jquery.h"
@@ -30,6 +32,98 @@ struct tabledef {
 };
 
 const char *encode = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+
+uint8_t *story;
+uint32_t storysize;
+uint8_t storyname[48];
+int snamelen = 0;
+
+void visit_chunks(char *outname) {
+	uint32_t pos = 12, size;
+	uint8_t *chunk;
+	char head[5], ch;
+	int n, i;
+	FILE *f;
+
+	while(pos < storysize) {
+		chunk = story + pos;
+		memcpy(head, chunk, 4);
+		head[4] = 0;
+		size =
+			(chunk[4] << 24) |
+			(chunk[5] << 16) |
+			(chunk[6] << 8) |
+			(chunk[7] << 0);
+		chunk += 8;
+		if(!strcmp(head, "META")) {
+			n = *chunk++;
+			for(i = 0; i < n; i++) {
+				if(chunk[0] == AAMETA_TITLE) {
+					chunk++;
+					while((ch = *chunk++)) {
+						if(snamelen < sizeof(storyname) - 1) {
+							if((ch >= 'a' && ch <= 'z')
+							|| (ch >= 'A' && ch <= 'Z')
+							|| (ch >= '0' && ch <= '9')) {
+								storyname[snamelen++] = ch;
+							} else {
+								storyname[snamelen++] = '-';
+							}
+						}
+					}
+				} else {
+					while(*chunk++);
+				}
+			}
+		} else if(!strcmp(head, "FILE")) {
+			int namelen = strlen((char *) chunk);
+			int len = strlen(outname) + 64 + namelen;
+			char fname[len];
+			snprintf(fname, len, "%s/resources/%s", outname, chunk);
+			if(!(f = fopen(fname, "wb"))) {
+				fprintf(stderr, "%s: %s\n", fname, strerror(errno));
+				exit(1);
+			}
+			if(1 != fwrite(chunk + namelen + 1, size - namelen - 1, 1, f)) {
+				fprintf(stderr, "%s: write error\n", fname);
+				exit(1);
+			}
+			fclose(f);
+		}
+		pos += (8 + size + 1) & ~1;
+	}
+}
+
+void trim_chunks() {
+	uint32_t src = 12, dest = 12, size;
+	uint8_t *chunk;
+	char head[5];
+
+	while(src < storysize) {
+		chunk = story + src;
+		memcpy(head, chunk, 4);
+		head[4] = 0;
+		size =
+			(chunk[4] << 24) |
+			(chunk[5] << 16) |
+			(chunk[6] << 8) |
+			(chunk[7] << 0);
+		size = (8 + size + 1) & ~1;
+		if(strcmp(head, "FILE")) {
+			if(dest != src) {
+				memmove(chunk + dest, chunk + src, size);
+			}
+			dest += size;
+		}
+		src += size;
+	}
+
+	storysize = dest;
+	story[4] = ((storysize - 8) >> 24) & 0xff;
+	story[5] = ((storysize - 8) >> 16) & 0xff;
+	story[6] = ((storysize - 8) >> 8) & 0xff;
+	story[7] = ((storysize - 8) >> 0) & 0xff;
+}
 
 void usage(char *prgname) {
 	fprintf(stderr, "Aa-machine tools " VERSION "\n");
@@ -58,10 +152,11 @@ int main(int argc, char **argv) {
 	char *prgname = argv[0];
 	char *outname = 0;
 	char *format = "dir";
-	int opt, i, n;
+	int opt, i;
 	FILE *f, *outf;
 	uint8_t buf[12], out[4];
 	char *jsdataname, *filename;
+	uint32_t n, pos;
 
 	do {
 		opt = getopt_long(argc, argv, "?hVo:t:", longopts, 0);
@@ -126,7 +221,20 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Error: Bad or missing file header.\n");
 		exit(1);
 	}
+	storysize = 8 +
+		((buf[4] << 24) |
+		(buf[5] << 16) |
+		(buf[6] << 8) |
+		(buf[7] << 0));
 	fseek(f, 0, SEEK_SET);
+
+	story = malloc(storysize);
+	if(storysize != fread(story, 1, storysize, f)) {
+		fprintf(stderr, "Failed to read all of '%s': %s\n", argv[optind], strerror(errno));
+		exit(1);
+	}
+
+	fclose(f);
 
 	if(!strcmp(format, "dir")) {
 		int size = strlen(outname) + 64;
@@ -157,6 +265,21 @@ int main(int argc, char **argv) {
 			fclose(outf);
 		}
 
+		visit_chunks(outname);
+
+		snprintf(filename, size, "%s/resources/%s.aastory", outname, storyname);
+		if(!(outf = fopen(filename, "wb"))) {
+			fprintf(stderr, "%s: %s\n", filename, strerror(errno));
+			exit(1);
+		}
+		if(1 != fwrite(story, storysize, 1, outf)) {
+			fprintf(stderr, "%s: write error\n", filename);
+			exit(1);
+		}
+		fclose(outf);
+
+		trim_chunks();
+
 		snprintf(filename, size, "%s/resources/story.js", outname);
 		jsdataname = filename;
 	} else {
@@ -171,10 +294,17 @@ int main(int argc, char **argv) {
 
 	fprintf(outf, "window.aastory = '");
 
+	pos = 0;
 	do {
-		n = fread(buf, 1, 3, f);
+		n = storysize - pos;
+		if(n > 3) n = 3;
 		if(n) {
-			for(i = n; i < 3; i++) buf[i] = 0;
+			for(i = 0; i < n; i++) {
+				buf[i] = story[pos++];
+			}
+			for(; i < 3; i++) {
+				buf[i] = 0;
+			}
 			out[0] = buf[0] >> 2;
 			out[1] = ((buf[0] & 3) << 4) | (buf[1] >> 4);
 			out[2] = ((buf[1] & 15) << 2) | (buf[2] >> 6);
@@ -194,7 +324,6 @@ int main(int argc, char **argv) {
 	fprintf(outf, "';\n");
 
 	fclose(outf);
-	fclose(f);
 
 	return 0;
 }

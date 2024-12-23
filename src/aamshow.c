@@ -712,6 +712,65 @@ static void decode_code(struct chunk *ch) {
 	}
 }
 
+static void decode_urls(struct chunk *ch) {
+	struct chunk *langch = findchunk("LANG");
+	struct chunk *writch = findchunk("WRIT");
+	uint8_t *decoder = langch->data + get16(langch->data + 0);
+	int i, j, n;
+	uint8_t *descr;
+	uint32_t addr;
+	char *stem;
+
+	n = get16(ch->data);
+	for(i = 0; i < n; i++) {
+		descr = ch->data + get16(ch->data + 2 + i * 2);
+		addr = (descr[0] << 16) | (descr[1] << 8) | descr[2];
+		printf("%04x: URL:      %s\n", i, (char *) &descr[3]);
+		printf("      Alt-text: ");
+		put_string(writch->data, decoder, &addr);
+		printf("\n");
+		printf("      Embedded: ");
+		if(!strncmp((char *) &descr[3], "file:", 5)) {
+			stem = (char *) &descr[8];
+			for(j = 0; j < nchunk; j++) {
+				if(!strcmp(chunk[j].name, "FILE")
+				&& chunk[j].size >= strlen(stem) + 1
+				&& !strcmp((char *) chunk[j].data, stem)) {
+					printf("Yes, %ld bytes, %.1f kB\n",
+						(long) chunk[j].size - strlen(stem) - 1,
+						(chunk[j].size - strlen(stem) - 1) / 1024.0);
+					break;
+				}
+			}
+			if(j == nchunk) {
+				printf("No\n");
+			}
+		} else {
+			printf("No\n");
+		}
+	}
+}
+
+static void decode_file(struct chunk *ch) {
+	int offs = strlen((char *) ch->data) + 1;
+	int i;
+	uint8_t c;
+
+	printf("%-20s %6ld bytes %7.1f kB: ",
+		(char *) ch->data,
+		(long) ch->size - offs,
+		(ch->size - offs) / 1024.0);
+	for(i = 0; i < 33 && offs + i < ch->size; i++) {
+		c = ch->data[offs + i];
+		if(c >= 0x20 && c < 0x7f) {
+			printf("%c", c);
+		} else {
+			printf(".");
+		}
+	}
+	printf("\n");
+}
+
 struct decoder {
 	decoder_func_t	func;
 	char		name[5];
@@ -726,6 +785,7 @@ struct decoder {
 	{decode_maps, "MAPS"},
 	{decode_init, "INIT"},
 	{decode_code, "CODE"},
+	{decode_urls, "URLS"},
 	{0}
 };
 
@@ -734,9 +794,9 @@ static void list_chunks() {
 
 	printf("The following chunks are present:\n");
 	for(i = 0; i < nchunk; i++) {
-		printf("  %s %6d bytes %7.1f kB\n",
+		printf("  %s %6ld bytes %7.1f kB\n",
 			chunk[i].name,
-			chunk[i].size,
+			(long) chunk[i].size,
 			chunk[i].size / 1024.0);
 	}
 }
@@ -760,7 +820,7 @@ int main(int argc, char **argv) {
 	FILE *f;
 	uint8_t header[12];
 	uint32_t formsz, offset, padded;
-	int i, j, k;
+	int i, j, k, any;
 	struct chunk *ch;
 
 	aavm_init();
@@ -813,7 +873,7 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	if(chunk[0].data[0] != 0 || chunk[0].data[1] != 1) {
+	if(chunk[0].data[0] != 0 || chunk[0].data[1] > 2) {
 		fprintf(stderr, "Error: Unsupported aastory file format version (%d.%d)\n",
 			chunk[0].data[0],
 			chunk[0].data[1]);
@@ -859,24 +919,42 @@ int main(int argc, char **argv) {
 	} else {
 		for(i = 2; i < argc; i++) {
 			if(i > 2) printf("\n");
-			ch = findchunk(argv[i]);
-			if(ch) {
-				for(j = 0; decoder[j].func; j++) {
-					if(!strcasecmp(argv[i], decoder[j].name)) {
-						printf("=== %s ", decoder[j].name);
-						for(k = 9; k < 79; k++) printf("=");
-						printf("\n");
-						decoder[j].func(ch);
-						break;
+			if(!strcasecmp(argv[i], "FILE")) {
+				any = 0;
+				for(j = 0; j < nchunk; j++) {
+					if(!strcasecmp(chunk[j].name, "FILE")) {
+						if(!any) {
+							any = 1;
+							printf("=== FILE(s) ");
+							for(k = 12; k < 79; k++) printf("=");
+							printf("\n");
+						}
+						decode_file(&chunk[j]);
 					}
 				}
-				if(!decoder[j].func) {
-					fprintf(stderr,
-						"Error: Don't know how to decode chunk '%s'.\n",
-						ch->name);
+				if(!any) {
+					fprintf(stderr, "No 'FILE' chunk(s) present.\n");
 				}
 			} else {
-				fprintf(stderr, "Error: Failed to read chunk '%s'.\n", argv[i]);
+				ch = findchunk(argv[i]);
+				if(ch) {
+					for(j = 0; decoder[j].func; j++) {
+						if(!strcasecmp(argv[i], decoder[j].name)) {
+							printf("=== %s ", decoder[j].name);
+							for(k = 9; k < 79; k++) printf("=");
+							printf("\n");
+							decoder[j].func(ch);
+							break;
+						}
+					}
+					if(!decoder[j].func) {
+						fprintf(stderr,
+							"Error: Don't know how to decode chunk '%s'.\n",
+							ch->name);
+					}
+				} else {
+					fprintf(stderr, "Error: Failed to read chunk '%s'.\n", argv[i]);
+				}
 			}
 		}
 	}

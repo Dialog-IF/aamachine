@@ -162,6 +162,10 @@ p {
 	animation-delay: 0;
 }
 
+a {
+	text-decoration: inherit;
+}
+
 .aalink {
 	color: #875;
 }
@@ -193,4 +197,8 @@ p {
 
 #aaaboutmeta {
 	white-space: pre-line;
+}
+
+img {
+	max-width: 100%;
 }

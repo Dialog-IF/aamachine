@@ -36,8 +36,6 @@ var remoteenabled = false;
 var remoteinitialized = false;
 var remotepath, remotetag, remotesession, remotepos = 0;
 
-var safariFix = false;
-
 for(var i = 0; i < b64_enc.length; i++) {
 	b64_dec[b64_enc.charAt(i)] = i;
 }
@@ -85,17 +83,21 @@ function encode_b64(data) {
 	return str;
 }
 
-function downloaddata(fname, filedata) {
+function downloaddata(fname, filedata, is_url) {
 	var blob;
 	var url, elem;
 
-	if(window.navigator && window.navigator.msSaveOrOpenBlob) {
+	if(window.navigator && window.navigator.msSaveOrOpenBlob && !is_url) {
 		blob = new Blob([filedata.buffer], {type: "application/octet-stream"});
 		window.navigator.msSaveOrOpenBlob(blob, fname);
 	} else {
-		url = "data:application/octet-stream;base64," + encode_b64(filedata);
+		if(is_url) {
+			url = filedata;
+		} else {
+			url = "data:application/octet-stream;base64," + encode_b64(filedata);
+		}
 		elem = document.createElement("a");
-		elem.setAttribute("href", url);
+		elem.href = url;
 		elem.setAttribute("download", fname);
 		elem.innerHTML = "[click to download]";
 		io.current.appendChild(elem);
@@ -157,8 +159,18 @@ function createdoc() {
 	list.appendChild(document.createElement("hr"));
 
 	cont = document.createElement("div");
+	cont.setAttribute("id", "aarestart");
+	cont.innerHTML = "Restart game";
+	list.appendChild(cont);
+
+	cont = document.createElement("div");
 	cont.setAttribute("id", "aasavescript");
 	cont.innerHTML = "Save transcript";
+	list.appendChild(cont);
+
+	cont = document.createElement("div");
+	cont.setAttribute("id", "aasavestory");
+	cont.innerHTML = "Save story file";
 	list.appendChild(cont);
 
 	list.appendChild(document.createElement("hr"));
@@ -194,7 +206,7 @@ function createdoc() {
 	cont = document.createElement("a");
 	cont.setAttribute("target", "_blank");
 	cont.setAttribute("href", "https://linusakesson.net/dialog/aamachine/");
-	cont.innerHTML = "&Aring;-machine web interpreter v0.2";
+	cont.innerHTML = "&Aring;-machine web interpreter v0.2.1";
 	line = document.createElement("div");
 	line.setAttribute("class", "aaaboutline");
 	line.appendChild(cont);
@@ -314,6 +326,8 @@ window.run_game = function(story64, options) {
 		histpos: 0,
 		protected_inp: "",
 		transcript: aatranscript,
+		sticky_focus: false,
+		scroll_anchor: null,
 		flush: function() {
 		},
 		reset: function() {
@@ -333,6 +347,7 @@ window.run_game = function(story64, options) {
 		clear: function() {
 			if(!this.in_status) {
 				$(this.aainput).detach();
+				this.scroll_anchor = null;
 				this.current = document.getElementById("aamain");
 				$(this.current).empty();
 				this.in_par = false;
@@ -561,6 +576,7 @@ window.run_game = function(story64, options) {
 					old = io.protected_inp;
 					if(old && old.length && old[old.length - 1] != " ") old += " ";
 					$(io.aainput).val(old + str);
+					io.sticky_focus = false;
 					$(io.aainput).submit();
 				}
 				return false;
@@ -570,12 +586,48 @@ window.run_game = function(story64, options) {
 		leave_link: function() {
 			this.current = this.current.parentNode;
 		},
+		transform_url: function(url) {
+			if(url.match(/^file:/i)) {
+				return url.replace(/^file:/i, 'resources/');
+			} else {
+				return url;
+			}
+		},
+		enter_link_res: function(res) {
+			var a;
+
+			this.ensure_par();
+			a = document.createElement("a");
+			$(a).addClass("aalink");
+			a.href = this.transform_url(res.url);
+			a.setAttribute("target", "_blank");
+			this.current.appendChild(a);
+			this.current = a;
+		},
+		leave_link_res: function() {
+			this.current = this.current.parentNode;
+		},
+		embed_res: function(res) {
+			var img, data = undefined;
+
+			if(this.can_embed_res(res)) {
+				this.ensure_par();
+				img = document.createElement("img");
+				img.src = this.transform_url(res.url);
+				img.setAttribute("alt", res.alt);
+				this.current.appendChild(img);
+			} else {
+				this.print("[");
+				this.print(res.alt);
+				this.print("]");
+			}
+		},
+		can_embed_res: function(res) {
+			return !!res.url.match(/\.(png|jpe?g)$/i);
+		},
 		adjust_size: function() {
 			var aamain = $("#aamain");
 			var newheight = $(window).innerHeight() - $("#aaouterstatus").outerHeight() - (aamain.outerHeight(true) - aamain.innerHeight()) - 40;
-			if(safariFix) {
-				newheight *= 0.4;
-			}
 			aamain.height(newheight);
 		},
 		progressbar: function(p, total) {
@@ -604,7 +656,7 @@ window.run_game = function(story64, options) {
 			dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
 			tstr = ("0" + now.getHours()).slice(-2) + ("0" + now.getMinutes()).slice(-2);
 			fname = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-") + "-" + dstr + "-" + tstr + ".aasave";
-			downloaddata(fname, filedata);
+			downloaddata(fname, filedata, false);
 			return true;
 		},
 		restore: function() {
@@ -658,9 +710,18 @@ window.run_game = function(story64, options) {
 			//$(this.aainput).val($(this.current).width() + ", " + $(this.aainput).position().left);
 			this.aainput.style.maxWidth = ($(this.current).width() - $(this.aainput).position().left) + "px";
 			handleremote();
-			this.aainput.focus();
+			this.maybe_focus();
 			if(status == aaengine.status.quit || status == aaengine.status.restore) {
 				$(this.aainput).detach();
+			}
+		},
+		maybe_focus: function() {
+			if(this.sticky_focus) {
+				this.aainput.focus();
+			} else if(this.scroll_anchor) {
+				this.scroll_anchor.scrollIntoView(true);
+			} else {
+				this.aainput.scrollIntoView();
 			}
 		},
 		hist_add: function(str) {
@@ -690,14 +751,11 @@ window.run_game = function(story64, options) {
 
 	createdoc();
 
-	// When Safari on iOS shows the on-screen keyboard, it doesn't update the window size.
-	// The fix, for now, is to always leave some space at the bottom for this system.
-	var ua = window.navigator.userAgent;
-	var iOS = !!ua.match(/iPad/i) || !!ua.match(/iPhone/i);
-	var webkit = !!ua.match(/WebKit/i);
-	safariFix = iOS && webkit && !ua.match(/CriOS/i);
-
 	io.aainput = document.getElementById("aainput");
+
+	$("#aainput").on('focus', function() {
+		io.sticky_focus = true;
+	});
 
 	$("#aainput").on('input', function() {
 		if(status == aaengine.status.get_key) {
@@ -730,6 +788,7 @@ window.run_game = function(story64, options) {
 		if(status == aaengine.status.get_input) {
 			io.hist_add(str);
 			io.aainput.style.display = "none";
+			io.scroll_anchor = io.current;
 			io.current.appendChild(document.createTextNode(str));
 			io.transcript.print(str);
 			io.transcript.line();
@@ -741,6 +800,7 @@ window.run_game = function(story64, options) {
 		} else if(status == aaengine.status.get_key) {
 			io.leave_inner();
 			io.after_text = true;
+			io.scroll_anchor = null;
 			status = aaengine.vm_proceed_with_key((str && str.length)? str.charCodeAt(0) : aaengine.keys.KEY_RETURN);
 			io.activate_input();
 		}
@@ -768,7 +828,7 @@ window.run_game = function(story64, options) {
 			io.aainput.style.color = "#000";
 			$("#aastatusborder").css("background-color", "#000");
 		}
-		io.aainput.focus();
+		io.maybe_focus();
 	}
 
 	$("#aacbn").on("change", function() {
@@ -776,7 +836,7 @@ window.run_game = function(story64, options) {
 	});
 
 	$("#aacbf").on("change", function() {
-		io.aainput.focus();
+		io.maybe_focus();
 	});
 
 	$("#aamenulines").on('click', function() {
@@ -794,8 +854,17 @@ window.run_game = function(story64, options) {
 		return false;
 	});
 
+	$("#aarestart").on("click", function() {
+		document.getElementById("aamenu").style.display = "none";
+		$(this.aainput).detach();
+		io.reset();
+		status = aaengine.async_restart();
+		io.activate_input();
+		return false;
+	});
+
 	$("#aasavescript").on("click", function() {
-		var url, elem, fname, now, dstr, tstr;
+		var fname, now, dstr, tstr;
 		var bytes = [], i, ch;
 		now = new Date();
 		dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
@@ -815,7 +884,23 @@ window.run_game = function(story64, options) {
 			}
 		}
 		document.getElementById("aamenu").style.display = "none";
-		downloaddata(fname, new Uint8Array(bytes));
+		downloaddata(fname, new Uint8Array(bytes), false);
+		return false;
+	});
+
+	$("#aasavestory").on("click", function() {
+		var fname, elem;
+
+		document.getElementById("aamenu").style.display = "none";
+		fname = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-") + ".aastory";
+		elem = document.createElement("a");
+		elem.href = 'resources/' + fname;
+		elem.setAttribute('download', fname);
+		elem.setAttribute('target', '_blank');
+		elem.innerHTML = "[click to download]";
+		io.current.appendChild(elem);
+		elem.click();
+		io.current.removeChild(elem);
 		return false;
 	});
 
@@ -826,7 +911,7 @@ window.run_game = function(story64, options) {
 	update_night();
 
 	aaengine = window.aaengine;
-	aaengine.prepare_story(storybytes, io, undefined, true);
+	aaengine.prepare_story(storybytes, io, undefined, true, false);
 	io.styles = aaengine.get_styles();
 
 	metadata = aaengine.get_metadata();

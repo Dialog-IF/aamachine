@@ -168,13 +168,35 @@ function decodestr(e, addr) {
 	return str;
 }
 
-function prepare_story(file_array, io, seed, links) {
+function prepare_story(file_array, io, seed, links, quit) {
 	function findch(name, mandatory) {
 		var data = findchunk(file_array, name);
 		if(!data && mandatory) {
 			throw 'Missing ' + name + ' chunk.';
 		}
 		return data;
+	}
+
+	function findfiles() {
+		var size = get32(file_array, 4) + 8;
+		var i;
+		var pos = 12, chname, chsize, fname;
+		var list = {};
+
+		while(pos < size) {
+			chname = getfour(file_array, pos);
+			chsize = get32(file_array, pos + 4);
+			if(chname == 'FILE') {
+				fname = "";
+				for(i = 0; file_array[pos + 8 + i]; i++) {
+					fname += String.fromCharCode(file_array[pos + 8 + i]);
+				}
+				list[fname] = file_array.slice(pos + 8 + i + 1, pos + 8 + chsize);
+			}
+			pos += 8 + ((chsize + 1) & ~1);
+		}
+
+		return list;
 	}
 
 	var e;
@@ -201,6 +223,8 @@ function prepare_story(file_array, io, seed, links) {
 		writ:		findch("WRIT", true),
 		look:		findch("LOOK", true),
 		meta:		findch("META", false),
+		urls:		findch("URLS", false),
+		files:		findfiles(),
 
 		randomseed:	seed,
 		strshift:	0,
@@ -231,10 +255,11 @@ function prepare_story(file_array, io, seed, links) {
 
 		undodata:	[],
 		pruned_undo:	false,
-		havelinks:	links
+		havelinks:	links,
+		havequit:	quit
 	};
 
-	if(e.head[0] != 0 || e.head[1] != 1) {
+	if(e.head[0] != 0 || e.head[1] > 2) {
 		throw "Unsupported aastory file format version (" + e.head[0] + "." + e.head[1] + ")";
 	}
 	if(e.head[2] != 2) {
@@ -1068,6 +1093,28 @@ function vm_run(e, param) {
 		return (e.randomstate >> 16) & 0x7fff;
 	}
 
+	function get_res(id) {
+		var obj = {url: "", alt: "", options: ""};
+		var n, i, offs;
+		if(e.urls) {
+			n = get16(e.urls, 0);
+			if(id < n) {
+				offs = get16(e.urls, 2 + id * 2);
+				obj.alt = decodestr(e, (
+					(e.urls[offs] << 16) |
+					(e.urls[offs + 1] << 8) |
+					e.urls[offs + 2]) << e.strshift);
+				for(i = 3; e.urls[offs + i]; i++) {
+					obj.url += String.fromCharCode(e.urls[offs + i]);
+				}
+				for(i++; e.urls[offs + i]; i++) {
+					obj.options += String.fromCharCode(e.urls[offs + i]);
+				}
+			}
+		}
+		return obj;
+	}
+
 	if(param) {
 		store(e.code[e.inst++], param);
 	}
@@ -1789,10 +1836,20 @@ function vm_run(e, param) {
 						e.spc = e.SP_PAR;
 					}
 					break;
-				case 0x68: // enter_span index
-					a1 = findex();
+				case 0x68: // enter_link_res value
+					a1 = deref(fvalue());
+					if(!e.cwl) {
+						if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) {
+							io.space();
+							e.spc = e.SP_NOSPACE;
+						}
+						io.enter_link_res(get_res(a1 & 0x1fff));
+					}
 					break;
-				case 0xe8: // leave_span
+				case 0xe8: // leave_link_res
+					if(!e.cwl) {
+						io.leave_link_res();
+					}
 					break;
 				case 0x69: // enter_link value
 					a1 = deref(fvalue());
@@ -1835,11 +1892,15 @@ function vm_run(e, param) {
 						io.resetstyle(a1);
 					}
 					break;
-				case 0x6c: // picture value string
-					a1 = fvalue();
+				case 0x6c: // embed_res value
+					a1 = deref(fvalue());
 					if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) io.space();
-					io.print(decodestr(e, fstring()));
+					io.embed_res(get_res(a1 & 0x1fff));
 					e.spc = e.SP_AUTO;
+					break;
+				case 0xec: // can_embed_res value dest
+					a1 = deref(fvalue());
+					store(e.code[e.inst++], io.can_embed_res(get_res(a1 & 0x1fff))? 1 : 0);
 					break;
 				case 0x6d: // progress value value
 					a1 = deref(fvalue());
@@ -1976,6 +2037,9 @@ function vm_run(e, param) {
 						break;
 					case 0x42: // interpreter supports links
 						v = e.havelinks? 1 : 0;
+						break;
+					case 0x43: // interpreter supports quit
+						v = e.havequit? 1 : 0;
 						break;
 					default:
 						if(a1 < 0x40) {
@@ -2269,8 +2333,8 @@ function vm_restore(e, filedata) {
 var instance_e;
 
 var aaengine = {
-	prepare_story: function(file_array, io, seed, links) {
-		instance_e = prepare_story(file_array, io, seed, links);
+	prepare_story: function(file_array, io, seed, links, quit) {
+		instance_e = prepare_story(file_array, io, seed, links, quit);
 		this.keys = keys;
 		this.status = status;
 	},
@@ -2279,6 +2343,9 @@ var aaengine = {
 	},
 	get_metadata: function() {
 		return get_metadata(instance_e);
+	},
+	get_file: function(name) {
+		return instance_e.files[name];
 	},
 	vm_start: function() {
 		return vm_run(instance_e, null);
@@ -2291,6 +2358,10 @@ var aaengine = {
 	},
 	vm_restore: function(filedata) {
 		return vm_restore(instance_e, filedata);
+	},
+	async_restart: function() {
+		vm_reset(instance_e, 0, true);
+		return vm_run(instance_e, null);
 	}
 };
 

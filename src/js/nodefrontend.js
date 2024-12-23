@@ -22,7 +22,7 @@ const io = {
 		this.pending_spaces = 0;
 	},
 	flush: function() {
-		if(this.xpos + this.pending_word.length >= 80) {
+		if(this.xpos + this.pending_spaces + this.pending_word.length > 80) {
 			this.vspace_n(0);
 		}
 		while(this.pending_spaces) {
@@ -134,6 +134,18 @@ const io = {
 	},
 	leave_link: function() {
 	},
+	enter_link_res: function(res) {
+	},
+	leave_link_res: function() {
+	},
+	embed_res: function(res) {
+		this.print("[");
+		this.print(res.alt);
+		this.print("]");
+	},
+	can_embed_res: function(res) {
+		return false;
+	},
 	progressbar: function(p, total) {
 		if(!this.hidden) {
 			this.enter_div(-1);
@@ -185,7 +197,7 @@ if(process.argv[2] == "-s") {
 
 var storyfile = fs.readFileSync(filename);
 
-aaengine.prepare_story(storyfile, io, seed, false);
+aaengine.prepare_story(storyfile, io, seed, false, true);
 io.styles = aaengine.get_styles();
 
 status = aaengine.vm_start();
