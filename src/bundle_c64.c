@@ -175,7 +175,7 @@ void bundle_c64(char *dirname) {
 	memcpy(image[trackoffs[18 - 1] + 3] + 2, table_c64load, 254);
 	image[trackoffs[18 - 1] + 3][0] = 18;
 	image[trackoffs[18 - 1] + 3][1] = 11;
-	memcpy(image[trackoffs[18 - 1] + 11] + 2, table_c64load + 254, 254);
+	memcpy(image[trackoffs[18 - 1] + 11] + 2, table_c64load + 254, sizeof(table_c64load) - 254);
 	j = sizeof(table_c64load) - 254;
 	image[trackoffs[18 - 1] + 11][2 + j - 3] = terploc & 0xff;
 	image[trackoffs[18 - 1] + 11][2 + j - 2] = terploc >> 8;

@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
 This archive contains version 0.5 of the Å-machine specification, and version
-0.5.3 of the tools and official interpreters.
+0.5.4 of the tools and official interpreters.
 
 The following interpreters are included:
 
@@ -121,6 +121,15 @@ Project website:
 	https://linusakesson.net/dialog/aamachine/
 
 Release notes:
+
+	0.5.4:
+
+		C64 interpreter: Added German eszett characters to font.
+
+		aamshow: The disassembler can now identify absolute writes into
+		object memory.
+
+		aambundle: Minor bugfix.
 
 	0.5.3:
 

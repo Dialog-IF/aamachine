@@ -601,10 +601,11 @@ static void decode_code(struct chunk *ch) {
 	uint32_t addr, instr, straddr;
 	uint8_t op;
 	aaoper_t aao[4];
-	int i, nbyte, len;
+	int i, j, k, nbyte, len, nob;
 	struct chunk *tagsch = findchunk("TAGS");
 	struct chunk *writch = findchunk("WRIT");
 	struct chunk *langch = findchunk("LANG");
+	struct chunk *initch = findchunk("INIT");
 	uint8_t *decoder = langch->data + get16(langch->data + 0);
 
 	memset(labelled, 0, (ch->size + 7) / 8);
@@ -682,6 +683,26 @@ static void decode_code(struct chunk *ch) {
 						break;
 					case AAO_INDEX:
 						len = printf("%d", aao[i].value);
+						if(i == 1 && aao[0].type == AAO_ZERO && initch) {
+							if(op == (0x80 | AA_LOAD_VAL)
+							|| op == (0x80 | AA_STORE_VAL)
+							|| op == (0x80 | AA_IF_MEM_EQ_1)
+							|| op == (0x80 | AA_IF_MEM_EQ_2)
+							|| op == (0x80 | AA_IFN_MEM_EQ_1)
+							|| op == (0x80 | AA_IFN_MEM_EQ_2)) {
+								nob = get16(initch->data + 0);
+								j = 0;
+								k = aao[1].value + get16(initch->data + 3 * 2);
+								while(j < nob && k >= get16(initch->data + (3 + j + 1) * 2)) {
+									j++;
+								}
+								if(j) {
+									printf(" (#");
+									put_obj(tagsch, j - 1);
+									printf(", %d)", k - get16(initch->data + (3 + j) * 2));
+								}
+							}
+						}
 						break;
 					case AAO_CONST:
 						len = put_value(aao[i].value, tagsch);
@@ -880,7 +901,7 @@ int main(int argc, char **argv) {
 
 	if(argc < 2) {
 		fprintf(stderr, "Aa-machine tools " VERSION "\n");
-		fprintf(stderr, "Copyright 2019-2020 Linus Akesson.\n");
+		fprintf(stderr, "Copyright 2019-2022 Linus Akesson.\n");
 		fprintf(stderr, "Usage: %s filename.aastory [chunk ...]\n", argv[0]);
 		exit(1);
 	}

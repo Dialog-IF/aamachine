@@ -1,5 +1,5 @@
 ; Aa-machine engine.
-; Copyright 2019-2020 Linus Akesson.
+; Copyright 2019-2022 Linus Akesson.
 
 ; Generic 6502 code; no undocumented op
 ; codes are used. Can execute from ROM.

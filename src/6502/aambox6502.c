@@ -273,7 +273,7 @@ void write6502(uint16_t address, uint8_t value) {
 
 void usage(char *prgname) {
 	fprintf(stderr, "Aa-machine tools " VERSION "\n");
-	fprintf(stderr, "Copyright 2019-2020 Linus Akesson.\n");
+	fprintf(stderr, "Copyright 2019-2022 Linus Akesson.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Usage: %s [options] frontend.bin externalrom.aastory\n", prgname);
 	fprintf(stderr, "\n");
