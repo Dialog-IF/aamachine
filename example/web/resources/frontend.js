@@ -30,6 +30,7 @@ var b64_dec = [];
 var toggles = [
 	{id: "aacbf", text: "Fading text", init: true},
 	{id: "aacbl", text: "Hyperlinks", init: true},
+	{id: "aacbh", text: "Type on hover", init: false},
 	{id: "aacbs", text: "Smooth scrolling", init: false},
 	{id: "aacbn", text: "Night mode", init: false},
 	{id: "aacba", text: "Always re-focus", init: false},
@@ -207,7 +208,7 @@ function createdoc() {
 	cont.setAttribute("id", "aaaboutlink");
 	cont.setAttribute("target", "_blank");
 	cont.setAttribute("href", "https://linusakesson.net/dialog/aamachine/");
-	cont.innerHTML = "&Aring;-machine web interpreter v0.5.1";
+	cont.innerHTML = "&Aring;-machine web interpreter v0.5.2";
 	line = document.createElement("div");
 	line.setAttribute("class", "aaaboutline");
 	line.appendChild(cont);
@@ -830,14 +831,14 @@ window.run_game = function(story64, options) {
 		install_link: function(span, str) {
 			$(span).on("mouseover", function() {
 				var old;
-				if(status == aaengine.status.get_input && io.links_enabled) {
+				if(status == aaengine.status.get_input && io.links_enabled && document.getElementById("aacbh").checked) {
 					old = io.protected_inp;
 					if(old && old.length && old[old.length - 1] != " ") old += " ";
 					$(io.aainput).val(old + str);
 				}
 			});
 			$(span).on("mouseout", function() {
-				if(status == aaengine.status.get_input && io.links_enabled) {
+				if(status == aaengine.status.get_input && io.links_enabled && document.getElementById("aacbh").checked) {
 					$(io.aainput).val(io.protected_inp);
 				}
 			});
@@ -846,8 +847,12 @@ window.run_game = function(story64, options) {
 				if(!io.links_enabled || io.viewing_script) {
 					return true;
 				} else if(status == aaengine.status.get_input) {
-					old = io.protected_inp;
-					if(old && old.length && old[old.length - 1] != " ") old += " ";
+					if(document.getElementById("aacbh").checked) {
+						old = io.protected_inp;
+						if(old && old.length && old[old.length - 1] != " ") old += " ";
+					} else {
+						old = "";
+					}
 					$(io.aainput).val(old + str);
 					io.sticky_focus = false;
 					$(io.aainput).submit();

@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
 This archive contains version 0.5 of the Å-machine specification, and version
-0.5.1 of the tools and official interpreters.
+0.5.2 of the tools and official interpreters.
 
 The following interpreters are included:
 
@@ -121,6 +121,12 @@ Project website:
 	https://linusakesson.net/dialog/aamachine/
 
 Release notes:
+
+	0.5.2:
+
+		Web interpreter: Checkbox to toggle whether hovering over a
+		link causes its target to appear in the input field. Off by
+		default.
 
 	0.5.1:
 
