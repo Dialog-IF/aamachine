@@ -1,5 +1,5 @@
 CC		= gcc
-CFLAGS		+= -Wall -O3 -DVERSION=\"0.2.1\"
+CFLAGS		+= -Wall -O3 -DVERSION=\"0.2.2\"
 MINGW32		= i686-w64-mingw32-gcc
 
 all:			aamshow aambundle

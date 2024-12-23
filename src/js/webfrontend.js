@@ -206,7 +206,7 @@ function createdoc() {
 	cont = document.createElement("a");
 	cont.setAttribute("target", "_blank");
 	cont.setAttribute("href", "https://linusakesson.net/dialog/aamachine/");
-	cont.innerHTML = "&Aring;-machine web interpreter v0.2.1";
+	cont.innerHTML = "&Aring;-machine web interpreter v0.2.2";
 	line = document.createElement("div");
 	line.setAttribute("class", "aaaboutline");
 	line.appendChild(cont);

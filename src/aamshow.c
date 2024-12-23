@@ -602,7 +602,6 @@ static void decode_code(struct chunk *ch) {
 
 	for(addr = 0; addr < ch->size; ) {
 		if(labelled[addr >> 3] & 1 << (addr & 7)) {
-			if(addr) printf("\n");
 			printf("L%06x: ", addr);
 		} else {
 			printf("         ");
@@ -707,6 +706,17 @@ static void decode_code(struct chunk *ch) {
 				printf("%02x ", ch->data[instr + i]);
 				i++;
 			}
+			printf("\n");
+		}
+		if(op == AA_FAIL
+		|| op == AA_PROCEED
+		|| op == AA_JMP
+		|| op == AA_JMP_MULTI
+		|| op == AA_JMP_SIMPLE
+		|| op == AA_JMP_TAIL
+		|| op == AA_POP_ENV_PROCEED
+		|| op == AA_STOP
+		|| (op == AA_EXT0 && aao[0].value == AAEXT0_QUIT)) {
 			printf("\n");
 		}
 	}

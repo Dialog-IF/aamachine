@@ -2361,6 +2361,8 @@ var aaengine = {
 	},
 	async_restart: function() {
 		vm_reset(instance_e, 0, true);
+		vm_restore_state(instance_e, instance_e.initstate);
+		instance_e.io.reset();
 		return vm_run(instance_e, null);
 	}
 };

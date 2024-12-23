@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
 This archive contains version 0.2 of the Å-machine specification, and version
-0.2.1 of the tools and official javascript interpreter.
+0.2.2 of the tools and official javascript interpreter.
 
 Version number:
 
@@ -93,6 +93,11 @@ Project website:
 	https://linusakesson.net/dialog/aamachine
 
 Release notes:
+
+	0.2.2:
+
+		Bugfix in the javascript engine: External restart (e.g. via the
+		menu in the web interpreter) didn't work properly.
 
 	0.2.1:
 
