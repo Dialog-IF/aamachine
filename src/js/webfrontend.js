@@ -220,7 +220,7 @@ function createdoc() {
 	cont.setAttribute("id", "aaaboutlink");
 	cont.setAttribute("target", "_blank");
 	cont.setAttribute("href", "https://linusakesson.net/dialog/aamachine/");
-	cont.innerHTML = "&Aring;-machine web interpreter v0.4.3";
+	cont.innerHTML = "&Aring;-machine web interpreter v0.4.4";
 	line = document.createElement("div");
 	line.setAttribute("class", "aaaboutline");
 	line.appendChild(cont);
@@ -1011,7 +1011,7 @@ window.run_game = function(story64, options) {
 		}
 	});
 
-	$("#aainput").on('keydown', function(code) {
+	$("#aainput").on("keydown", function(code) {
 		if(code.keyCode == 27) {
 			io.aainput.blur();
 		} else if(status == aaengine.status.get_input) {
@@ -1020,6 +1020,14 @@ window.run_game = function(story64, options) {
 				return false;
 			} else if(code.keyCode == 40) {
 				io.hist_down();
+				return false;
+			} else if(code.keyCode == 33) {
+				var m = document.getElementById("aamain");
+				m.scrollBy(0, -$(m).innerHeight() * .9);
+				return false;
+			} else if(code.keyCode == 34) {
+				var m = document.getElementById("aamain");
+				m.scrollBy(0, $(m).innerHeight() * .9);
 				return false;
 			}
 		}

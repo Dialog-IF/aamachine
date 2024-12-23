@@ -51,8 +51,6 @@ void file_visitor(char *dirname, uint8_t *chunk, uint32_t size) {
 void bundle_web(char *dirname) {
 	char *filename;
 	int fnsize, i;
-	uint32_t n, pos;
-	uint8_t buf[3], out[4];
 	FILE *outf;
 
 	fnsize = strlen(dirname) + 64;
@@ -91,9 +89,18 @@ void bundle_web(char *dirname) {
 	}
 	fclose(outf);
 
-	trim_chunks(0);
-
 	snprintf(filename, fnsize, "%s/resources/story.js", dirname);
+
+	bundle_web_story(filename);
+}
+
+void bundle_web_story(char *filename) {
+	int i;
+	uint32_t n, pos;
+	uint8_t buf[3], out[4];
+	FILE *outf;
+
+	trim_chunks(0);
 
 	outf = fopen(filename, "wb");
 	if(!outf) {

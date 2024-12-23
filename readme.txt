@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
 This archive contains version 0.4 of the Å-machine specification, and version
-0.4.3 of the tools and official interpreters.
+0.4.4 of the tools and official interpreters.
 
 The following interpreters are included:
 
@@ -121,6 +121,21 @@ Project website:
 	https://linusakesson.net/dialog/aamachine/
 
 Release notes:
+
+	0.4.4:
+
+		C64 interpreter: Added French accented characters to the font.
+
+		Web interpreter: Improved support for scrolling with page up
+		and page down when the input field is active. This failed on
+		some browsers before.
+
+		aambundle: Added target "web:story" for generating just the
+		story.js file for the web interpreter. This can sometimes make
+		it easier to fit the Å-machine tools into a larger build
+		process. Be aware that the web interpreter also expects to find
+		the original .aastory file in the resources directory, with a
+		mangled filename.
 
 	0.4.3:
 

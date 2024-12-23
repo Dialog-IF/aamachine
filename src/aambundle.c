@@ -122,8 +122,13 @@ void usage(char *prgname) {
 	fprintf(stderr, "--version   -V    Display the program version.\n");
 	fprintf(stderr, "--help      -h    Display this information.\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "--output    -o    Set output directory name.\n");
-	fprintf(stderr, "--target    -t    Select target (web, c64).\n");
+	fprintf(stderr, "--output    -o    Set output directory/file name.\n");
+	fprintf(stderr, "--target    -t    Select target (web, c64, web:story).\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "Targets:\n");
+	fprintf(stderr, "web (default)     Directory with web interpreter.\n");
+	fprintf(stderr, "c64               Directory with c64 disk image.\n");
+	fprintf(stderr, "web:story         Just story.js for the web interpreter.\n");
 	exit(1);
 }
 
@@ -171,27 +176,33 @@ int main(int argc, char **argv) {
 		usage(prgname);
 	}
 
-	if(strcmp(target, "web") && strcmp(target, "c64")) {
+	if(strcmp(target, "web")
+	&& strcmp(target, "web:story")
+	&& strcmp(target, "c64")) {
 		fprintf(stderr, "Unsupported target \"%s\".\n", target);
 		exit(1);
 	}
 
 	if(!dirname) {
-		dirname = malloc(strlen(argv[optind]) + 8);
-		strcpy(dirname, argv[optind]);
-		for(i = strlen(dirname) - 1; i >= 0; i--) {
-			if(dirname[i] == '.') {
-				break;
+		if(!strcmp(target, "web:story")) {
+			dirname = "story.js";
+		} else {
+			dirname = malloc(strlen(argv[optind]) + 8);
+			strcpy(dirname, argv[optind]);
+			for(i = strlen(dirname) - 1; i >= 0; i--) {
+				if(dirname[i] == '.') {
+					break;
+				}
+				if(dirname[i] == '/' || dirname[i] == '\\') {
+					i = -1;
+					break;
+				}
 			}
-			if(dirname[i] == '/' || dirname[i] == '\\') {
-				i = -1;
-				break;
+			if(i < 0) {
+				i = strlen(dirname);
 			}
+			dirname[i] = 0;
 		}
-		if(i < 0) {
-			i = strlen(dirname);
-		}
-		dirname[i] = 0;
 	}
 
 	f = fopen(argv[optind], "rb");
@@ -225,15 +236,18 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	if(mkdir(dirname, 0777)) {
-		fprintf(stderr, "%s: %s\n", dirname, strerror(errno));
-		exit(1);
-	}
-
-	if(!strcmp(target, "web")) {
-		bundle_web(dirname);
-	} else if(!strcmp(target, "c64")) {
-		bundle_c64(dirname);
+	if(!strcmp(target, "web:story")) {
+		bundle_web_story(dirname);
+	} else {
+		if(mkdir(dirname, 0777)) {
+			fprintf(stderr, "%s: %s\n", dirname, strerror(errno));
+			exit(1);
+		}
+		if(!strcmp(target, "web")) {
+			bundle_web(dirname);
+		} else if(!strcmp(target, "c64")) {
+			bundle_c64(dirname);
+		}
 	}
 
 	return 0;

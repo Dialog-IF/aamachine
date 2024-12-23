@@ -13,3 +13,4 @@ void trim_chunks(int align_writ);
 
 void bundle_web(char *dirname);
 void bundle_c64(char *dirname);
+void bundle_web_story(char *filename);
