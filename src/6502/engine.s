@@ -9524,7 +9524,7 @@ satbnd
 	iny
 	lda	(dictch),y
 	clc
-	adc	satbnd
+	adc	escbnd
 	bcc	noc1
 
 	inc	phytmp+1
@@ -9538,6 +9538,8 @@ noc2
 	sta	phytmp
 loop
 	lda	phytmp+1
+	bmi	done
+
 	ora	phytmp
 	beq	done
 
@@ -10158,6 +10160,12 @@ initaddpage
 	sta	phydata
 	ldx	inittmp
 	ldy	inittmp+1
+	cpx	filesz+0
+	bcc	noover
+
+	cpy	filesz+1
+	bcs	over
+noover
 	jsr	swapin
 	tax
 	sta	phydata+1
@@ -10183,6 +10191,7 @@ copy
 
 	inc	inittmp
 noc1
+over
 	rts
 	.)
 

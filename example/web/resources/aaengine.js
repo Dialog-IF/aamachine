@@ -345,7 +345,7 @@ function prepare_story(file_array, io, seed, links, quit) {
 		if(e.esc_boundary < 0) e.esc_boundary = 0;
 		i = e.esc_boundary + get16(e.dict, 0) - 1;
 		e.esc_bits = 0;
-		while(i) {
+		while(i > 0) {
 			i >>= 1;
 			e.esc_bits++;
 		}

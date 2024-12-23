@@ -962,7 +962,7 @@ int main(int argc, char **argv) {
 			if(escape_decode_boundary < 0) escape_decode_boundary = 0;
 			i = escape_decode_boundary + get16(dictch->data) - 1;
 			escape_decode_bits = 0;
-			while(i) {
+			while(i > 0) {
 				i >>= 1;
 				escape_decode_bits++;
 			}

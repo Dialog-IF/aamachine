@@ -122,6 +122,14 @@ Project website:
 
 Release notes:
 
+	0.4.2:
+
+		Fixed a bug that made the Javascript engine and aamshow hang on
+		story files with no dictionary words.
+
+		Fixed a bug that made the 6502 engine crash on very small story
+		files.
+
 	0.4.1:
 
 		Specification (and engines): Support for hyperlinks where the
