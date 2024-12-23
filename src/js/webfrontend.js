@@ -32,6 +32,9 @@ var aatranscript;
 var io;
 var status;
 var metadata;
+var remoteenabled = false;
+var remoteinitialized = false;
+var remotepath, remotetag, remotesession, remotepos = 0;
 
 var safariFix = false;
 
@@ -82,8 +85,197 @@ function encode_b64(data) {
 	return str;
 }
 
-window.run_game = function(story64) {
+function downloaddata(fname, filedata) {
+	var blob;
+	var url, elem;
+
+	if(window.navigator && window.navigator.msSaveOrOpenBlob) {
+		blob = new Blob([filedata.buffer], {type: "application/octet-stream"});
+		window.navigator.msSaveOrOpenBlob(blob, fname);
+	} else {
+		url = "data:application/octet-stream;base64," + encode_b64(filedata);
+		elem = document.createElement("a");
+		elem.setAttribute("href", url);
+		elem.setAttribute("download", fname);
+		elem.innerHTML = "[click to download]";
+		io.current.appendChild(elem);
+		elem.click();
+		io.current.removeChild(elem);
+	}
+}
+
+function createdoc() {
+	var top, outer, inner, btn, menu, list, line, cont, form, main, lbl, div, inp;
+
+	top = document.getElementById("aacontainer");
+
+	outer = document.createElement("div");
+	outer.setAttribute("id", "aaouterstatus");
+	top.appendChild(outer);
+
+	btn = document.createElement("div");
+	btn.setAttribute("id", "aamenubutton");
+	outer.appendChild(btn);
+
+	menu = document.createElement("div");
+	menu.setAttribute("id", "aamenulines");
+	btn.appendChild(menu);
+
+	menu = document.createElement("div");
+	menu.setAttribute("id", "aamenu");
+	btn.appendChild(menu);
+
+	list = document.createElement("div");
+	list.setAttribute("id", "aamenulist");
+	menu.appendChild(list);
+
+	lbl = document.createElement("label");
+	lbl.setAttribute("for", "aacbf");
+	div = document.createElement("div");
+	inp = document.createElement("input");
+	inp.setAttribute("class", "aacb");
+	inp.setAttribute("id", "aacbf");
+	inp.setAttribute("type", "checkbox");
+	inp.checked = true;
+	div.appendChild(inp);
+	div.appendChild(document.createTextNode("Fading text"));
+	lbl.appendChild(div);
+	list.appendChild(lbl);
+
+	lbl = document.createElement("label");
+	lbl.setAttribute("for", "aacbn");
+	div = document.createElement("div");
+	inp = document.createElement("input");
+	inp.setAttribute("class", "aacb");
+	inp.setAttribute("id", "aacbn");
+	inp.setAttribute("type", "checkbox");
+	div.appendChild(inp);
+	div.appendChild(document.createTextNode("Night mode"));
+	lbl.appendChild(div);
+	list.appendChild(lbl);
+
+	list.appendChild(document.createElement("hr"));
+
+	cont = document.createElement("div");
+	cont.setAttribute("id", "aasavescript");
+	cont.innerHTML = "Save transcript";
+	list.appendChild(cont);
+
+	list.appendChild(document.createElement("hr"));
+
+	cont = document.createElement("div");
+	cont.setAttribute("id", "aaaboutopen");
+	cont.innerHTML = "About";
+	list.appendChild(cont);
+
+	inner = document.createElement("div");
+	inner.setAttribute("id", "aastatus");
+	outer.appendChild(inner);
+
+	outer = document.createElement("div");
+	outer.setAttribute("id", "aastatusborder");
+	top.appendChild(outer);
+
+	outer = document.createElement("div");
+	outer.setAttribute("id", "aaaboutouter");
+	top.appendChild(outer);
+
+	inner = document.createElement("div");
+	inner.setAttribute("id", "aaaboutinner");
+	outer.appendChild(inner);
+
+	line = document.createElement("div");
+	line.setAttribute("class", "aaaboutline");
+	line.setAttribute("id", "aaaboutmeta");
+	inner.appendChild(line);
+
+	inner.appendChild(document.createElement("hr"));
+
+	cont = document.createElement("a");
+	cont.setAttribute("target", "_blank");
+	cont.setAttribute("href", "https://linusakesson.net/dialog/aamachine/");
+	cont.innerHTML = "&Aring;-machine web interpreter v0.2";
+	line = document.createElement("div");
+	line.setAttribute("class", "aaaboutline");
+	line.appendChild(cont);
+	inner.appendChild(line);
+
+	inner.appendChild(document.createElement("hr"));
+
+	cont = document.createElement("div");
+	cont.setAttribute("class", "aalink");
+	cont.setAttribute("id", "aaaboutclose");
+	cont.innerHTML = "Close";
+	line = document.createElement("div");
+	line.setAttribute("class", "aaaboutline");
+	line.appendChild(cont);
+	inner.appendChild(line);
+
+	form = document.createElement("form");
+	form.setAttribute("id", "aaform");
+	form.setAttribute("autocomplete", "off");
+	top.appendChild(form);
+
+	main = document.createElement("div");
+	main.setAttribute("id", "aamain");
+	main.setAttribute("aria-live", "polite");
+	form.appendChild(main);
+
+	inp = document.createElement("input");
+	inp.setAttribute("id", "aainput");
+	inp.setAttribute("type", "text");
+	inp.setAttribute("value", "");
+	inp.setAttribute("autocomplete", "off");
+	inp.setAttribute("spellcheck", "false");
+	inp.setAttribute("autocorrect", "off");
+	inp.setAttribute("aria-live", "off");
+	main.appendChild(inp);
+}
+
+function handleremote() {
+	var fname, now, dstr, tstr, pending;
+
+	if(remoteenabled) {
+		if(!remoteinitialized) {
+			now = new Date();
+			dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
+			tstr = ("0" + now.getHours()).slice(-2) + ("0" + now.getMinutes()).slice(-2);
+			if(!remotetag) {
+				remotetag = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-");
+			}
+			remotesession = remotetag + "-" + dstr + "-" + tstr + "-" + Math.ceil(Math.random()*1000);
+			remoteinitialized = true;
+		}
+		if(remotepos < aatranscript.full.length) {
+			pending = aatranscript.full.slice(remotepos);
+			remotepos = aatranscript.full.length;
+			$.ajax({
+				type: "POST",
+				url: remotepath,
+				data: {
+					data: {
+						session: remotesession,
+						text: pending
+					}
+				},
+				error: function(c) {
+					remoteenabled = false;
+				}
+			});
+		}
+	}
+}
+
+window.run_game = function(story64, options) {
 	var storybytes = decode_b64(story64);
+
+	if(options && options.aaLogServerPath) {
+		remotepath = options.aaLogServerPath;
+		remotetag = options.aaLogTag;
+		if(window.location.href.search('nofeedback') == -1) {
+			remoteenabled = true;
+		}
+	}
 
 	aatranscript = {
 		did_line: false,
@@ -407,19 +599,12 @@ window.run_game = function(story64) {
 		script_off: function() {
 		},
 		save: function(filedata) {
-			var url, elem, fname, now, dstr, tstr;
+			var fname, now, dstr, tstr;
 			now = new Date();
 			dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
 			tstr = ("0" + now.getHours()).slice(-2) + ("0" + now.getMinutes()).slice(-2);
 			fname = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-") + "-" + dstr + "-" + tstr + ".aasave";
-			url = "data:application/octet-stream;base64," + encode_b64(filedata);
-			elem = document.createElement("a");
-			elem.setAttribute("href", url);
-			elem.setAttribute("download", fname);
-			elem.innerHTML = "[click to download]";
-			this.current.appendChild(elem);
-			elem.click();
-			this.current.removeChild(elem);
+			downloaddata(fname, filedata);
 			return true;
 		},
 		restore: function() {
@@ -472,6 +657,7 @@ window.run_game = function(story64) {
 			this.aainput.style.display = "inline-block";
 			//$(this.aainput).val($(this.current).width() + ", " + $(this.aainput).position().left);
 			this.aainput.style.maxWidth = ($(this.current).width() - $(this.aainput).position().left) + "px";
+			handleremote();
 			this.aainput.focus();
 			if(status == aaengine.status.quit || status == aaengine.status.restore) {
 				$(this.aainput).detach();
@@ -501,6 +687,8 @@ window.run_game = function(story64) {
 			}
 		}
 	};
+
+	createdoc();
 
 	// When Safari on iOS shows the on-screen keyboard, it doesn't update the window size.
 	// The fix, for now, is to always leave some space at the bottom for this system.
@@ -566,7 +754,6 @@ window.run_game = function(story64) {
 
 	$("#aamain").on("click", function() {
 		document.getElementById("aamenu").style.display = "none";
-		io.aainput.focus();
 	});
 
 	function update_night() {
@@ -627,14 +814,8 @@ window.run_game = function(story64) {
 				bytes.push(0x80 | (ch & 0x3f));
 			}
 		}
-		url = "data:application/octet-stream;base64," + encode_b64(bytes);
-		elem = document.createElement("a");
-		elem.setAttribute("href", url);
-		elem.setAttribute("download", fname);
-		elem.innerHTML = "[click to download]";
-		io.current.appendChild(elem);
-		elem.click();
-		io.current.removeChild(elem);
+		document.getElementById("aamenu").style.display = "none";
+		downloaddata(fname, new Uint8Array(bytes));
 		return false;
 	});
 
@@ -672,6 +853,9 @@ window.run_game = function(story64) {
 	});
 	$("#aaaboutclose").on("click", function() {
 		document.getElementById("aaaboutouter").style.display = "none";
+		return false;
+	});
+	$("#aaaboutinner").on("click", function() {
 		return false;
 	});
 

@@ -248,7 +248,7 @@ function prepare_story(file_array, io, seed, links) {
 	e.extchars = get16(e.lang, 2);
 
 	vm_reinit(e);
-	vm_reset(e, 0);
+	vm_reset(e, 0, true);
 	e.initstate = vm_capture_state(e, 1);
 	io.reset();
 
@@ -319,7 +319,7 @@ function vm_reinit(e) {
 	}
 }
 
-function vm_reset(e, arg0) {
+function vm_reset(e, arg0, clear_undo) {
 	var i;
 	e.reg[0] = arg0;
 	for(i = 1; i < 64; i++) {
@@ -340,8 +340,10 @@ function vm_reset(e, arg0) {
 	e.divs = [];
 	e.upper = false;
 	e.in_status = null;
-	e.undodata = [];
-	e.pruned_undo = false;
+	if(clear_undo) {
+		e.undodata = [];
+		e.pruned_undo = false;
+	}
 	e.randomstate = e.randomseed? e.randomseed : Date.now();
 }
 
@@ -1855,7 +1857,7 @@ function vm_run(e, param) {
 						io.flush();
 						return status.quit;
 					case 0x01: // restart
-						vm_reset(e, 0);
+						vm_reset(e, 0, true);
 						vm_restore_state(e, e.initstate);
 						io.reset();
 						break;
@@ -2042,7 +2044,7 @@ function vm_run(e, param) {
 			}
 		} catch(x) {
 			if(x > 0x4000 && x < 0x8000) {
-				vm_reset(e, x);
+				vm_reset(e, x, false);
 			} else {
 				throw x;
 			}
@@ -2257,7 +2259,7 @@ function vm_proceed_with_key(e, code) {
 function vm_restore(e, filedata) {
 	var v;
 	if(filedata && (v = vm_unwrap_savefile(e, filedata))) {
-		vm_reset(e, 0);
+		vm_reset(e, 0, true);
 		vm_restore_state(e, vm_rldec_state(e.initstate, v));
 	}
 	e.spc = e.SP_LINE;

@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
-This archive contains version 0.1 of the Å-machine tools, specification, and
-official javascript interpreter.
+This archive contains version 0.1 of the Å-machine specification, and version
+0.2 of the tools and official javascript interpreter.
 
 About the Å-machine:
 
@@ -80,7 +80,25 @@ Project website:
 
 Release notes:
 
-	0.1:
+	0.2 (specification 0.1):
+
+		Engine bugfix: Runtime error handler can use undo.
+
+		Web frontend: Improved CSS for progress bar.
+
+		Web frontend: Improved screen reader support.
+
+		Web frontend: Now possible to save gamestate and transcript in
+		Internet Explorer.
+
+		Web frontend: Added support for logging to a remote server.
+
+		Web frontend: Text selection now works, for copy-paste.
+
+		Web frontend: Simplified the HTML wrapper by moving most of the
+		initial document structure to javascript.
+
+	0.1 (specification 0.1):
 
 		First public release of the Å-machine tools, specifications,
 		and official javascript interpreter.

@@ -11,44 +11,15 @@
 	<link rel="stylesheet" type="text/css" href="resources/style.css" />
 	<script>
 		$(function(){
-			run_game(aastory);
+			run_game(aastory, {
+				aaLogServerPath: undefined,
+				aaLogTag: undefined,
+			});
 			aastory = null;
 		});
 	</script>
 </head>
 <body>
-	<div id="aacontainer">
-		<div id="aaouterstatus">
-			<div id="aamenubutton">
-				<div id="aamenulines"></div>
-				<div id="aamenu">
-					<div id="aamenulist">
-						<label for="aacbf"><div><input class="aacb" id="aacbf" type="checkbox" checked/>Fading text</div></label>
-						<label for="aacbn"><div><input class="aacb" id="aacbn" type="checkbox"/>Night mode</div></label>
-						<hr/>
-						<div id="aasavescript">Save transcript</div>
-						<hr/>
-						<div id="aaaboutopen">About</div>
-					</div>
-				</div>
-			</div>
-			<div id="aastatus"></div>
-		</div>
-		<div id="aastatusborder"></div>
-		<div id="aaaboutouter">
-			<div id="aaaboutinner">
-				<div class="aaaboutline" id="aaaboutmeta"></div>
-				<hr/>
-				<div class="aaaboutline"><a target="_blank" href="https://linusakesson.net/">&Aring;-machine web interpreter v0.1</a></div>
-				<hr/>
-				<div class="aaaboutline"><div class="aalink" id="aaaboutclose">Close</div></div>
-			</div>
-		</div>
-		<form id="aaform">
-			<div id="aamain">
-				<input id="aainput" type="text" value=""/>
-			</div>
-		</form>
-	</div>
+	<div id="aacontainer"></div>
 </body>
 </html>

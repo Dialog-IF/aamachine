@@ -50,6 +50,7 @@ body {
 	border: .1em solid #ccc;
 	margin-top: .3em;
 	text-align: left;
+	overflow: hidden;
 }
 
 #aamenubutton {
