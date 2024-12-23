@@ -1,0 +1,54 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<title>&Aring;-machine Web Interpreter</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<script src="resources/jquery.js"></script>
+	<script src="resources/aaengine.js"></script>
+	<script src="resources/frontend.js"></script>
+	<script src="resources/story.js"></script>
+	<link rel="stylesheet" type="text/css" href="resources/style.css" />
+	<script>
+		$(function(){
+			run_game(aastory);
+			aastory = null;
+		});
+	</script>
+</head>
+<body>
+	<div id="aacontainer">
+		<div id="aaouterstatus">
+			<div id="aamenubutton">
+				<div id="aamenulines"></div>
+				<div id="aamenu">
+					<div id="aamenulist">
+						<label for="aacbf"><div><input class="aacb" id="aacbf" type="checkbox" checked/>Fading text</div></label>
+						<label for="aacbn"><div><input class="aacb" id="aacbn" type="checkbox"/>Night mode</div></label>
+						<hr/>
+						<div id="aasavescript">Save transcript</div>
+						<hr/>
+						<div id="aaaboutopen">About</div>
+					</div>
+				</div>
+			</div>
+			<div id="aastatus"></div>
+		</div>
+		<div id="aastatusborder"></div>
+		<div id="aaaboutouter">
+			<div id="aaaboutinner">
+				<div class="aaaboutline" id="aaaboutmeta"></div>
+				<hr/>
+				<div class="aaaboutline"><a target="_blank" href="https://linusakesson.net/">&Aring;-machine web interpreter v0.1</a></div>
+				<hr/>
+				<div class="aaaboutline"><div class="aalink" id="aaaboutclose">Close</div></div>
+			</div>
+		</div>
+		<form id="aaform">
+			<div id="aamain">
+				<input id="aainput" type="text" value=""/>
+			</div>
+		</form>
+	</div>
+</body>
+</html>
