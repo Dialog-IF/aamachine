@@ -2602,17 +2602,6 @@ function vm_proceed_with_key(e, code) {
 	}
 }
 
-function vm_restore(e, filedata) {
-	var v;
-	if(filedata && (v = vm_unwrap_savefile(e, filedata))) {
-		vm_clear_divs(e);
-		vm_reset(e, 0, true);
-		vm_restore_state(e, vm_rldec_state(e.initstate, v));
-	}
-	e.spc = e.SP_LINE;
-	return vm_run(e, null);
-}
-
 var instance_e;
 
 var aaengine = {
@@ -2630,6 +2619,18 @@ var aaengine = {
 	get_file: function(name) {
 		return instance_e.files[name];
 	},
+	get_story_key: function() {
+		var i, str, hex;
+		str = this.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-") + "-";
+		for(i = 0; i < 6; i++) str += decodechar(instance_e, instance_e.head[6 + i]);
+		str += "-";
+		for(i = 0; i < 4; i++) {
+			hex = instance_e.head[12 + i].toString(16);
+			if(hex.length == 1) hex = "0" + hex;
+			str += hex;
+		}
+		return str;
+	},
 	vm_start: function() {
 		return vm_run(instance_e, null);
 	},
@@ -2640,7 +2641,14 @@ var aaengine = {
 		return vm_proceed_with_key(instance_e, charcode);
 	},
 	vm_restore: function(filedata) {
-		return vm_restore(instance_e, filedata);
+		var v;
+		if(filedata && (v = vm_unwrap_savefile(instance_e, filedata))) {
+			vm_clear_divs(instance_e);
+			vm_reset(instance_e, 0, true);
+			vm_restore_state(instance_e, vm_rldec_state(instance_e.initstate, v));
+		}
+		instance_e.spc = instance_e.SP_LINE;
+		return vm_run(instance_e, null);
 	},
 	async_restart: function() {
 		vm_clear_divs(instance_e);
@@ -2648,6 +2656,26 @@ var aaengine = {
 		vm_restore_state(instance_e, instance_e.initstate);
 		instance_e.io.reset();
 		return vm_run(instance_e, null);
+	},
+	async_save: function(st) {
+		var state = vm_capture_state(instance_e, instance_e.inst - ((st == status.quit)? 2 : 1));
+		return vm_wrap_savefile(instance_e, vm_rlenc_state(instance_e.initstate, state));
+	},
+	async_restore: function(filedata) {
+		var v;
+		v = vm_unwrap_savefile(instance_e, filedata);
+		vm_reset(instance_e, 0, true);
+		vm_restore_state(instance_e, vm_rldec_state(instance_e.initstate, v));
+		instance_e.spc = instance_e.SP_LINE;
+	},
+	async_resume: function() {
+		return vm_run(instance_e, null);
+	},
+	get_undo_array: function() {
+		return instance_e.undodata.map(function(state) {return vm_wrap_savefile(instance_e, state)});
+	},
+	set_undo_array: function(arr) {
+		instance_e.undodata = arr.map(function(wrapped) {return vm_unwrap_savefile(instance_e, wrapped)});
 	},
 	mem_info: function() {
 		var h = 0, a = 0, lts = 0, i;

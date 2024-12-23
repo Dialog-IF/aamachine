@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
 This archive contains version 0.4 of the Å-machine specification, and version
-0.4.1 of the tools and official interpreters.
+0.4.3 of the tools and official interpreters.
 
 The following interpreters are included:
 
@@ -121,6 +121,14 @@ Project website:
 	https://linusakesson.net/dialog/aamachine/
 
 Release notes:
+
+	0.4.3:
+
+		Web interpreter: Progress is automatically saved to local web
+		storage.
+
+		Web interpreter: Click anywhere in the main text area (except
+		on a link) to move focus to the input field.
 
 	0.4.2:
 

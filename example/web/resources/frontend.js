@@ -35,6 +35,7 @@ var metadata;
 var remoteenabled = false;
 var remoteinitialized = false;
 var remotepath, remotetag, remotesession, remotepos = 0;
+var any_input = false;
 
 for(var i = 0; i < b64_enc.length; i++) {
 	b64_dec[b64_enc.charAt(i)] = i;
@@ -182,7 +183,7 @@ function createdoc() {
 
 	cont = document.createElement("div");
 	cont.setAttribute("id", "aasavestory");
-	cont.innerHTML = "Save story file";
+	cont.innerHTML = "Download story file";
 	list.appendChild(cont);
 
 	list.appendChild(document.createElement("hr"));
@@ -219,7 +220,7 @@ function createdoc() {
 	cont.setAttribute("id", "aaaboutlink");
 	cont.setAttribute("target", "_blank");
 	cont.setAttribute("href", "https://linusakesson.net/dialog/aamachine/");
-	cont.innerHTML = "&Aring;-machine web interpreter v0.4.2";
+	cont.innerHTML = "&Aring;-machine web interpreter v0.4.3";
 	line = document.createElement("div");
 	line.setAttribute("class", "aaaboutline");
 	line.appendChild(cont);
@@ -255,12 +256,31 @@ function createdoc() {
 	inp.setAttribute("autocorrect", "off");
 	inp.setAttribute("aria-live", "off");
 	main.appendChild(inp);
+
+	outer = document.createElement("div");
+	outer.setAttribute("id", "aaerrorouter");
+	top.appendChild(outer);
+
+	inner = document.createElement("div");
+	inner.setAttribute("id", "aaaboutinner");
+	outer.appendChild(inner);
+	cont = document.createElement("div");
+	cont.setAttribute("class", "aalink");
+	cont.setAttribute("id", "aaerrorclose");
+	cont.innerHTML = "Close";
+	line = document.createElement("div");
+	line.setAttribute("id", "aaerrorlog");
+	inner.appendChild(line);
+	line = document.createElement("div");
+	line.setAttribute("class", "aaaboutline");
+	line.appendChild(cont);
+	inner.appendChild(line);
 }
 
 function handleremote() {
 	var fname, now, dstr, tstr, pending;
 
-	if(remoteenabled) {
+	if(remoteenabled && any_input) {
 		if(!remoteinitialized) {
 			now = new Date();
 			dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
@@ -268,7 +288,7 @@ function handleremote() {
 			if(!remotetag) {
 				remotetag = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-");
 			}
-			remotesession = remotetag + "-" + dstr + "-" + tstr + "-" + Math.ceil(Math.random()*1000);
+			remotesession = remotetag + "-" + dstr + "-" + tstr + "-" + Math.ceil(Math.random()*10000);
 			remoteinitialized = true;
 		}
 		if(remotepos < aatranscript.full.length) {
@@ -289,6 +309,30 @@ function handleremote() {
 			});
 		}
 	}
+}
+
+function prepare_styles(styles) {
+	var sty, i, j, html = "";
+
+	for(i = 0; i < styles.length; i++) {
+		html += ".aalook" + i + " {";
+		for(j in styles[i]) {
+			html += j + ": " + styles[i][j] + ";";
+		}
+		html += "}\n";
+	}
+	sty = document.createElement("style");
+	sty.innerHTML = html;
+	return sty;
+}
+
+function errormsg(str) {
+	var line;
+	line = document.createElement("div");
+	line.setAttribute("class", "aaerrorline");
+	line.appendChild(document.createTextNode(str));
+	document.getElementById("aaerrorlog").appendChild(line);
+	document.getElementById("aaerrorouter").style.display = "block";
 }
 
 window.run_game = function(story64, options) {
@@ -324,6 +368,11 @@ window.run_game = function(story64, options) {
 			this.did_line = false;
 			this.did_par = false;
 		},
+		restore: function(full) {
+			this.full = full;
+			this.did_line = false;
+			this.did_par = false;
+		},
 	};
 
 	io = {
@@ -344,6 +393,10 @@ window.run_game = function(story64, options) {
 		scroll_anchor: null,
 		self_link_span: null,
 		self_link_str: "",
+		storage_key: null,
+		mainarray: [],
+		statusarray: null,
+		currarray: [],
 		flush: function() {
 		},
 		reset: function() {
@@ -351,13 +404,16 @@ window.run_game = function(story64, options) {
 			this.in_status = false;
 			this.clear_all();
 			this.transcript.par();
+			this.currarray = this.mainarray;
+			this.scroll_anchor = null;
 		},
 		clear_all: function() {
 			if(!this.in_status) {
 				var div = document.getElementById("aastatus");
 				$(div).empty();
-				$(div).css("height", "0em");
+				div.className = null;
 				this.clear();
+				this.statusarray = null;
 			}
 		},
 		clear: function() {
@@ -370,12 +426,23 @@ window.run_game = function(story64, options) {
 				this.after_text = false;
 				this.n_inner = 0;
 				this.transcript.par();
+				this.mainarray = [];
 			}
 		},
 		clear_links: function() {
-			var list = $('#aamain .aalink');
+			var list, i, array;
+
+			list = $('#aamain .aalink');
 			list.off('mouseover click');
 			list.removeClass('aalink').addClass('aadeadlink');
+			array = this.mainarray;
+			for(i = 0; i < array.length; i++) {
+				if(array[i].t == "el" || array[i].t == "esl" || array[i].t == "erl") {
+					array[i].t = "edl";
+				} else if(array[i].t == "ll" || array[i].t == "lsl" || array[i].t == "lrl") {
+					array[i].t = "ldl";
+				}
+			}
 		},
 		leave_all: function() {
 			this.current = document.getElementById("aamain");
@@ -384,6 +451,8 @@ window.run_game = function(story64, options) {
 			this.after_text = false;
 			this.n_inner = 0;
 			this.transcript.par();
+			this.currarray = this.mainarray;
+			this.currarray.push({t: "la"});
 		},
 		ensure_par: function() {
 			if(!this.in_par) {
@@ -413,6 +482,7 @@ window.run_game = function(story64, options) {
 			if(this.self_link_span) {
 				this.self_link_str += str.toLowerCase();
 			}
+			this.currarray.push({t: "t", s: str});
 		},
 		space: function() {
 			this.print(" ");
@@ -422,7 +492,7 @@ window.run_game = function(story64, options) {
 			var span, i;
 			this.ensure_par();
 			span = document.createElement("span");
-			$(span).css("display", "inline-block");
+			span.className = "aaspacen";
 			$(span).css("width", n + "ch");
 			this.current.appendChild(span);
 			this.after_text = true;
@@ -434,9 +504,10 @@ window.run_game = function(story64, options) {
 			if(this.self_link_span) {
 				this.self_link_str += " ";
 			}
+			this.currarray.push({t: "sn", n: n});
 		},
 		leave_inner: function() {
-			this.unstyle();
+			this.raw_unstyle();
 			if(this.in_par) {
 				this.current = this.current.parentNode;
 				this.in_par = false;
@@ -450,9 +521,10 @@ window.run_game = function(story64, options) {
 			if(!this.in_status) {
 				this.transcript.line();
 			}
+			this.currarray.push({t: "l"});
 		},
 		par: function() {
-			this.unstyle();
+			this.raw_unstyle();
 			if(this.in_par) {
 				this.current = this.current.parentNode;
 				this.in_par = false;
@@ -460,6 +532,17 @@ window.run_game = function(story64, options) {
 			if(!this.in_status) {
 				this.transcript.par();
 			}
+			this.currarray.push({t: "p"});
+		},
+		print_input: function(str) {
+			this.scroll_anchor = this.current;
+			this.current.appendChild(document.createTextNode(str));
+			this.transcript.print(str);
+			this.transcript.line();
+			this.current.style["margin-bottom"] = ".3em";
+			this.after_text = false;
+			this.leave_inner();
+			this.currarray.push({t: "i", s: str});
 		},
 		setstyle: function(s) {
 			var span;
@@ -467,7 +550,7 @@ window.run_game = function(story64, options) {
 				if(s & 2) {
 					this.ensure_par();
 					span = document.createElement("span");
-					span.style["font-weight"] = "bold";
+					span.className = "aaspanb";
 					this.current.appendChild(span);
 					this.current = span;
 					this.n_inner++;
@@ -475,7 +558,7 @@ window.run_game = function(story64, options) {
 				if(s & 4) {
 					this.ensure_par();
 					span = document.createElement("span");
-					span.style["font-style"] = "italic";
+					span.className = "aaspani";
 					this.current.appendChild(span);
 					this.current = span;
 					this.n_inner++;
@@ -483,13 +566,13 @@ window.run_game = function(story64, options) {
 				if(s & 8) {
 					this.ensure_par();
 					span = document.createElement("span");
-					span.style["font-family"] = "webkitworkaround, monospace";
-					span.style["font-size"] = "1em";
+					span.className = "aaspanf";
 					this.current.appendChild(span);
 					this.current = span;
 					this.n_inner++;
 				}
 			}
+			this.currarray.push({t: "ss", s: s});
 		},
 		resetstyle: function(s) {
 			var span;
@@ -497,7 +580,7 @@ window.run_game = function(story64, options) {
 				if(s & 2) {
 					this.ensure_par();
 					span = document.createElement("span");
-					span.style["font-weight"] = "normal";
+					span.className = "aaspanunb";
 					this.current.appendChild(span);
 					this.current = span;
 					this.n_inner++;
@@ -505,7 +588,7 @@ window.run_game = function(story64, options) {
 				if(s & 4) {
 					this.ensure_par();
 					span = document.createElement("span");
-					span.style["font-style"] = "normal";
+					span.className = "aaspanuni";
 					this.current.appendChild(span);
 					this.current = span;
 					this.n_inner++;
@@ -513,34 +596,35 @@ window.run_game = function(story64, options) {
 				if(s & 8) {
 					this.ensure_par();
 					span = document.createElement("span");
-					span.style["font-family"] = "Georgia, serif";
+					span.className = "aaspanunf";
 					this.current.appendChild(span);
 					this.current = span;
 					this.n_inner++;
 				}
 			}
+			this.currarray.push({t: "rs", s: s});
 		},
-		unstyle: function() {
+		raw_unstyle: function() {
 			while(this.n_inner) {
 				this.current = this.current.parentNode;
 				this.n_inner--;
 			}
 		},
+		unstyle: function() {
+			this.raw_unstyle();
+			this.currarray.push({t: "us"});
+		},
 		enter_div: function(id) {
-			var div, sty, k;
+			var div;
 			this.leave_inner();
 			div = document.createElement("div");
-			sty = this.styles[id];
-			for(k in sty) {
-				if(sty.hasOwnProperty(k)) {
-					div.style[k] = sty[k];
-				}
-			}
+			div.className = "aalook" + id;
 			this.current.appendChild(div);
 			this.current = div;
 			if(!this.in_status) {
 				this.transcript.line();
 			}
+			this.currarray.push({t: "ed", i: id});
 		},
 		leave_div: function(id) {
 			this.leave_inner();
@@ -548,44 +632,39 @@ window.run_game = function(story64, options) {
 			if(!this.in_status) {
 				this.transcript.line();
 			}
+			this.currarray.push({t: "ld", i: id});
 		},
 		enter_span: function(id) {
-			var span, sty, k;
+			var span;
 			if(!this.in_status) {
-				this.unstyle();
+				this.raw_unstyle();
 				this.ensure_par();
 				span = document.createElement("span");
-				sty = this.styles[id];
-				for(k in sty) {
-					if(sty.hasOwnProperty(k)) {
-						span.style[k] = sty[k];
-					}
-				}
+				span.className = "aalook" + id;
 				this.current.appendChild(span);
 				this.current = span;
 			}
+			this.currarray.push({t: "es", i: id});
 		},
 		leave_span: function() {
 			if(!this.in_status) {
 				this.current = this.current.parentNode;
 			}
+			this.currarray.push({t: "ls"});
 		},
 		enter_status: function(id) {
 			this.leave_inner();
 			if(!this.in_status) {
-				var div, sty, k;
+				var div;
 				this.status_context = this.current;
 				$(this.aainput).detach();
 				div = document.getElementById("aastatus");
 				$(div).empty();
-				sty = this.styles[id];
-				for(k in sty) {
-					if(sty.hasOwnProperty(k)) {
-						div.style[k] = sty[k];
-					}
-				}
+				div.className = "aalook" + id;
 				this.current = div;
 				this.in_status = true;
+				this.statusarray = [{t: "est", i: id}];
+				this.currarray = this.statusarray;
 			}
 		},
 		leave_status: function() {
@@ -601,8 +680,8 @@ window.run_game = function(story64, options) {
 					b.style["animation-delay"] = ".1s";
 					this.status_visible = true;
 				}
-				//this.adjust_size();
 				this.in_status = false;
+				this.currarray = this.mainarray;
 			}
 		},
 		install_link: function(span, str) {
@@ -640,9 +719,11 @@ window.run_game = function(story64, options) {
 			this.current.appendChild(span);
 			this.install_link(span, str);
 			this.current = span;
+			this.currarray.push({t: "el", s: str});
 		},
 		leave_link: function() {
 			this.current = this.current.parentNode;
+			this.currarray.push({t: "ll"});
 		},
 		enter_self_link: function() {
 			var span;
@@ -654,11 +735,13 @@ window.run_game = function(story64, options) {
 			this.self_link_span = span;
 			this.self_link_str = "";
 			this.current = span;
+			this.currarray.push({t: "esl"});
 		},
 		leave_self_link: function() {
 			this.current = this.current.parentNode;
 			this.install_link(this.self_link_span, this.self_link_str);
 			this.self_link_span = null;
+			this.currarray.push({t: "lsl"});
 		},
 		transform_url: function(url) {
 			if(url.match(/^file:/i)) {
@@ -677,9 +760,11 @@ window.run_game = function(story64, options) {
 			a.setAttribute("target", "_blank");
 			this.current.appendChild(a);
 			this.current = a;
+			this.currarray.push({t: "erl", r: res});
 		},
 		leave_link_res: function() {
 			this.current = this.current.parentNode;
+			this.currarray.push({t: "lrl"});
 		},
 		embed_res: function(res) {
 			var img;
@@ -695,6 +780,7 @@ window.run_game = function(story64, options) {
 				this.print(res.alt);
 				this.print("]");
 			}
+			this.currarray.push({t: "er", r: res});
 		},
 		can_embed_res: function(res) {
 			return !!res.url.match(/\.(png|jpe?g)$/i);
@@ -706,6 +792,7 @@ window.run_game = function(story64, options) {
 		},
 		progressbar: function(p, total) {
 			this.leave_inner();
+			this.currarray.push({t: "pb", p: p, tot: total});
 			p = p * 100 / total;
 			if(p < 0) p = 0;
 			if(p > 100) p = 100;
@@ -774,6 +861,31 @@ window.run_game = function(story64, options) {
 			this.current.removeChild(inp);
 		},
 		activate_input: function() {
+			if(typeof(Storage) !== "undefined") {
+				var vmstate = aaengine.async_save(status);
+				var autosave = {
+					vm: encode_b64(vmstate),
+					ma: this.mainarray,
+					sa: this.statusarray,
+					script: this.transcript.full,
+					undo: aaengine.get_undo_array().map(encode_b64)
+				};
+				if(remoteinitialized) {
+					autosave.remsess = remotesession;
+					autosave.rempos = remotepos;
+				}
+				try {
+					localStorage.setItem(aaengine.get_story_key(), JSON.stringify(autosave));
+					this.reported_storage_err = false;
+				} catch(e) {
+					if(!this.reported_storage_err) {
+						errormsg("Note: It wasn't possible to auto-save progress to local web storage.");
+						errormsg("If you refresh the page or close the tab, the game will start over from the beginning.");
+						errormsg("The in-game SAVE and RESTORE commands should still work.");
+						this.reported_storage_err = true;
+					}
+				}
+			}
 			this.ensure_par();
 			this.adjust_size();
 			this.current.appendChild(this.aainput);
@@ -820,6 +932,62 @@ window.run_game = function(story64, options) {
 				$(this.aainput).val((this.protected_inp = ""));
 				this.histpos++;
 			}
+		},
+		replay_array: function(arr) {
+			var i, e, t;
+
+			for(i = 0; i < arr.length; i++) {
+				e = arr[i];
+				t = e.t;
+				if(t == "t") {
+					this.print(e.s);
+				} else if(t == "l") {
+					this.line();
+				} else if(t == "p") {
+					this.par();
+				} else if(t == "sn") {
+					this.space_n(e.n);
+				} else if(t == "ed") {
+					this.enter_div(e.i);
+				} else if(t == "ld") {
+					this.leave_div(e.i);
+				} else if(t == "es") {
+					this.enter_span(e.i);
+				} else if(t == "ls") {
+					this.leave_span();
+				} else if(t == "la") {
+					this.leave_all();
+				} else if(t == "i") {
+					this.print_input(e.s);
+				} else if(t == "ss") {
+					this.setstyle(e.s);
+				} else if(t == "rs") {
+					this.resetstyle(e.s);
+				} else if(t == "us") {
+					this.unstyle();
+				} else if(t == "el") {
+					this.enter_link(e.s);
+				} else if(t == "ll") {
+					this.leave_link();
+				} else if(t == "esl") {
+					this.enter_self_link();
+				} else if(t == "lsl") {
+					this.leave_self_link();
+				} else if(t == "erl") {
+					this.enter_link_res(e.r);
+				} else if(t == "lrl") {
+					this.leave_link_res();
+				} else if(t == "er") {
+					this.embed_res(e.r);
+				} else if(t == "pb") {
+					this.progressbar(e.p, e.tot);
+				} else if(t == "est") {
+					this.enter_status(e.i);
+				} else if(t == "edl" || t == "ldl") {
+				} else {
+					console.log(e);
+				}
+			}
 		}
 	};
 
@@ -859,16 +1027,11 @@ window.run_game = function(story64, options) {
 
 	$("#aaform").on('submit', function() {
 		var str = $(io.aainput).val();
+		any_input = true;
 		if(status == aaengine.status.get_input) {
 			io.hist_add(str);
 			io.aainput.style.display = "none";
-			io.scroll_anchor = io.current;
-			io.current.appendChild(document.createTextNode(str));
-			io.transcript.print(str);
-			io.transcript.line();
-			io.current.style["margin-bottom"] = ".3em";
-			io.after_text = false;
-			io.leave_inner();
+			io.print_input(str);
 			status = aaengine.vm_proceed_with_input(str);
 			io.activate_input();
 		} else if(status == aaengine.status.get_key) {
@@ -887,7 +1050,12 @@ window.run_game = function(story64, options) {
 	});
 
 	$("#aamain").on("click", function() {
+		var inp;
 		document.getElementById("aamenu").style.display = "none";
+		if(!document.getSelection().toString()) {
+			inp = document.getElementById("aainput");
+			if(inp) inp.focus();
+		}
 	});
 
 	function update_night() {
@@ -992,6 +1160,8 @@ window.run_game = function(story64, options) {
 	aaengine = window.aaengine;
 	aaengine.prepare_story(storybytes, io, undefined, true, false);
 	io.styles = aaengine.get_styles();
+	io.storage_key = aaengine.get_story_key();
+	document.getElementsByTagName("head")[0].appendChild(prepare_styles(io.styles));
 
 	metadata = aaengine.get_metadata();
 	var div = document.getElementById("aaaboutmeta");
@@ -1019,6 +1189,10 @@ window.run_game = function(story64, options) {
 		document.getElementById("aaaboutouter").style.display = "none";
 		return false;
 	});
+	$("#aaerrorclose").on("click", function() {
+		document.getElementById("aaerrorouter").style.display = "none";
+		return false;
+	});
 	$("#aaaboutinner").on("click", function() {
 		return false;
 	});
@@ -1027,7 +1201,33 @@ window.run_game = function(story64, options) {
 		return true;
 	});
 
-	status = aaengine.vm_start();
+	var stored_state;
+	try {
+		stored_state = localStorage.getItem(io.storage_key);
+		if(!stored_state) throw(0);
+		stored_state = JSON.parse(stored_state);
+		if(stored_state.remsess) {
+			remotesession = stored_state.remsess;
+			remotepos = stored_state.rempos || 0;
+			remoteinitialized = true;
+		}
+		io.reset();
+		aaengine.async_restore(decode_b64(stored_state.vm));
+		io.reset();
+		aaengine.set_undo_array(stored_state.undo.map(decode_b64));
+		if(stored_state.sa) {
+			io.replay_array(stored_state.sa);
+			io.leave_status();
+		}
+		io.replay_array(stored_state.ma);
+		io.transcript.restore(stored_state.script);
+		status = aaengine.async_resume();
+		setTimeout(function() { io.current.scrollIntoView() }, 100);
+	} catch(e) {
+		if(e != 0) console.log(e);
+		status = aaengine.async_restart();
+	}
+	io.scroll_anchor = null;
 	io.activate_input();
 };
 
