@@ -195,6 +195,7 @@ a {
 
 .aalink {
 	color: #875;
+	cursor: pointer;
 }
 
 .aalink:hover {
@@ -223,6 +224,7 @@ a {
 	animation-duration: .9s;
 	animation-delay: .1s;
 	animation-fill-mode: both;
+	cursor: text;
 }
 
 .aahidelink {

@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
 This archive contains version 0.5 of the Å-machine specification, and version
-0.5.2 of the tools and official interpreters.
+0.5.3 of the tools and official interpreters.
 
 The following interpreters are included:
 
@@ -121,6 +121,25 @@ Project website:
 	https://linusakesson.net/dialog/aamachine/
 
 Release notes:
+
+	0.5.3:
+
+		Web interpreter: Change mouse pointer over clickable links.
+
+		6502 engine: Reserve a smaller paging area during early
+		startup, to accomodate stories that need a lot of RAM.
+
+		6502 engine: Don't corrupt memory when loading storyfile chunks
+		with a size divisible by 256.
+
+		Aambox frontend: Accept 3-byte unicode input.
+
+		Aambox frontend: Handle unexpected unicode characters without
+		crashing.
+
+		Aambox emulator: Don't hang after 2^32 clock cycles.
+
+		Aambox emulator: Limit undo history to 50 steps.
 
 	0.5.2:
 

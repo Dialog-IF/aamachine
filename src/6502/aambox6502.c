@@ -10,6 +10,8 @@
 
 #define SAVEFILE "aambox.aasave"
 
+#define MAXUNDO 50
+
 // These are zero-page variables in the engine:
 #define FIRSTPG 0x7e
 #define ENDPG 0x7f
@@ -17,6 +19,7 @@
 /* We use the "fake6502" CPU emulator by Mike Chambers. */
 void reset6502();
 void exec6502(uint32_t tickcount);
+void step6502();
 extern uint16_t pc;
 
 /*
@@ -72,8 +75,9 @@ uint8_t *extrom;
 int nallocext;
 int extromsize;
 
-uint8_t **undotbl;
-int nundo, nallocundo;
+uint8_t *undotbl[MAXUNDO];
+int nundo;
+int did_cull_undo;
 
 uint8_t diskmark;
 int diskdelay;
@@ -191,16 +195,18 @@ void write6502(uint16_t address, uint8_t value) {
 			core[0x0232] = (randomseed >> 24) & 0x7f;
 			break;
 		case 0x0244:
-			if(nundo >= nallocundo) {
-				nallocundo = 2 * nallocundo + 8;
-				undotbl = realloc(undotbl, nallocundo * sizeof(uint8_t *));
+			if(nundo >= MAXUNDO) {
+				free(undotbl[0]);
+				memmove(undotbl, undotbl + 1, (MAXUNDO - 1) * sizeof(uint8_t *));
+				did_cull_undo = 1;
+			} else {
+				nundo++;
 			}
 			intaddr = core[0x0240] | (core[0x0241] << 8);
 			size = core[0x0242] | (core[0x0243] << 8);
-			undotbl[nundo] = malloc(size);
-			memcpy(undotbl[nundo], core + intaddr, size);
+			undotbl[nundo - 1] = malloc(size);
+			memcpy(undotbl[nundo - 1], core + intaddr, size);
 			cycles += size;
-			nundo++;
 			break;
 		case 0x0245:
 			if(nundo) {
@@ -211,13 +217,14 @@ void write6502(uint16_t address, uint8_t value) {
 				free(undotbl[nundo]);
 				core[0x0246] = 0;
 			} else {
-				core[0x0246] = 1;
+				core[0x0246] = 1 + did_cull_undo;
 			}
 			break;
 		case 0x0247:
 			while(nundo) {
 				free(undotbl[--nundo]);
 			}
+			did_cull_undo = 0;
 			randomseed = 4242;
 			break;
 		case 0x0254:
@@ -375,6 +382,6 @@ int main(int argc, char **argv) {
 
 	reset6502();
 	for(;;) {
-		exec6502(1024);
+		step6502();
 	}
 }

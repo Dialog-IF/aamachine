@@ -272,11 +272,18 @@ readdatato
 	; input virdata = source, b-e
 	; input phydata = dest, l-e
 	; input physize = size, l-e
-	; clobbers physize
+	; clobbers physize, memptr
 	; increments virdata by size
 	; increments phydata by size
 
 	.(
+	lda	#0
+	sec
+	sbc	physize
+	sta	physize
+	lda	#0
+	sbc	physize+1
+	sta	physize+1
 bigloop
 	ldx	virdata+0
 	ldy	virdata+1
@@ -291,7 +298,7 @@ loop
 	inc	phydata
 	beq	wrap2
 postwrap2
-	dec	physize
+	inc	physize
 	beq	wrap1
 postwrap1
 	iny
@@ -304,8 +311,8 @@ postwrap1
 	inc	virdata+0
 	jmp	bigloop
 wrap1
-	dec	physize+1
-	bpl	postwrap1
+	inc	physize+1
+	bne	postwrap1
 
 	iny
 	sty	virdata+2
@@ -9252,7 +9259,7 @@ loop
 	sta	ioparam+1
 	ldx	#SAFEPG
 	stx	firstpg
-	lda	#SAFEPG+64
+	lda	#SAFEPG+48
 	sta	endpg
 
 	jsr	io_readpage

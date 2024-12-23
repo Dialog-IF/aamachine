@@ -208,7 +208,7 @@ function createdoc() {
 	cont.setAttribute("id", "aaaboutlink");
 	cont.setAttribute("target", "_blank");
 	cont.setAttribute("href", "https://linusakesson.net/dialog/aamachine/");
-	cont.innerHTML = "&Aring;-machine web interpreter v0.5.2";
+	cont.innerHTML = "&Aring;-machine web interpreter v0.5.3";
 	line = document.createElement("div");
 	line.setAttribute("class", "aaaboutline");
 	line.appendChild(cont);
@@ -518,7 +518,7 @@ window.run_game = function(story64, options) {
 			io.transcript.disabled = false;
 		},
 		clear_div: function() {
-			var div, btndiv, p;
+			var div, btndiv, p, span;
 
 			if(!io.in_status) {
 				div = io.current;
@@ -529,7 +529,10 @@ window.run_game = function(story64, options) {
 					div.style.display = "none";
 					btndiv = document.createElement("div");
 					$(btndiv).addClass("aareveal");
-					btndiv.appendChild(document.createTextNode("+"));
+					span = document.createElement("span");
+					span.style.cursor = "pointer";
+					span.appendChild(document.createTextNode("+"));
+					btndiv.appendChild(span);
 					div.parentNode.insertBefore(btndiv, div);
 					$(btndiv).on("click", function() {
 						div.style.display = "block";

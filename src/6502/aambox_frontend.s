@@ -296,22 +296,43 @@ done
 
 io_get_utf8
 	; output a = char
+	; preserves y
 
 	.(
 again
 	lda	$0201
-	bpl	done
+	bmi	utf
+bail
+	rts
+utf
+	ldx	#1
+	cmp	#$e0
+	bcc	short
 
+	inx
+short
 	and	#$1f
-	sta	f_temp
-	lda	$0201
-	asl
-	asl
-	lsr	f_temp
-	ror
-	lsr	f_temp
-	ror
 	sta	f_temp2
+
+	lda	#0
+	sta	f_temp
+byteloop
+	lda	$0201
+	bpl	bail
+
+	sec
+	rol
+	asl
+bitloop
+	asl
+	beq	bitdone
+
+	rol	f_temp2
+	rol	f_temp
+	bcc	bitloop ; always
+bitdone
+	dex
+	bne	byteloop
 
 	tya
 	pha
@@ -342,18 +363,18 @@ loop
 next
 	inx
 	jmp	loop
-badchar
-	jsr	found
-	jmp	again
 found
+	clc
+badchar
 	pla
 	sta	ioparam+1
 	pla
 	sta	ioparam
 	pla
 	tay
+	bcs	again
+
 	txa
-done
 	rts
 	.)
 
