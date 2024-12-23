@@ -1,3 +1,8 @@
+IMPORTANT! This version of the specification contains errors. It is distributed
+solely as a historical document. Please always refer to version 0.3 or later.
+
+---
+
 This file contains a detailed description of the Aa-machine version 0.1,
 including the two file formats (story and saved game) and the bytecode
 semantics. Be warned that the description is technically comprehensive and

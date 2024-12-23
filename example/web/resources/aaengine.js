@@ -103,6 +103,12 @@ function findchunk(filedata, name) {
 	return null;
 }
 
+function tohex(v, len) {
+	var str = v.toString(16);
+	while(str.length < len) str = '0' + str;
+	return str;
+}
+
 function decodechar(e, aach) {
 	var entry, uchar;
 
@@ -259,7 +265,7 @@ function prepare_story(file_array, io, seed, links, quit) {
 		havequit:	quit
 	};
 
-	if(e.head[0] != 0 || e.head[1] > 2) {
+	if(e.head[0] != 0 || e.head[1] > 3) {
 		throw "Unsupported aastory file format version (" + e.head[0] + "." + e.head[1] + ")";
 	}
 	if(e.head[2] != 2) {
@@ -373,7 +379,7 @@ function vm_reset(e, arg0, clear_undo) {
 }
 
 function vm_capture_state(e, new_inst) {
-	var nword = 2 + e.ramdata.length + e.auxdata.length + e.heapdata.length;
+	var nword = 3 + e.ramdata.length + e.auxdata.length + e.heapdata.length;
 	var data = new Uint8Array(nword * 2);
 	var regs = new Uint8Array(128 + 26 + 2 + e.divs.length * 2);
 	var i, j = 0;
@@ -415,15 +421,17 @@ function vm_capture_state(e, new_inst) {
 	return {data: data, regs: regs};
 }
 
-function vm_restore_state(e, state) {
-	var data = state.data, regs = state.regs;
-	var i, j = 0, ndiv;
-
+function vm_clear_divs(e) {
 	while(e.divs.length) {
 		e.divs.pop();
 		e.io.leave_div();
 	}
 	e.divs = [];
+}
+
+function vm_restore_state(e, state) {
+	var data = state.data, regs = state.regs;
+	var i, j = 0, ndiv;
 
 	e.nob = get16(data, j); j += 2;
 	e.ltb = get16(data, j); j += 2;
@@ -576,7 +584,7 @@ function vm_run(e, param) {
 	var AUXFULL = 0x4002;
 	var EXPECTOBJ = 0x4003;
 	var EXPECTBOUND = 0x4004;
-	var LTSFULL = 0x4005;
+	var LTSFULL = 0x4006;
 
 	var io = e.io;
 	var op, a1, a2, a3, a4, addr, tmp, v, i, j, flag, iter, match, curr, str;
@@ -663,7 +671,7 @@ function vm_run(e, param) {
 				if(a < b) {
 					e.auxdata[--e.trl] = b & 0x1fff;
 					e.heapdata[b & 0x1fff] = a;
-				} else {
+				} else if(a > b) {
 					e.auxdata[--e.trl] = a & 0x1fff;
 					e.heapdata[a & 0x1fff] = b;
 				}
@@ -733,6 +741,7 @@ function vm_run(e, param) {
 	}
 
 	function store(dest, src) {
+		//console.log(tohex(src, 4));
 		if(dest >= 0xc0) {
 			if(!unify(e.heapdata[e.env + 4 + (dest & 0x3f)], src)) fail();
 		} else if(dest >= 0x80) {
@@ -879,12 +888,7 @@ function vm_run(e, param) {
 		var v = e.ramdata[--tmp];
 		var addr, count;
 
-		if(v == 0x8000) {
-			addr = e.top++;
-			if(e.top > e.env || e.top > e.cho) throw HEAPFULL;
-			e.heapdata[addr] = 0;
-			v = 0x8000 | addr;
-		} else if(v == 0x8100) {
+		if(v == 0x8100) {
 			addr = e.top;
 			e.top += 2;
 			if(e.top > e.env || e.top > e.cho) throw HEAPFULL;
@@ -934,7 +938,7 @@ function vm_run(e, param) {
 				}
 			}
 		} else if(v >= 0x8000) {
-			v = 0x8000;
+			throw EXPECTBOUND;
 		}
 		if(tmp > e.ramdata.length) throw LTSFULL;
 		e.ramdata[tmp++] = v;
@@ -1115,6 +1119,51 @@ function vm_run(e, param) {
 		return obj;
 	}
 
+	function makepairsub(literal, arg, addr) {
+		if(literal) {
+			e.heapdata[addr] = arg;
+		} else if(arg & 0x80) {
+			e.heapdata[addr] = destvalue(arg);
+		} else {
+			e.heapdata[addr] = 0;
+			store(arg, 0x8000 | addr);
+		}
+	}
+
+	function makepair(a1val, a1, a2, a3) {
+		var addr;
+
+		if(a3 & 0x80) {
+			// unify
+			a3 = deref(destvalue(a3));
+			if((a3 & 0xe000) == 0xc000) {
+				if(a1val) {
+					if(!unify(a1, a3 - 0x4000)) fail();
+				} else {
+					store(a1, a3 - 0x4000);
+				}
+				store(a2, a3 - 0x3fff);
+			} else if((a3 & 0xe000) == 0x8000) {
+				addr = e.top;
+				e.top += 2;
+				if(e.top > e.env || e.top > e.cho) throw HEAPFULL;
+				makepairsub(a1val, a1, addr);
+				makepairsub(false, a2, addr + 1);
+				unify(a3, 0xc000 | addr);
+			} else {
+				fail();
+			}
+		} else {
+			// create
+			addr = e.top;
+			e.top += 2;
+			if(e.top > e.env || e.top > e.cho) throw HEAPFULL;
+			makepairsub(a1val, a1, addr);
+			makepairsub(false, a2, addr + 1);
+			store(a3, 0xc000 | addr);
+		}
+	}
+
 	if(param) {
 		store(e.code[e.inst++], param);
 	}
@@ -1123,6 +1172,7 @@ function vm_run(e, param) {
 		try {
 			while(true) {
 				op = e.code[e.inst++];
+				//console.log(tohex(e.inst - 1, 6) + ' ' + tohex(op, 2));
 				switch(op) {
 				case 0x00: // nop
 					break;
@@ -1241,70 +1291,13 @@ function vm_run(e, param) {
 					a1 = e.code[e.inst++];
 					a2 = e.code[e.inst++];
 					a3 = e.code[e.inst++];
-					if(a3 & 0x80) {
-						// unify
-						a3 = deref(destvalue(a3));
-						if((a3 & 0xe000) == 0xc000) {
-							store(a1, a3 - 0x4000);
-							store(a2, a3 - 0x3fff);
-						} else if((a3 & 0xe000) == 0x8000) {
-							addr = e.top;
-							e.top += 2;
-							if(e.top > e.env || e.top > e.cho) throw HEAPFULL;
-							e.heapdata[addr + 0] = 0;
-							e.heapdata[addr + 1] = 0;
-							store(a1, 0x8000 | addr);
-							store(a2, 0x8000 | (addr + 1));
-							if(!unify(a3, 0xc000 | addr)) fail();
-						} else {
-							fail();
-						}
-					} else {
-						// create
-						addr = e.top;
-						e.top += 2;
-						if(e.top > e.env || e.top > e.cho) throw HEAPFULL;
-						e.heapdata[addr + 0] = 0;
-						e.heapdata[addr + 1] = 0;
-						store(a1, 0x8000 | addr);
-						store(a2, 0x8000 | (addr + 1));
-						store(a3, 0xc000 | addr);
-					}
+					makepair(false, a1, a2, a3);
 					break;
 				case 0x13: case 0x93: // make_pair WORD/VBYTE DEST DEST
 					a1 = (op & 0x80)? e.code[e.inst++] : fword();
 					a2 = e.code[e.inst++];
 					a3 = e.code[e.inst++];
-					if(a3 & 0x80) {
-						// unify
-						a3 = deref(destvalue(a3));
-						if((a3 & 0xe000) == 0xc000) {
-							if(unify(a1, a3 - 0x4000)) {
-								store(a2, a3 - 0x3fff);
-							} else {
-								fail();
-							}
-						} else if((a3 & 0xe000) == 0x8000) {
-							addr = e.top;
-							e.top += 2;
-							if(e.top > e.env || e.top > e.cho) throw HEAPFULL;
-							e.heapdata[addr + 0] = a1;
-							e.heapdata[addr + 1] = 0;
-							store(a2, 0x8001 + addr);
-							if(!unify(a3, 0xc000 | addr)) fail();
-						} else {
-							fail();
-						}
-					} else {
-						// create
-						addr = e.top;
-						e.top += 2;
-						if(e.top > e.env || e.top > e.cho) throw HEAPFULL;
-						e.heapdata[addr + 0] = a1;
-						e.heapdata[addr + 1] = 0;
-						store(a2, 0x8000 | (addr + 1));
-						store(a3, 0xc000 | addr);
-					}
+					makepair(true, a1, a2, a3);
 					break;
 				case 0x14: // aux_push_val value
 					push_aux(fvalue());
@@ -1429,9 +1422,12 @@ function vm_run(e, param) {
 					}
 					break;
 				case 0x26: case 0xa6: // store_val value/0 index value
-					a1 = (op & 0x80)? 0 : fvalue();
+					a1 = (op & 0x80)? 0 : deref(fvalue());
 					a2 = findex();
-					put_lts(fieldaddr(a2, a1), fvalue());
+					a3 = fvalue();
+					if(a1 <= e.nob || a3) {
+						put_lts(fieldaddr(a2, a1), a3);
+					}
 					break;
 				case 0x28: case 0xa8: // set_flag value/0 index
 					a1 = (op & 0x80)? 0 : fvalue();
@@ -1439,9 +1435,11 @@ function vm_run(e, param) {
 					e.ramdata[fieldaddr(a2 >> 4, a1)] |= 0x8000 >> (a2 & 15);
 					break;
 				case 0x29: case 0xa9: // reset_flag value/0 index
-					a1 = (op & 0x80)? 0 : fvalue();
+					a1 = (op & 0x80)? 0 : deref(fvalue());
 					a2 = findex();
-					e.ramdata[fieldaddr(a2 >> 4, a1)] &= ~(0x8000 >> (a2 & 15));
+					if(a1 <= e.nob) {
+						e.ramdata[fieldaddr(a2 >> 4, a1)] &= ~(0x8000 >> (a2 & 15));
+					}
 					break;
 				case 0x2d: case 0xad: // unlink value/0 index index value
 					a1 = (op & 0x80)? 0 : fvalue();
@@ -1452,14 +1450,16 @@ function vm_run(e, param) {
 				case 0x2e: case 0x2f: case 0xae: case 0xaf: // set_parent value/vbyte value/vbyte
 					a1 = (op & 0x80)? e.code[e.inst++] : deref(fvalue());
 					a2 = (op & 0x01)? e.code[e.inst++] : deref(fvalue());
-					if(a1 >= 0x2000 || a2 >= 0x2000) throw EXPECTOBJ;
-					if((v = e.ramdata[fieldaddr(0, a1)])) {
-						unlink(fieldaddr(1, v), 2, a1);
-					}
-					e.ramdata[fieldaddr(0, a1)] = a2;
-					if(a2) {
-						e.ramdata[fieldaddr(2, a1)] = e.ramdata[fieldaddr(1, a2)];
-						e.ramdata[fieldaddr(1, a2)] = a1;
+					if(a1 < e.nob || a2) {
+						if(a1 >= 0x2000 || a2 >= 0x2000) throw EXPECTOBJ;
+						if((v = e.ramdata[fieldaddr(0, a1)])) {
+							unlink(fieldaddr(1, v), 2, a1);
+						}
+						e.ramdata[fieldaddr(0, a1)] = a2;
+						if(a2) {
+							e.ramdata[fieldaddr(2, a1)] = e.ramdata[fieldaddr(1, a2)];
+							e.ramdata[fieldaddr(1, a2)] = a1;
+						}
 					}
 					break;
 				case 0x30: case 0xb0: // if_raw_eq word/0 value code
@@ -1918,6 +1918,7 @@ function vm_run(e, param) {
 						io.flush();
 						return status.quit;
 					case 0x01: // restart
+						vm_clear_divs(e);
 						vm_reset(e, 0, true);
 						vm_restore_state(e, e.initstate);
 						io.reset();
@@ -1928,6 +1929,7 @@ function vm_run(e, param) {
 						return status.restore;
 					case 0x03: // undo
 						if(e.undodata.length) {
+							vm_clear_divs(e);
 							vm_restore_state(e, vm_rldec_state(e.initstate, e.undodata.pop()));
 						} else if(!e.pruned_undo) {
 							fail();
@@ -2108,6 +2110,10 @@ function vm_run(e, param) {
 			}
 		} catch(x) {
 			if(x > 0x4000 && x < 0x8000) {
+				if(e.spc < e.SP_LINE) {
+					io.line();
+				}
+				vm_clear_divs(e);
 				vm_reset(e, x, false);
 			} else {
 				throw x;
@@ -2323,6 +2329,7 @@ function vm_proceed_with_key(e, code) {
 function vm_restore(e, filedata) {
 	var v;
 	if(filedata && (v = vm_unwrap_savefile(e, filedata))) {
+		vm_clear_divs(e);
 		vm_reset(e, 0, true);
 		vm_restore_state(e, vm_rldec_state(e.initstate, v));
 	}
@@ -2360,11 +2367,32 @@ var aaengine = {
 		return vm_restore(instance_e, filedata);
 	},
 	async_restart: function() {
+		vm_clear_divs(instance_e);
 		vm_reset(instance_e, 0, true);
 		vm_restore_state(instance_e, instance_e.initstate);
 		instance_e.io.reset();
 		return vm_run(instance_e, null);
-	}
+	},
+	mem_info: function() {
+		var h = 0, a = 0, lts = 0, i;
+		var e = instance_e;
+		for(i = 0; i < e.heapdata.length; i++) {
+			if(e.heapdata[i] != 0x3f3f) h++;
+		}
+		for(i = 0; i < e.auxdata.length; i++) {
+			if(e.auxdata[i] != 0x3f3f) a++;
+		}
+		for(i = e.ltb; i < e.ramdata.length; i++) {
+			if(e.ramdata[i] != 0x3f3f) lts++;
+		}
+		return {
+			heap: h,
+			aux: a,
+			lts: lts,
+			heapsize: e.heapdata.length,
+			auxsize: e.auxdata.length,
+			ltssize: e.ramdata.length - e.ltb};
+	},
 };
 
 if(typeof module === 'undefined') {

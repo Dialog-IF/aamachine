@@ -152,6 +152,8 @@
 #define REG_NIL			0x3e
 #define REG_IDX			0x3f
 
+#define AA_MAX_TEMP		(REG_TMP - REG_X)
+
 #define AASTYLE_REVERSE		1
 #define AASTYLE_BOLD		2
 #define AASTYLE_ITALIC		4
@@ -201,8 +203,11 @@ typedef struct aaoper {
 
 struct aainstr {
 	uint8_t		op;		// AA_* possibly with 0x80 added
+	uint8_t		flags;
 	struct aaoper	oper[4];
 };
+
+#define AAIF_REACHABLE	0x01
 
 struct aaopinfo {
 	uint8_t		op;

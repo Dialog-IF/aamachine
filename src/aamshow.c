@@ -21,6 +21,7 @@ int nchunk;
 
 uint8_t *extchars;
 uint32_t actual_crc;
+int savefile;
 int strshift;
 
 typedef void (*decoder_func_t)(struct chunk *ch);
@@ -87,6 +88,7 @@ void decode_head(struct chunk *ch) {
 		return;
 	}
 
+	printf("Story file format:     %d.%d\n", ch->data[0], ch->data[1]);
 	printf("IFID:                  ");
 	if(ch->size > 22) {
 		printf("\"%s\"\n", (char *) ch->data + 22);
@@ -111,7 +113,9 @@ void decode_head(struct chunk *ch) {
 		2 * totalsz,
 		2 * totalsz / 1024.0);
 	printf("Content checksum:      %08x", get32(ch->data + 12));
-	if(get32(ch->data + 12) == actual_crc) {
+	if(savefile) {
+		printf("\n");
+	} else if(get32(ch->data + 12) == actual_crc) {
 		printf(" (verified)\n");
 	} else {
 		printf(" (bad, expected %08x)\n", actual_crc);
@@ -761,6 +765,20 @@ static void decode_urls(struct chunk *ch) {
 	}
 }
 
+static void decode_data(struct chunk *ch) {
+	int i, n = 0;
+
+	for(i = 0; i < ch->size; i++) {
+		if(ch->data[i]) {
+			n++;
+		} else {
+			n += 1 + ch->data[++i];
+		}
+	}
+	printf("Run-length encoded size: %d bytes\n", ch->size);
+	printf("Original size:           %d bytes\n", n);
+}
+
 static void decode_file(struct chunk *ch) {
 	int offs = strlen((char *) ch->data) + 1;
 	int i;
@@ -796,6 +814,7 @@ struct decoder {
 	{decode_init, "INIT"},
 	{decode_code, "CODE"},
 	{decode_urls, "URLS"},
+	{decode_data, "DATA"},
 	{0}
 };
 
@@ -848,9 +867,16 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	if(12 != fread(header, 1, 12, f)
-	|| memcmp(header, "FORM", 4)
-	|| memcmp(header + 8, "AAVM", 4)) {
+	if(12 != fread(header, 1, 12, f) || memcmp(header, "FORM", 4)) {
+		fprintf(stderr, "Error: Not an IFF file.\n");
+		exit(1);
+	}
+
+	if(!memcmp(header + 8, "AAVM", 4)) {
+		savefile = 0;
+	} else if(!memcmp(header + 8, "AASV", 4)) {
+		savefile = 1;
+	} else {
 		fprintf(stderr, "Error: Bad or missing file header.\n");
 		exit(1);
 	}
@@ -883,7 +909,7 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	if(chunk[0].data[0] != 0 || chunk[0].data[1] > 2) {
+	if(chunk[0].data[0] != 0 || chunk[0].data[1] > 3) {
 		fprintf(stderr, "Error: Unsupported aastory file format version (%d.%d)\n",
 			chunk[0].data[0],
 			chunk[0].data[1]);
@@ -901,25 +927,27 @@ int main(int argc, char **argv) {
 	ch = findchunk("LANG");
 	if(ch) {
 		extchars = ch->data + get16(ch->data + 2);
-	} else {
+	} else if(!savefile) {
 		fprintf(stderr, "Error: No LANG chunk.\n");
 		exit(1);
 	}
 
 	actual_crc = 0xffffffff;
-	crc_chunk("LOOK");
-	crc_chunk("LANG");
-	crc_chunk("MAPS");
-	crc_chunk("DICT");
-	crc_chunk("INIT");
-	crc_chunk("CODE");
-	crc_chunk("WRIT");
-	actual_crc ^= 0xffffffff;
+	if(!savefile) {
+		crc_chunk("LOOK");
+		crc_chunk("LANG");
+		crc_chunk("MAPS");
+		crc_chunk("DICT");
+		crc_chunk("INIT");
+		crc_chunk("CODE");
+		crc_chunk("WRIT");
+		actual_crc ^= 0xffffffff;
 
-	if(actual_crc != get32(chunk[0].data + 12)) {
-		printf("Warning: CRC declared in header (%08x) does not match actual CRC (%08x).\n",
-			get32(chunk[0].data + 12),
-			actual_crc);
+		if(actual_crc != get32(chunk[0].data + 12)) {
+			printf("Warning: CRC declared in header (%08x) does not match actual CRC (%08x).\n",
+				get32(chunk[0].data + 12),
+				actual_crc);
+		}
 	}
 
 	if(argc == 2) {

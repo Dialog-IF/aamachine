@@ -222,6 +222,7 @@ rlif.on('line', (line) => {
 		status = aaengine.vm_proceed_with_input(line);
 	}
 	if(status == aaengine.status.quit) {
+		//console.log(aaengine.mem_info());
 		io.line();
 		io.flush();
 		process.exit(0);
@@ -229,6 +230,7 @@ rlif.on('line', (line) => {
 });
 
 rlif.on('close', () => {
+	//console.log(aaengine.mem_info());
 	io.line();
 	io.flush();
 });

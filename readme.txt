@@ -1,7 +1,14 @@
 This textfile uses UTF-8 encoding.
 
-This archive contains version 0.2 of the Å-machine specification, and version
-0.2.2 of the tools and official javascript interpreter.
+This archive contains version 0.3 of the Å-machine specification, and version
+0.3.1 of the tools and official interpreters.
+
+The following interpreters are included:
+
+	* Javascript engine, web frontend.
+	* Javascript engine, Node.js frontend.
+	* 6502 engine, Commodore 64 frontend.
+	* 6502 engine, aambox6502 frontend.
 
 Version number:
 
@@ -11,8 +18,8 @@ Version number:
 	to the specification.
 
 	* The second part changes when there are backwards-compatible changes
-	to the specification (i.e. a 0.2 interpreter must be able to run any
-	0.1 story).
+	to the specification (i.e. a 0.3 interpreter must be able to run any
+	0.1 story), or when errors are corrected in the specification document.
 
 	* The third part is incremented when the tools are improved without
 	changing the specification.
@@ -31,9 +38,7 @@ About the Å-machine:
 	files starting with version 0g/01. The filename ending is .aastory.
 	Support for the widely used and historically important Z-machine
 	remains, and will not go away. But stories compiled for the Å-machine
-	look better on the web, and are smaller and potentially faster on
-	vintage hardware (the latter claim is unsubstantiated at the moment,
-	but it has been an important design principle).
+	look better on the web, and are smaller and faster on vintage hardware.
 
 	In a sense, the Å-machine is to Dialog what Glulx is to Inform 7. It
 	eliminates the tight restrictions on story size, and extends the basic
@@ -52,47 +57,97 @@ About the Å-machine:
 	coupled to the idiosyncracies of a particular high-level language, in
 	this case Dialog.
 
-	Currently, only a single Å-machine interpreter exists. It is
-	implemented in pure javascript, and must be combined with a frontend
-	that handles all input and output. Two frontends are provided: A web
-	frontend based on jquery, for publishing stories online, and a Node.js
-	frontend for running automated tests. A tool, aambundle, can convert an
-	.aastory file into a web-friendly directory structure, including story
-	and interpreter, ready for deployment on a server.
+	Currently, two separate Å-machine interpreters exist. One is
+	implemented in javascript, and the other is implemented in 6502
+	assembler. Each must be combined with a frontend that handles input,
+	output, and other platform-specific details.
+
+	Two frontends for the javascript engine are provided: A web frontend
+	based on jquery, for publishing stories online, and a Node.js frontend
+	for running automated tests. Two frontends for the 6502 engine are
+	provided: One for the Commodore 64 home computer (equipped with a
+	1541-compatible floppy drive), and one for an imaginary 6502-based
+	machine for running automated tests, called aambox6502. Also included
+	is an emulator for this machine, built around a public domain 6502
+	emulator called "fake6502" by Mike Chambers.
+
+	A tool, aambundle, can convert an .aastory file into a web-friendly
+	directory structure, including story and interpreter, ready for
+	deployment on a server. The same tool can create disk images for the
+	Commodore 64.
 
 Directory structure:
 
 	readme.txt	This file.
 	license.txt	License and disclaimer.
-	src		Source code for the Å-machine tools and interpreter.
+	src		Source code for the Å-machine tools and interpreters.
 	prebuilt	Binaries for Linux (i386, x86_64) and Windows.
-	docs		The Aa-machine specification.
-	example		An example story in .aastory format, with a web player.
+	docs		The Å-machine specification.
+	example		An example story in .aastory format, with interpreters.
 
 To run the example story using Node.js:
 
 	node src/js/nodefrontend.js example/cloak_rel2.aastory
 
-To run the example story in a web browser, visit example/cloak_rel2/play.html.
+To run the example story in a web browser, visit example/web/play.html.
 
-To build the software under Linux (requires a C compiler and make):
+To run the example story using the Vice Commodore 64 emulator, available at
+<https://vice-emu.sourceforge.net/>:
+
+	x64sc -truedrive -drivesound -reu -reusize 256 example/cloak-rel2.d64
+
+To run on a real Commodore 64, insert the disk and type: LOAD"*",8
+Then type: RUN
+
+To build the Å-machine tools under Linux (requires a C compiler and make):
 
 	cd src
 	make
 
 	(this will produce two executable files called aamshow and aambundle)
 
-To cross-compile the Windows version of the software under Linux (requires
-mingw32):
+To cross-compile the Windows version of the Å-machine tools under Linux
+(requires mingw32):
 
 	cd src
 	make aamshow.exe aambundle.exe
 
+Note that when aambundle is built, several files are copied from src/js and
+src/6502 into the resulting executable file. To rebuild the binary files in
+src/6502, run "make" in that directory. This requires the xa65 assembler.
+
 Project website:
 
-	https://linusakesson.net/dialog/aamachine
+	https://linusakesson.net/dialog/aamachine/
 
 Release notes:
+
+	0.3.1:
+
+		Specification: Fixed several errors. Refer to the specification
+		document for a detailed list.
+
+		6502 engine: First release. Includes frontends for the
+		Commodore 64 and the imaginary computer aambox6502 (for
+		automated testing).
+
+		aamshow: Rudimentary support for inspecting savefiles.
+
+		Javascript engine: Fixed a case of heap corruption when
+		attempting to unify a variable with itself.
+
+		Javascript engine: Fixed a bug where the last two bytes of game
+		state weren't included in the savefile.
+
+		Javascript engine: No longer creates unnecessary trail entries
+		during make_pair.
+
+		Javascript engine: Allow resetting flags and clearing fields of
+		non-null non-objects (nothing happens).
+
+		Web interpreter: "Always re-focus" configuration option.
+
+		Web interpreter: The link in the about box works now.
 
 	0.2.2:
 

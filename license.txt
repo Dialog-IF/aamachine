@@ -45,3 +45,7 @@ redistributed inside this archive in compliance with the MIT license:
 	CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 	TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 	SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+The commandline tool aambox6502, for testing the 6502 interpreter, makes use of
+a 6502 emulator by Mike Chambers called fake6502. This emulator is in the
+public domain.

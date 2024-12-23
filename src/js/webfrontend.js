@@ -156,6 +156,18 @@ function createdoc() {
 	lbl.appendChild(div);
 	list.appendChild(lbl);
 
+	lbl = document.createElement("label");
+	lbl.setAttribute("for", "aacba");
+	div = document.createElement("div");
+	inp = document.createElement("input");
+	inp.setAttribute("class", "aacb");
+	inp.setAttribute("id", "aacba");
+	inp.setAttribute("type", "checkbox");
+	div.appendChild(inp);
+	div.appendChild(document.createTextNode("Always re-focus"));
+	lbl.appendChild(div);
+	list.appendChild(lbl);
+
 	list.appendChild(document.createElement("hr"));
 
 	cont = document.createElement("div");
@@ -204,9 +216,10 @@ function createdoc() {
 	inner.appendChild(document.createElement("hr"));
 
 	cont = document.createElement("a");
+	cont.setAttribute("id", "aaaboutlink");
 	cont.setAttribute("target", "_blank");
 	cont.setAttribute("href", "https://linusakesson.net/dialog/aamachine/");
-	cont.innerHTML = "&Aring;-machine web interpreter v0.2.2";
+	cont.innerHTML = "&Aring;-machine web interpreter v0.3.1";
 	line = document.createElement("div");
 	line.setAttribute("class", "aaaboutline");
 	line.appendChild(cont);
@@ -327,6 +340,7 @@ window.run_game = function(story64, options) {
 		protected_inp: "",
 		transcript: aatranscript,
 		sticky_focus: false,
+		always_refocus: false,
 		scroll_anchor: null,
 		flush: function() {
 		},
@@ -608,7 +622,7 @@ window.run_game = function(story64, options) {
 			this.current = this.current.parentNode;
 		},
 		embed_res: function(res) {
-			var img, data = undefined;
+			var img;
 
 			if(this.can_embed_res(res)) {
 				this.ensure_par();
@@ -716,7 +730,7 @@ window.run_game = function(story64, options) {
 			}
 		},
 		maybe_focus: function() {
-			if(this.sticky_focus) {
+			if(this.sticky_focus || this.always_refocus) {
 				this.aainput.focus();
 			} else if(this.scroll_anchor) {
 				this.scroll_anchor.scrollIntoView(true);
@@ -839,6 +853,11 @@ window.run_game = function(story64, options) {
 		io.maybe_focus();
 	});
 
+	$("#aacba").on("change", function() {
+		io.always_refocus = document.getElementById("aacba").checked;
+		io.maybe_focus();
+	});
+
 	$("#aamenulines").on('click', function() {
 		var menu = document.getElementById("aamenu");
 		if(menu.style.display == "block") {
@@ -942,6 +961,10 @@ window.run_game = function(story64, options) {
 	});
 	$("#aaaboutinner").on("click", function() {
 		return false;
+	});
+	$("#aaaboutlink").on("click", function(e) {
+		e.stopPropagation();
+		return true;
 	});
 
 	status = aaengine.vm_start();

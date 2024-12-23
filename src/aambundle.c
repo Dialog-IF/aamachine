@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <errno.h>
 #include <getopt.h>
 #include <stdint.h>
@@ -7,43 +8,20 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "aambundle.h"
 #include "aavm.h"
-
-#include "table_engine.h"
-#include "table_front.h"
-#include "table_jquery.h"
-#include "table_css.h"
-#include "table_play.h"
-
-#if (defined(_WIN32) || defined(__WIN32__))
-#define mkdir(Path, Mode) mkdir(Path)
-#endif
-
-struct tabledef {
-	uint8_t 	*data;
-	int		size;
-	char		*path;
-} tables[] = {
-	{table_engine,	sizeof(table_engine),	"/resources/aaengine.js"},
-	{table_front,	sizeof(table_front),	"/resources/frontend.js"},
-	{table_jquery,	sizeof(table_jquery),	"/resources/jquery.js"},
-	{table_css,	sizeof(table_css),	"/resources/style.css"},
-	{table_play,	sizeof(table_play),	"/play.html"},
-};
-
-const char *encode = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 
 uint8_t *story;
 uint32_t storysize;
-uint8_t storyname[48];
-int snamelen = 0;
 
-void visit_chunks(char *outname) {
+static char *dirname;
+
+void visit_chunks(char *storyname, int storynamesize, file_visitor_t file_visitor) {
 	uint32_t pos = 12, size;
 	uint8_t *chunk;
 	char head[5], ch;
 	int n, i;
-	FILE *f;
+	int snamelen = 0;
 
 	while(pos < storysize) {
 		chunk = story + pos;
@@ -61,7 +39,7 @@ void visit_chunks(char *outname) {
 				if(chunk[0] == AAMETA_TITLE) {
 					chunk++;
 					while((ch = *chunk++)) {
-						if(snamelen < sizeof(storyname) - 1) {
+						if(snamelen < storynamesize - 1) {
 							if((ch >= 'a' && ch <= 'z')
 							|| (ch >= 'A' && ch <= 'Z')
 							|| (ch >= '0' && ch <= '9')) {
@@ -71,33 +49,25 @@ void visit_chunks(char *outname) {
 							}
 						}
 					}
+					storyname[snamelen] = 0;
 				} else {
 					while(*chunk++);
 				}
 			}
 		} else if(!strcmp(head, "FILE")) {
-			int namelen = strlen((char *) chunk);
-			int len = strlen(outname) + 64 + namelen;
-			char fname[len];
-			snprintf(fname, len, "%s/resources/%s", outname, chunk);
-			if(!(f = fopen(fname, "wb"))) {
-				fprintf(stderr, "%s: %s\n", fname, strerror(errno));
-				exit(1);
+			if(file_visitor) {
+				file_visitor(dirname, chunk, size);
 			}
-			if(1 != fwrite(chunk + namelen + 1, size - namelen - 1, 1, f)) {
-				fprintf(stderr, "%s: write error\n", fname);
-				exit(1);
-			}
-			fclose(f);
 		}
 		pos += (8 + size + 1) & ~1;
 	}
 }
 
-void trim_chunks() {
+void trim_chunks(int align_writ) {
 	uint32_t src = 12, dest = 12, size;
 	uint8_t *chunk;
 	char head[5];
+	int pad;
 
 	while(src < storysize) {
 		chunk = story + src;
@@ -109,9 +79,25 @@ void trim_chunks() {
 			(chunk[6] << 8) |
 			(chunk[7] << 0);
 		size = (8 + size + 1) & ~1;
+		if(align_writ && !strcmp(head, "WRIT")) {
+			pad = 0x100 - (dest & 0xff);
+			assert(!(pad & 1));
+			if(pad < 0xf0) {
+				if(pad < 8) pad += 0x100;
+				memmove(story + src + pad, story + src, storysize - src);
+				storysize += pad;
+				memcpy(chunk, "    ", 4);
+				chunk[4] = 0;
+				chunk[5] = 0;
+				chunk[6] = (pad - 8) >> 8;
+				chunk[7] = (pad - 8) & 0xff;
+				memset(chunk + 8, 0, pad - 8);
+				size = pad;
+			}
+		}
 		if(strcmp(head, "FILE")) {
 			if(dest != src) {
-				memmove(chunk + dest, chunk + src, size);
+				memmove(story + dest, story + src, size);
 			}
 			dest += size;
 		}
@@ -136,8 +122,8 @@ void usage(char *prgname) {
 	fprintf(stderr, "--version   -V    Display the program version.\n");
 	fprintf(stderr, "--help      -h    Display this information.\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "--output    -o    Set output filename.\n");
-	fprintf(stderr, "--format    -t    Set output format (dir, js).\n");
+	fprintf(stderr, "--output    -o    Set output directory name.\n");
+	fprintf(stderr, "--target    -t    Select target (web, c64).\n");
 	exit(1);
 }
 
@@ -146,17 +132,14 @@ int main(int argc, char **argv) {
 		{"help", 0, 0, 'h'},
 		{"version", 0, 0, 'V'},
 		{"output", 1, 0, 'o'},
-		{"format", 1, 0, 't'},
+		{"target", 1, 0, 't'},
 		{0, 0, 0, 0}
 	};
 	char *prgname = argv[0];
-	char *outname = 0;
-	char *format = "dir";
+	char *target = "web";
 	int opt, i;
-	FILE *f, *outf;
-	uint8_t buf[12], out[4];
-	char *jsdataname, *filename;
-	uint32_t n, pos;
+	FILE *f;
+	uint8_t buf[12];
 
 	do {
 		opt = getopt_long(argc, argv, "?hVo:t:", longopts, 0);
@@ -170,10 +153,10 @@ int main(int argc, char **argv) {
 				fprintf(stderr, "Aa-machine tools " VERSION "\n");
 				exit(0);
 			case 'o':
-				outname = strdup(optarg);
+				dirname = strdup(optarg);
 				break;
 			case 't':
-				format = strdup(optarg);
+				target = strdup(optarg);
 				break;
 			default:
 				if(opt >= 0) {
@@ -188,26 +171,27 @@ int main(int argc, char **argv) {
 		usage(prgname);
 	}
 
-	if(strcmp(format, "js") && strcmp(format, "dir")) {
-		fprintf(stderr, "Unsupported output format \"%s\".\n", format);
+	if(strcmp(target, "web") && strcmp(target, "c64")) {
+		fprintf(stderr, "Unsupported target \"%s\".\n", target);
 		exit(1);
 	}
 
-	if(!outname) {
-		outname = malloc(strlen(argv[optind]) + 8);
-		strcpy(outname, argv[optind]);
-		for(i = strlen(outname) - 1; i >= 0; i--) {
-			if(outname[i] == '.') break;
+	if(!dirname) {
+		dirname = malloc(strlen(argv[optind]) + 8);
+		strcpy(dirname, argv[optind]);
+		for(i = strlen(dirname) - 1; i >= 0; i--) {
+			if(dirname[i] == '.') {
+				break;
+			}
+			if(dirname[i] == '/' || dirname[i] == '\\') {
+				i = -1;
+				break;
+			}
 		}
 		if(i < 0) {
-			i = strlen(outname);
+			i = strlen(dirname);
 		}
-		if(!strcmp(format, "dir")) {
-			outname[i] = 0;
-		} else {
-			outname[i++] = '.';
-			strcpy(outname + i, format);
-		}
+		dirname[i] = 0;
 	}
 
 	f = fopen(argv[optind], "rb");
@@ -228,7 +212,7 @@ int main(int argc, char **argv) {
 		(buf[7] << 0));
 	fseek(f, 0, SEEK_SET);
 
-	story = malloc(storysize);
+	story = malloc(storysize + 0x108);
 	if(storysize != fread(story, 1, storysize, f)) {
 		fprintf(stderr, "Failed to read all of '%s': %s\n", argv[optind], strerror(errno));
 		exit(1);
@@ -236,94 +220,21 @@ int main(int argc, char **argv) {
 
 	fclose(f);
 
-	if(!strcmp(format, "dir")) {
-		int size = strlen(outname) + 64;
-		filename = malloc(size);
-
-		if(mkdir(outname, 0777)) {
-			fprintf(stderr, "%s: %s\n", outname, strerror(errno));
-			exit(1);
-		}
-
-		snprintf(filename, size, "%s/resources", outname);
-		if(mkdir(filename, 0777)) {
-			fprintf(stderr, "%s: %s\n", filename, strerror(errno));
-			exit(1);
-		}
-
-		for(i = 0; i < sizeof(tables)/sizeof(*tables); i++) {
-			strcpy(filename, outname);
-			strcat(filename, tables[i].path);
-			if(!(outf = fopen(filename, "wb"))) {
-				fprintf(stderr, "%s: %s\n", filename, strerror(errno));
-				exit(1);
-			}
-			if(1 != fwrite(tables[i].data, tables[i].size, 1, outf)) {
-				fprintf(stderr, "%s: write error\n", filename);
-				exit(1);
-			}
-			fclose(outf);
-		}
-
-		visit_chunks(outname);
-
-		snprintf(filename, size, "%s/resources/%s.aastory", outname, storyname);
-		if(!(outf = fopen(filename, "wb"))) {
-			fprintf(stderr, "%s: %s\n", filename, strerror(errno));
-			exit(1);
-		}
-		if(1 != fwrite(story, storysize, 1, outf)) {
-			fprintf(stderr, "%s: write error\n", filename);
-			exit(1);
-		}
-		fclose(outf);
-
-		trim_chunks();
-
-		snprintf(filename, size, "%s/resources/story.js", outname);
-		jsdataname = filename;
-	} else {
-		jsdataname = outname;
-	}
-
-	outf = fopen(jsdataname, "wb");
-	if(!outf) {
-		fprintf(stderr, "%s: %s\n", jsdataname, strerror(errno));
+	if(story[20] != 0 || story[21] > 3) {
+		fprintf(stderr, "Unsupported story file version %d.%d\n", story[20], story[21]);
 		exit(1);
 	}
 
-	fprintf(outf, "window.aastory = '");
+	if(mkdir(dirname, 0777)) {
+		fprintf(stderr, "%s: %s\n", dirname, strerror(errno));
+		exit(1);
+	}
 
-	pos = 0;
-	do {
-		n = storysize - pos;
-		if(n > 3) n = 3;
-		if(n) {
-			for(i = 0; i < n; i++) {
-				buf[i] = story[pos++];
-			}
-			for(; i < 3; i++) {
-				buf[i] = 0;
-			}
-			out[0] = buf[0] >> 2;
-			out[1] = ((buf[0] & 3) << 4) | (buf[1] >> 4);
-			out[2] = ((buf[1] & 15) << 2) | (buf[2] >> 6);
-			out[3] = buf[2] & 0x3f;
-			if(n == 1) {
-				out[2] = 64;
-				out[3] = 64;
-			} else if(n == 2) {
-				out[3] = 64;
-			}
-			for(i = 0; i < 4; i++) {
-				fputc(encode[out[i]], outf);
-			}
-		}
-	} while(n == 3);
-
-	fprintf(outf, "';\n");
-
-	fclose(outf);
+	if(!strcmp(target, "web")) {
+		bundle_web(dirname);
+	} else if(!strcmp(target, "c64")) {
+		bundle_c64(dirname);
+	}
 
 	return 0;
 }

@@ -1,15 +1,36 @@
-IMPORTANT! This version of the specification contains errors. It is distributed
-solely as a historical document. Please always refer to version 0.3 or later.
-
----
-
-This file contains a detailed description of the Aa-machine version 0.2,
+This file contains a detailed description of the Aa-machine version 0.3,
 including the two file formats (story and saved game) and the bytecode
 semantics. Be warned that the description is technically comprehensive and
 rather condensed.
 
-These are early days, and everything is subject to change. However, when only
-the minor version number is incremented, efforts are made to keep all changes
+Changes in v0.3:
+
+	Version 0.3 of the specification corrects several errors in the earlier
+	versions, and clarifies a couple of corner cases. One instruction is
+	deprecated. No significant new features are added.
+
+	Specification of the initial values of registers.
+	Specification of runtime error codes (throughout the document).
+	GET_INPUT: Description of how to tokenize the input.
+	JMPL_MULTI: Now sets SIM to 0xffff instead of 0.
+	JMP_TAIL: The condition was inverted; fixed.
+	Flag bits were indexed in reverse order; fixed.
+	RAND_RAW: The arguments and expression have been corrected.
+	Several opcodes specified a parameter as 0/VALUE instead of VALUE/0.
+	STORE_VAL: Storing an unbound reference is disallowed.
+	LOAD_VAL: Don't store into the destination in case of failure.
+	UNLINK, SET_PARENT: Fixed off-by-one errors.
+	SET_PARENT: Now specifies FIELD_PARENT, FIELD_CHILD, and FIELD_SIBLING.
+	RESET_FLAG: Allow non-null non-objects (nothing is updated).
+	STORE_VAL: Allow non-null non-objects if the new value is null.
+	SET_PARENT: Allow non-null non-objects if the new value is null.
+	IF[N]_CWL: Typo fixed (wrong parameter number).
+	unbox_int: Typo fixed (wrong type tag).
+	store_longterm/push_longterm: Typo fixed (HEAD).
+	AUX_POP_VAL: This instruction is now deprecated.
+
+These are still early days, and everything is subject to change. When only the
+minor version number is incremented, efforts are made to keep all changes
 backwards-compatible.
 
 
@@ -147,6 +168,27 @@ Game state:
 			R3d		Quick temporary register
 			R3e		Constant [] (3f00)
 
+	With a few exceptions, all of the registers (special-purpose and
+	general-purpose) are initialized to zero when the virtual machine
+	starts or restarts. The exceptions are:
+
+		INST = 1
+		ENV = HEAD.heapsz
+		CHO = HEAD.heapsz
+		TRL = HEAD.auxsz
+		SIM = 0xffff
+		SPC = line
+
+	In case of a runtime error, the machine is restarted with R00
+	initialized to a tagged integer according to the following table:
+
+		1: Heap space exhausted
+		2: Auxiliary heap space exhausted
+		3: Type error: Expected object
+		4: Type error: Expected bound value
+		6: Long-term heap space exhausted
+		Error code 5 is not used by the Aa-machine.
+
 	Saved output state:
 
 		WORD		Number of active divs
@@ -178,7 +220,7 @@ Game state:
 
 		def field_addr(field, obj):
 			if(obj > NOB) {
-				runtime_error
+				runtime_error(3)
 			} else {
 				return ram[obj] + field
 			}
@@ -628,7 +670,7 @@ CODE:
 
 	14	AUX_PUSH_VAL		VALUE
 	15/95	AUX_PUSH_RAW		WORD/VBYTE
-	16	AUX_POP_VAL		DEST
+	16	AUX_POP_VAL		DEST		[deprecated]
 	17	AUX_POP_LIST		DEST
 	18	AUX_POP_LIST_CHK	VALUE
 	19	AUX_POP_LIST_MATCH	VALUE
@@ -814,7 +856,7 @@ Semantics
 	JMPL_MULTI		CODE
 
 		CONT = next_instruction
-		SIM = 0
+		SIM = 0xffff
 		INST = arg
 
 	JMP_SIMPLE		CODE
@@ -830,13 +872,13 @@ Semantics
 
 	JMP_TAIL		CODE
 
-		if(SIM < 0x8000) SIM = CHO
+		if(SIM >= 0x8000) SIM = CHO
 		INST = arg
 
 	PUSH_ENV		BYTE
 
 		local variable addr = min(ENV, CHO) - 4 - arg
-		if(addr < TOP) runtime_error
+		if(addr < TOP) runtime_error(1)
 
 		heap[addr + 0] = ENV
 		heap[addr + 1] = SIM
@@ -863,7 +905,7 @@ Semantics
 
 		def push_choice(narg, next):
 			local variable addr = min(ENV, CHO) - 9 - narg
-			if(addr < TOP) runtime_error
+			if(addr < TOP) runtime_error(1)
 			heap[addr + 0] = ENV
 			heap[addr + 1] = SIM
 			heap[addr + 2] = CONT >> 16
@@ -928,7 +970,7 @@ Semantics
 				a = deref(a)
 				b = deref(b)
 				if(a.tag == reference && b.tag == reference) {
-					if(TRL <= AUX) runtime_error
+					if(TRL <= AUX) runtime_error(2)
 					if(a.value < b.value) {
 						aux[--TRL] = b.value
 						heap[b.value] = a
@@ -938,12 +980,12 @@ Semantics
 					}
 					break
 				} else if(a.tag == reference) {
-					if(TRL <= AUX) runtime_error
+					if(TRL <= AUX) runtime_error(2)
 					aux[--TRL] = a.value
 					heap[a.value] = b
 					break
 				} else if(b.tag == reference) {
-					if(TRL <= AUX) runtime_error
+					if(TRL <= AUX) runtime_error(2)
 					aux[--TRL] = b.value
 					heap[b.value] = a
 					break
@@ -975,16 +1017,15 @@ Semantics
 			}
 			return a
 
-		def runtime_error:
+		def runtime_error(error_code):
 			R00 = error_code
-			reinitialize special-purpose registers (except INST)
-			INST = 1
+			reinitialize special-purpose registers
 			leave recursive unify/push/pop/(de)serialize operation
 
 	MAKE_VAR		DEST
 
 		local variable addr = TOP++
-		if(TOP > min(ENV, CHO)) runtime_error
+		if(TOP > min(ENV, CHO)) runtime_error(1)
 		heap[addr] = 0
 		arg <- <reference, addr>
 
@@ -993,7 +1034,7 @@ Semantics
 		if(arg3 is a store variant) {
 			local variable addr = TOP
 			TOP += 2
-			if(TOP > min(ENV, CHO)) runtime_error
+			if(TOP > min(ENV, CHO)) runtime_error(1)
 			if(arg1 is a store variant) {
 				heap[addr + 0] = 0
 				arg1 <- <reference, addr + 0>
@@ -1012,7 +1053,7 @@ Semantics
 			if(a3.tag == reference) {
 				local variable addr <- TOP
 				TOP += 2
-				if(TOP > min(ENV, CHO)) runtime_error
+				if(TOP > min(ENV, CHO)) runtime_error(1)
 				if(arg1 is a store variant) {
 					heap[addr + 0] = 0
 					arg1 <- <reference, addr + 0>
@@ -1062,15 +1103,19 @@ Semantics
 			} else if(v.tag == reference) {
 				v = 0x8000
 			}
-			if(AUX >= TRL) runtime_error
+			if(AUX >= TRL) runtime_error(2)
 			aux[AUX++] = v
 
 	AUX_PUSH_RAW		WORD/VBYTE
 
-		if(AUX >= TRL) runtime_error
+		if(AUX >= TRL) runtime_error(2)
 		aux[AUX++] = arg
 
 	AUX_POP_VAL		DEST
+
+		Note: This instruction is deprecated. No version of the dialog
+		compiler generates it. The pop_serialized subroutine is
+		nevertheless used by AUX_POP_LIST.
 
 		arg <- pop_serialized()
 
@@ -1078,13 +1123,13 @@ Semantics
 			local variable v = aux[--AUX]
 			if(v == 0x8000) {
 				local variable addr = TOP++
-				if(TOP > min(ENV, CHO)) runtime_error
+				if(TOP > min(ENV, CHO)) runtime_error(1)
 				heap[addr] = 0
 				v = <reference, addr>
 			} else if(v == 0x8100) {
 				local variable addr = TOP
 				TOP += 2
-				if(TOP > min(ENV, CHO)) runtime_error
+				if(TOP > min(ENV, CHO)) runtime_error(1)
 				heap[addr + 0] = pop_serialized()
 				heap[addr + 1] = pop_serialized()
 				v = <extdict, addr>
@@ -1098,7 +1143,7 @@ Semantics
 				while(count--) {
 					local variable addr = TOP
 					TOP += 2
-					if(TOP > min(ENV, CHO)) runtime_error
+					if(TOP > min(ENV, CHO)) runtime_error(1)
 					heap[addr + 0] = pop_serialized()
 					heap[addr + 1] = v
 					v = <pair, addr>
@@ -1115,7 +1160,7 @@ Semantics
 			while(local variable v = pop_serialized()) {
 				local variable addr = TOP
 				TOP += 2
-				if(TOP > min(ENV, CHO)) runtime_error
+				if(TOP > min(ENV, CHO)) runtime_error(1)
 				heap[addr + 0] = v
 				heap[addr + 1] = list
 				list = <pair, addr>
@@ -1178,7 +1223,7 @@ Semantics
 				local variable first, curr;
 				first = curr = TOP
 				TOP += 2
-				if(TOP > min(ENV, CHO)) runtime_error
+				if(TOP > min(ENV, CHO)) runtime_error(1)
 				while(true) {
 					heap[curr + 0] = heap[list.value + 0]
 					list = deref(heap[list.value + 1])
@@ -1189,7 +1234,7 @@ Semantics
 						curr = TOP
 						TOP += 2
 						if(TOP > min(ENV, CHO)) {
-							runtime_error
+							runtime_error(1)
 						}
 					}
 				}
@@ -1204,7 +1249,7 @@ Semantics
 
 	PUSH_STOP		CODE
 
-		if(AUX + 2 > TRL) runtime_error
+		if(AUX + 2 > TRL) runtime_error(2)
 		aux[AUX++] = STC
 		aux[AUX++] = STA
 		STA = AUX
@@ -1228,11 +1273,11 @@ Semantics
 
 	LOAD_VAL		VALUE/0 INDEX DEST
 
-		arg3 <- get_longterm(read_field(arg2, deref(arg1)))
-
-		if(!arg3) {
+		local variable val = get_longterm(read_field(arg2, deref(arg1)))
+		if(!val) {
 			fail
 		}
+		arg3 <- val
 
 		def get_longterm(v)
 			if(v & 0x8000) {
@@ -1247,13 +1292,13 @@ Semantics
 			if(v == 0x8000) {
 				local variable addr = TOP
 				TOP++
-				if(TOP > min(ENV, CHO)) runtime_error
+				if(TOP > min(ENV, CHO)) runtime_error(1)
 				heap[addr] = 0
 				v = <reference, addr>
 			} else if(v == 0x8100) {
 				local variable addr = TOP
 				TOP += 2
-				if(TOP > min(ENV, CHO)) runtime_error
+				if(TOP > min(ENV, CHO)) runtime_error(1)
 				heap[addr + 0] = pop_longterm()
 				heap[addr + 1] = pop_longterm()
 				v = <extdict, addr>
@@ -1267,7 +1312,7 @@ Semantics
 				while(count--) {
 					local variable addr = TOP
 					TOP += 2
-					if(TOP > min(ENV, CHO)) runtime_error
+					if(TOP > min(ENV, CHO)) runtime_error(1)
 					heap[addr + 0] = pop_longterm()
 					heap[addr + 1] = v
 					v = <pair, addr>
@@ -1275,11 +1320,11 @@ Semantics
 			}
 			return v
 
-	STORE_WORD		0/VALUE INDEX VALUE
+	STORE_WORD		VALUE/0 INDEX VALUE
 
 		ram[field_addr(arg2, deref(arg1))] = arg3
 
-	STORE_BYTE		0/VALUE INDEX VALUE
+	STORE_BYTE		VALUE/0 INDEX VALUE
 
 		if(arg2 & 1) {
 			ram[field_addr(arg2 / 2, deref(arg1))] =
@@ -1289,9 +1334,12 @@ Semantics
 				(ram[arg1] & 0x00ff) | (arg3 << 8)
 		}
 
-	STORE_VAL		0/VALUE INDEX VALUE
+	STORE_VAL		VALUE/0 INDEX VALUE
 
-		store_longterm(field_addr(arg2, deref(arg1)), arg3)
+		arg1 = deref(arg1)
+		if(arg1 == null || arg1.tag == object || arg3 != null) {
+			store_longterm(field_addr(arg2, arg1), arg3)
+		}
 
 		def store_longterm(addr, v):
 			clear_longterm(addr)
@@ -1300,7 +1348,7 @@ Semantics
 			|| v.tag == extdict
 			|| v.tag == reference) {
 				TMP = LTT + 2
-				if(TMP > HEAP.ramsz) runtime_error
+				if(TMP > HEAD.ramsz) runtime_error(6)
 				push_longterm(v)
 				ram[addr] = 0x8000 + LTT
 				ram[LTT + 0] = TMP - LTT
@@ -1332,9 +1380,9 @@ Semantics
 				push_longterm(heap[v.value + 0])
 				v = 0x8100
 			} else if(v.tag == reference) {
-				v = 0x8000
+				runtime_error(4)
 			}
-			if(TMP > HEAP.ramsz) runtime_error
+			if(TMP > HEAD.ramsz) runtime_error(6)
 			ram[TMP++] = v
 
 		def clear_longterm(addr):
@@ -1354,17 +1402,20 @@ Semantics
 				}
 			}
 
-	SET_FLAG		0/VALUE INDEX
+	SET_FLAG		VALUE/0 INDEX
 
 		ram[field_addr(arg2 / BITS_PER_WORD, deref(arg1))] |=
-			1 << (arg2 % BITS_PER_WORD)
+			(1 << (BITS_PER_WORD - 1)) >> (arg2 % BITS_PER_WORD)
 
-	RESET_FLAG		0/VALUE INDEX
+	RESET_FLAG		VALUE/0 INDEX
 
-		ram[field_addr(arg2 / BITS_PER_WORD, deref(arg1))] &=
-			~(1 << (arg2 % BITS_PER_WORD))
+		arg1 = deref(arg1)
+		if(arg1 == null || arg1.tag == object) {
+			ram[field_addr(arg2 / BITS_PER_WORD, arg1)] &=
+				~((1 << (BITS_PER_WORD - 1)) >> (arg2 % BITS_PER_WORD))
+		}
 
-	UNLINK			0/VALUE INDEX INDEX VALUE
+	UNLINK			VALUE/0 INDEX INDEX VALUE
 
 		unlink(field_addr(arg2, deref(arg1)), arg3, arg4)
 
@@ -1374,36 +1425,44 @@ Semantics
 				return
 			}
 			local variable tail =
-				ram[field_addr(field, key.value - 1)]
+				ram[field_addr(field, key.value)]
 			local variable addr = root_addr
 			while(ram[addr] != 0) {
 				if(ram[addr] == key) {
 					ram[addr] = tail
 					return
 				}
-				addr = field_addr(field, ram[addr].value - 1)
+				addr = field_addr(field, ram[addr].value)
 			}
 			return
 
 	SET_PARENT		VBYTE/VALUE VBYTE/VALUE
 
+		constant FIELD_PARENT = 0
+		constant FIELD_CHILD = 1
+		constant FIELD_SIBLING = 2
+
 		arg1 = deref(arg1)
 		arg2 = deref(arg2)
-		if(arg1.tag != object) runtime_error
-		if(arg2 != null && arg2.tag != object) runtime_error
-		local variable old_parent =
-			ram[field_addr(FIELD_PARENT, arg1.value - 1)]
-		if(old_parent != 0) {
-			unlink(
-				field_addr(FIELD_CHILD, old_parent - 1),
-				FIELD_SIBLING,
-				arg1)
+		if(arg2 != null) {
+			if(arg1.tag != object) runtime_error(3)
+			if(arg2.tag != object) runtime_error(3)
 		}
-		ram[field_addr(FIELD_PARENT, arg1.value - 1)] = arg2
-		if(arg2.tag == object) {
-			ram[field_addr(FIELD_SIBLING, arg1.value - 1)] =
-				ram[field_addr(FIELD_CHILD, arg2.value - 1)]
-			ram[field_addr(FIELD_CHILD, arg2.value - 1)] = arg1
+		if(arg1.tag == object) {
+			local variable old_parent =
+				ram[field_addr(FIELD_PARENT, arg1.value)]
+			if(old_parent != 0) {
+				unlink(
+					field_addr(FIELD_CHILD, old_parent),
+					FIELD_SIBLING,
+					arg1)
+			}
+			ram[field_addr(FIELD_PARENT, arg1.value)] = arg2
+			if(arg2.tag == object) {
+				ram[field_addr(FIELD_SIBLING, arg1.value)] =
+					ram[field_addr(FIELD_CHILD, arg2.value)]
+				ram[field_addr(FIELD_CHILD, arg2.value)] = arg1
+			}
 		}
 
 	IF_RAW_EQ		WORD/0 VALUE CODE
@@ -1533,37 +1592,37 @@ Semantics
 
 		if(arg1 != deref(arg2)) INST = arg3
 
-	IF_MEM_EQ		0/VALUE INDEX VALUE CODE
+	IF_MEM_EQ		VALUE/0 INDEX VALUE CODE
 
 		if(read_field(arg2, deref(arg1)) == arg3) INST = arg4
 
-	IFN_MEM_EQ		0/VALUE INDEX VALUE CODE
+	IFN_MEM_EQ		VALUE/0 INDEX VALUE CODE
 
 		if(read_field(arg2, deref(arg1)) != arg3) INST = arg4
 
-	IF_FLAG			0/VALUE INDEX CODE
+	IF_FLAG			VALUE/0 INDEX CODE
 
 		if(read_field(arg2 / BITS_PER_WORD, deref(arg1)) &
-			(1 << (arg2 % BITS_PER_WORD)))
+			((1 << (BITS_PER_WORD - 1)) >> (arg2 % BITS_PER_WORD)))
 		{
 			INST = arg3
 		}
 
-	IFN_FLAG		0/VALUE INDEX CODE
+	IFN_FLAG		VALUE/0 INDEX CODE
 
 		if(!(read_field(arg2 / BITS_PER_WORD, deref(arg1)) &
-			(1 << (arg2 % BITS_PER_WORD))))
+			((1 << (BITS_PER_WORD - 1)) >> (arg2 % BITS_PER_WORD))))
 		{
 			INST = arg3
 		}
 
 	IF_CWL			CODE
 
-		if(CWL != 0) INST = arg2
+		if(CWL != 0) INST = arg1
 
 	IFN_CWL			CODE
 
-		if(CWL == 0) INST = arg2
+		if(CWL == 0) INST = arg1
 
 	ADD_RAW			VALUE VALUE DEST
 		arg3 <- (arg1 + arg2) & 0xffff
@@ -1575,7 +1634,7 @@ Semantics
 
 		def unbox_int(v):
 			v = deref(v)
-			if(v.tag != integer) fail
+			if(v.tag != number) fail
 			return v & 0x3fff
 
 		def box_int(v):
@@ -1617,10 +1676,10 @@ Semantics
 		local variable result = start + (rand() % range)
 		arg3 <- box_int(result)
 
-	RAND_RAW		VALUE VALUE DEST
+	RAND_RAW		BYTE DEST
 
 		// any timer-seeded PRNG can be used:
-		arg3 <- (arg1 + rand() % arg2) & 0xffff
+		arg2 <- (rand() % (arg1 + 1)) & 0xffff
 
 	INC_NUM			VALUE DEST
 
@@ -1905,6 +1964,117 @@ Semantics
 		arg <- input_get_line()
 		SPC = line
 
+		The string of characters typed by the player is converted into
+		lowercase, and split into substrings as follows:
+
+			* Every stop character (as declared in the LANG chunk)
+			becomes a single substring.
+
+			* Remaining characters are separated by whitespace.
+
+		Thus, the string "drop    ball.north" is split into the
+		substrings "drop", "ball", ".", and "north".
+
+		The list of substrings is converted into a list of Aa-machine
+		values as follows:
+
+		local variable list = 0x3f00
+		local variable i
+		for(i = list_of_substrings.length; i >= 0; i--) {
+			local variable val = parse_word(list_of_substrings[i])
+			local variable addr = TOP
+			TOP += 2
+			if(TOP > min(ENV, CHO)) runtime_error(1)
+			heap[addr + 0] = val
+			heap[addr + 1] = list
+			list = <pair, addr>
+		}
+		return list // this gets stored into arg
+
+		def parse_word(input) {
+			if(input.length == 1) {
+				if(input[0] >= '0' && input[0] <= '9') {
+					return 0x4000 + input[0] - '0'
+				} else {
+					return 0x3e00 + input[0]
+				}
+			}
+
+			// Look for an exact match in the DICT chunk:
+			local variable d = dict_lookup(input)
+			if(d) {
+				return 0x2000 + d
+			}
+
+			// Check for a decimal number in the range 0-16383:
+			local variable num = parse_decimal(input)
+			if(num && num >= 0 && num <= 16383) {
+				return 0x4000 + num
+			}
+
+			// Otherwise, run the word endings decoder:
+			local variable state = 0
+			local variable ending = 0x3f00
+			local variable pos = input.length
+			while(true) {
+				local variable addr
+				if(decoder[state] == 0x00) {
+					while(pos > 0) {
+						addr = TOP
+						TOP += 2
+						if(TOP > min(ENV, CHO)) {
+							runtime_error(1)
+						}
+						heap[addr + 0] = 0x3e00 +
+							input[--pos]
+						heap[addr + 1] = ending
+						ending = <pair, addr>
+					}
+					addr = TOP
+					TOP += 2
+					if(TOP > min(ENV, CHO)) {
+						runtime_error(1)
+					}
+					heap[addr + 0] = ending
+					heap[addr + 1] = 0x3f00
+					return <extdict, addr>
+				} else if(decoder[state] == 0x01) {
+					d = dict_lookup(input.first_n(pos))
+					if(d) {
+						// The first pos characters
+						// exactly match a dictionary
+						// word.
+						addr = TOP
+						TOP += 2
+						if(TOP > min(ENV, CHO)) {
+							runtime_error(1)
+						}
+						heap[addr + 0] = 0x2000 + d
+						heap[addr + 1] = ending
+						return <extdict, addr>
+					} else {
+						state++
+					}
+				} else {
+					local variable ch = input[pos - 1]
+					if(ch == decoder[state]) {
+						addr = TOP
+						TOP += 2
+						if(TOP > min(ENV, CHO)) {
+							runtime_error(1)
+						}
+						heap[addr + 0] = 0x3e00 + ch
+						heap[addr + 1] = ending
+						ending = <pair, addr>
+						state = decoder[state + 1]
+						pos--
+					} else {
+						state += 2
+					}
+				}
+			}
+		}
+
 	GET_KEY			DEST
 
 		output_sync()
@@ -2003,7 +2173,7 @@ Semantics
 		} else {
 			// The word matches a limited number of objects.
 			// Push them and jump to enforce that.
-			if(AUX + objs.length > TRL) runtime_error
+			if(AUX + objs.length > TRL) runtime_error(2)
 			for(local variable i = 0; i < objs.length; i++) {
 				aux[AUX++] = objs[i]
 			}
@@ -2095,7 +2265,7 @@ Examples
 		JMP		done
 	random
 		SUB_RAW		R3f, #4, >R3f
-		RAND_RAW	#0, #2, >T0
+		RAND_RAW	#2, >T0
 		CHECK_GT	T0, noadjust
 		INC_RAW		T0, >T0
 	noadjust
