@@ -54,6 +54,10 @@ const io = {
 	},
 	clear_links: function() {
 	},
+	clear_old: function() {
+	},
+	clear_div: function() {
+	},
 	print: function(str) {
 		if(!this.hidden) {
 			for(let i = 0; i < str.length; i++) {
@@ -129,12 +133,15 @@ const io = {
 	},
 	leave_span: function() {
 	},
-	enter_status: function(id) {
+	enter_status: function(area, id) {
 		this.line();
 		this.hidden = true;
 	},
 	leave_status: function() {
 		this.hidden = false;
+	},
+	have_links: function() {
+		return false;
 	},
 	enter_link: function(str) {
 	},
@@ -211,7 +218,7 @@ if(process.argv[2] == "-s") {
 
 var storyfile = fs.readFileSync(filename);
 
-aaengine.prepare_story(storyfile, io, seed, false, true);
+aaengine.prepare_story(storyfile, io, seed, true, false, false);
 io.styles = aaengine.get_styles();
 
 status = aaengine.vm_start();

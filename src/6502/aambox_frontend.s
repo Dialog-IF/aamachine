@@ -15,6 +15,7 @@ DEFWIDTH	= 80
 PREXTRA		= 2
 PRSHIFT		= 0
 HAVE_QUIT	= 1
+HAVE_STATUS	= 0
 
 wrappos		= $00
 xpos		= $01

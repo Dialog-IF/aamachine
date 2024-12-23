@@ -27,15 +27,19 @@
 var b64_enc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 var b64_dec = [];
 
+var toggles = [
+	{id: "aacbf", text: "Fading text", init: true},
+	{id: "aacbl", text: "Hyperlinks", init: true},
+	{id: "aacbs", text: "Smooth scrolling", init: false},
+	{id: "aacbn", text: "Night mode", init: false},
+	{id: "aacba", text: "Always re-focus", init: false},
+];
+
 var aaengine;
 var aatranscript;
 var io;
 var status;
 var metadata;
-var remoteenabled = false;
-var remoteinitialized = false;
-var remotepath, remotetag, remotesession, remotepos = 0;
-var any_input = false;
 
 for(var i = 0; i < b64_enc.length; i++) {
 	b64_dec[b64_enc.charAt(i)] = i;
@@ -132,53 +136,36 @@ function createdoc() {
 	list.setAttribute("id", "aamenulist");
 	menu.appendChild(list);
 
-	lbl = document.createElement("label");
-	lbl.setAttribute("for", "aacbf");
-	div = document.createElement("div");
-	inp = document.createElement("input");
-	inp.setAttribute("class", "aacb");
-	inp.setAttribute("id", "aacbf");
-	inp.setAttribute("type", "checkbox");
-	inp.checked = true;
-	div.appendChild(inp);
-	div.appendChild(document.createTextNode("Fading text"));
-	lbl.appendChild(div);
-	list.appendChild(lbl);
-
-	lbl = document.createElement("label");
-	lbl.setAttribute("for", "aacbn");
-	div = document.createElement("div");
-	inp = document.createElement("input");
-	inp.setAttribute("class", "aacb");
-	inp.setAttribute("id", "aacbn");
-	inp.setAttribute("type", "checkbox");
-	div.appendChild(inp);
-	div.appendChild(document.createTextNode("Night mode"));
-	lbl.appendChild(div);
-	list.appendChild(lbl);
-
-	lbl = document.createElement("label");
-	lbl.setAttribute("for", "aacba");
-	div = document.createElement("div");
-	inp = document.createElement("input");
-	inp.setAttribute("class", "aacb");
-	inp.setAttribute("id", "aacba");
-	inp.setAttribute("type", "checkbox");
-	div.appendChild(inp);
-	div.appendChild(document.createTextNode("Always re-focus"));
-	lbl.appendChild(div);
-	list.appendChild(lbl);
+	toggles.forEach(function(t) {
+		lbl = document.createElement("label");
+		lbl.setAttribute("for", t.id);
+		div = document.createElement("div");
+		inp = document.createElement("input");
+		inp.setAttribute("class", "aacb");
+		inp.setAttribute("id", t.id);
+		inp.setAttribute("type", "checkbox");
+		inp.checked = t.init;
+		div.appendChild(inp);
+		div.appendChild(document.createTextNode(t.text));
+		lbl.appendChild(div);
+		list.appendChild(lbl);
+	});
 
 	list.appendChild(document.createElement("hr"));
 
 	cont = document.createElement("div");
-	cont.setAttribute("id", "aarestart");
-	cont.innerHTML = "Restart game";
+	cont.setAttribute("id", "aaviewscript");
+	cont.innerHTML = "View transcript";
 	list.appendChild(cont);
 
 	cont = document.createElement("div");
 	cont.setAttribute("id", "aasavescript");
 	cont.innerHTML = "Save transcript";
+	list.appendChild(cont);
+
+	cont = document.createElement("div");
+	cont.setAttribute("id", "aarestart");
+	cont.innerHTML = "Restart game";
 	list.appendChild(cont);
 
 	cont = document.createElement("div");
@@ -220,7 +207,7 @@ function createdoc() {
 	cont.setAttribute("id", "aaaboutlink");
 	cont.setAttribute("target", "_blank");
 	cont.setAttribute("href", "https://linusakesson.net/dialog/aamachine/");
-	cont.innerHTML = "&Aring;-machine web interpreter v0.4.4";
+	cont.innerHTML = "&Aring;-machine web interpreter v0.5.1";
 	line = document.createElement("div");
 	line.setAttribute("class", "aaaboutline");
 	line.appendChild(cont);
@@ -229,7 +216,7 @@ function createdoc() {
 	inner.appendChild(document.createElement("hr"));
 
 	cont = document.createElement("div");
-	cont.setAttribute("class", "aalink");
+	cont.setAttribute("class", "aailink");
 	cont.setAttribute("id", "aaaboutclose");
 	cont.innerHTML = "Close";
 	line = document.createElement("div");
@@ -246,6 +233,20 @@ function createdoc() {
 	main.setAttribute("id", "aamain");
 	main.setAttribute("aria-live", "polite");
 	form.appendChild(main);
+
+	div = document.createElement("div");
+	div.setAttribute("id", "aascriptouter");
+	form.appendChild(div);
+
+	inner = document.createElement("textarea");
+	inner.setAttribute("id", "aascriptinner");
+	inner.readOnly = true;
+	div.appendChild(inner);
+
+	btn = document.createElement("div");
+	btn.setAttribute("id", "aascriptclose");
+	btn.innerHTML = "Close transcript";
+	div.appendChild(btn);
 
 	inp = document.createElement("input");
 	inp.setAttribute("id", "aainput");
@@ -265,7 +266,7 @@ function createdoc() {
 	inner.setAttribute("id", "aaaboutinner");
 	outer.appendChild(inner);
 	cont = document.createElement("div");
-	cont.setAttribute("class", "aalink");
+	cont.setAttribute("class", "aailink");
 	cont.setAttribute("id", "aaerrorclose");
 	cont.innerHTML = "Close";
 	line = document.createElement("div");
@@ -277,39 +278,59 @@ function createdoc() {
 	inner.appendChild(line);
 }
 
-function handleremote() {
-	var fname, now, dstr, tstr, pending;
+var aaremote = {
+	enabled: false,
+	up: false,
+	serverpath: "",
+	logtag: null,
+	strpos: 0,
+	servpos: 0,
+	any_input: false,
+	update: function() {
+		var fname, now, dstr, tstr, pending, endpos;
 
-	if(remoteenabled && any_input) {
-		if(!remoteinitialized) {
-			now = new Date();
-			dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
-			tstr = ("0" + now.getHours()).slice(-2) + ("0" + now.getMinutes()).slice(-2);
-			if(!remotetag) {
-				remotetag = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-");
-			}
-			remotesession = remotetag + "-" + dstr + "-" + tstr + "-" + Math.ceil(Math.random()*10000);
-			remoteinitialized = true;
-		}
-		if(remotepos < aatranscript.full.length) {
-			pending = aatranscript.full.slice(remotepos);
-			remotepos = aatranscript.full.length;
-			$.ajax({
-				type: "POST",
-				url: remotepath,
-				data: {
-					data: {
-						session: remotesession,
-						text: pending
-					}
-				},
-				error: function(c) {
-					remoteenabled = false;
+		if(this.enabled && this.any_input) {
+			if(!this.up) {
+				now = new Date();
+				dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
+				tstr = ("0" + now.getHours()).slice(-2) + ("0" + now.getMinutes()).slice(-2);
+				if(!this.logtag) {
+					this.logtag = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-");
 				}
-			});
+				this.sessionid = this.logtag + "-" + dstr + "-" + tstr + "-" + Math.ceil(Math.random()*10000);
+				this.up = true;
+			}
+			if(this.strpos < aatranscript.full.length) {
+				if(aatranscript.full.length - this.strpos > 50000) {
+					this.enabled = false;
+				} else {
+					pending = aatranscript.full.slice(this.strpos);
+					endpos = aatranscript.full.length;
+					$.ajax({
+						type: "POST",
+						url: this.serverpath,
+						data: {
+							data: {
+								session: this.sessionid,
+								text: pending,
+								pos: this.servpos
+							}
+						},
+						success: function(data) {
+							if(endpos > aaremote.strpos) {
+								aaremote.servpos = data;
+								aaremote.strpos = endpos;
+							}
+						},
+						error: function(c) {
+							aaremote.enabled = false;
+						}
+					});
+				}
+			}
 		}
 	}
-}
+};
 
 function prepare_styles(styles) {
 	var sty, i, j, html = "";
@@ -335,14 +356,21 @@ function errormsg(str) {
 	document.getElementById("aaerrorouter").style.display = "block";
 }
 
+function scroll_to(anchor) {
+	setTimeout(function() {
+		var b =	document.getElementById("aacbs").checked? "smooth" : "auto";
+		anchor.scrollIntoView({behavior: b, block: "start"});
+	}, 1);
+}
+
 window.run_game = function(story64, options) {
 	var storybytes = decode_b64(story64);
 
 	if(options && options.aaLogServerPath) {
-		remotepath = options.aaLogServerPath;
-		remotetag = options.aaLogTag;
+		aaremote.serverpath = options.aaLogServerPath;
+		aaremote.logtag = options.aaLogTag;
 		if(window.location.href.search('nofeedback') == -1) {
-			remoteenabled = true;
+			aaremote.enabled = true;
 		}
 	}
 
@@ -350,28 +378,32 @@ window.run_game = function(story64, options) {
 		did_line: false,
 		did_par: false,
 		full: "",
+		disabled: false,
 		line: function() {
-			if(!this.did_par && !this.did_line) {
+			if(!this.did_par && !this.did_line && !this.disabled) {
 				this.print("\n");
 				this.did_line = true;
 			}
 		},
 		par: function() {
-			if(!this.did_par) {
+			if(!this.did_par && !this.disabled) {
 				if(!this.did_line) this.print("\n");
 				this.print("\n");
 				this.did_par = true;
 			}
 		},
 		print: function(str) {
-			this.full += str;
-			this.did_line = false;
-			this.did_par = false;
+			if(!this.disabled) {
+				this.full += str;
+				this.did_line = false;
+				this.did_par = false;
+			}
 		},
 		restore: function(full) {
 			this.full = full;
 			this.did_line = false;
 			this.did_par = false;
+			this.disabled = false;
 		},
 	};
 
@@ -380,6 +412,7 @@ window.run_game = function(story64, options) {
 		after_text: false,
 		status_visible: false,
 		in_status: false,
+		old_inline: null,
 		n_inner: 0,
 		current: document.getElementById("aamain"),
 		status_context: null,
@@ -388,6 +421,7 @@ window.run_game = function(story64, options) {
 		histpos: 0,
 		protected_inp: "",
 		transcript: aatranscript,
+		viewing_script: false,
 		sticky_focus: false,
 		always_refocus: false,
 		scroll_anchor: null,
@@ -397,6 +431,11 @@ window.run_game = function(story64, options) {
 		mainarray: [],
 		statusarray: null,
 		currarray: [],
+		divs: [],
+		seen_index: 0,
+		seen_divs: [],
+		links_enabled: true,
+
 		flush: function() {
 		},
 		reset: function() {
@@ -404,8 +443,9 @@ window.run_game = function(story64, options) {
 			this.in_status = false;
 			this.clear_all();
 			this.transcript.par();
-			this.currarray = this.mainarray;
 			this.scroll_anchor = null;
+			this.divs = [];
+			this.links_enabled = document.getElementById("aacbl").checked;
 		},
 		clear_all: function() {
 			if(!this.in_status) {
@@ -427,21 +467,80 @@ window.run_game = function(story64, options) {
 				this.n_inner = 0;
 				this.transcript.par();
 				this.mainarray = [];
+				this.currarray = this.mainarray;
+				this.old_inline = null;
+				this.seen_index = 0;
+				this.seen_divs = this.divs.slice();
 			}
 		},
 		clear_links: function() {
-			var list, i, array;
+			var i, array;
 
-			list = $('#aamain .aalink');
-			list.off('mouseover click');
-			list.removeClass('aalink').addClass('aadeadlink');
+			['.aalink', '.aahidelink'].forEach(function(cl) {
+				var list;
+
+				list = $('#aamain ' + cl);
+				list.off('mouseover click');
+				list.removeClass(cl).addClass('aadeadlink');
+				// 1 is a workaround because Safari doesn't retrigger the animation.
+				if(1 || !document.getElementById("aacbf").checked || !io.links_enabled) {
+					list.css("animation-name", "none");
+					list.css("color", "inherit");
+				}
+			});
 			array = this.mainarray;
 			for(i = 0; i < array.length; i++) {
 				if(array[i].t == "el" || array[i].t == "esl" || array[i].t == "erl") {
 					array[i].t = "edl";
 				} else if(array[i].t == "ll" || array[i].t == "lsl" || array[i].t == "lrl") {
 					array[i].t = "ldl";
+				} else if(array[i].t == "i") {
+					array[i].t = "di";
 				}
+			}
+		},
+		clear_old: function() {
+			var i, newpart, anchor;
+
+			newpart = [];
+			for(i = 0; i < io.seen_divs.length; i++) {
+				newpart.push({t: "ed", i: io.seen_divs[i]});
+			}
+			newpart = newpart.concat(io.mainarray.slice(io.seen_index));
+			io.reset();
+			anchor = document.createElement("div");
+			anchor.style.height = "0px";
+			io.current.appendChild(anchor);
+			io.scroll_anchor = anchor;
+			io.transcript.disabled = true;
+			io.replay_array(newpart);
+			io.transcript.disabled = false;
+		},
+		clear_div: function() {
+			var div, btndiv, p;
+
+			if(!io.in_status) {
+				div = io.current;
+				while(div.nodeName == "P" || div.nodeName == "SPAN") {
+					div = this.current.parentNode;
+				}
+				if(div.nodeName == "DIV") {
+					div.style.display = "none";
+					btndiv = document.createElement("div");
+					$(btndiv).addClass("aareveal");
+					btndiv.appendChild(document.createTextNode("+"));
+					div.parentNode.insertBefore(btndiv, div);
+					$(btndiv).on("click", function() {
+						div.style.display = "block";
+						btndiv.style.display = "none";
+						return false;
+					});
+					io.scroll_anchor = btndiv;
+					if(!document.getElementById("aacbf").checked) {
+						btndiv.style["animation-name"] = "none";
+					}
+				}
+				io.currarray.push({t: "cd"});
 			}
 		},
 		leave_all: function() {
@@ -453,12 +552,13 @@ window.run_game = function(story64, options) {
 			this.transcript.par();
 			this.currarray = this.mainarray;
 			this.currarray.push({t: "la"});
+			this.divs = [];
 		},
 		ensure_par: function() {
 			if(!this.in_par) {
 				var p = document.createElement("p");
 				if(this.after_text) {
-					p.style["margin-top"] = "1.2em";
+					p.style["margin-top"] = "1em";
 				}
 				if(!document.getElementById("aacbf").checked) {
 					p.style["animation-name"] = "none";
@@ -534,9 +634,20 @@ window.run_game = function(story64, options) {
 			}
 			this.currarray.push({t: "p"});
 		},
-		print_input: function(str) {
+		print_input: function(str, link) {
+			var span;
+
 			this.scroll_anchor = this.current;
-			this.current.appendChild(document.createTextNode(str));
+			if(link) {
+				span = document.createElement("span");
+				$(span).addClass(io.links_enabled? "aalink" : "aahidelink");
+				span.href = "#0";
+				span.appendChild(document.createTextNode(str));
+				this.current.appendChild(span);
+				this.install_link(span, str);
+			} else {
+				this.current.appendChild(document.createTextNode(str));
+			}
 			this.transcript.print(str);
 			this.transcript.line();
 			this.current.style["margin-bottom"] = ".3em";
@@ -615,28 +726,43 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "us"});
 		},
 		enter_div: function(id) {
-			var div;
+			var div, sty;
+
 			this.leave_inner();
 			div = document.createElement("div");
 			div.className = "aalook" + id;
 			this.current.appendChild(div);
 			this.current = div;
 			if(!this.in_status) {
-				this.transcript.line();
+				sty = io.styles[id]["margin-top"];
+				if(sty && sty.length && sty.charAt(0) != '0') {
+					this.transcript.par();
+				} else {
+					this.transcript.line();
+				}
 			}
 			this.currarray.push({t: "ed", i: id});
+			this.divs.push(id);
 		},
 		leave_div: function(id) {
+			var sty;
+
 			this.leave_inner();
 			this.current = this.current.parentNode;
 			if(!this.in_status) {
-				this.transcript.line();
+				sty = io.styles[id]["margin-bottom"];
+				if(sty && sty.length && sty.charAt(0) != '0') {
+					this.transcript.par();
+				} else {
+					this.transcript.line();
+				}
 			}
 			this.currarray.push({t: "ld", i: id});
+			this.divs.pop();
 		},
 		enter_span: function(id) {
 			var span;
-			if(!this.in_status) {
+			if(this.in_status != 1) {
 				this.raw_unstyle();
 				this.ensure_par();
 				span = document.createElement("span");
@@ -647,24 +773,37 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "es", i: id});
 		},
 		leave_span: function() {
-			if(!this.in_status) {
+			if(this.in_status != 1) {
 				this.current = this.current.parentNode;
 			}
 			this.currarray.push({t: "ls"});
 		},
-		enter_status: function(id) {
+		enter_status: function(area, id) {
 			this.leave_inner();
 			if(!this.in_status) {
 				var div;
 				this.status_context = this.current;
 				$(this.aainput).detach();
-				div = document.getElementById("aastatus");
-				$(div).empty();
-				div.className = "aalook" + id;
-				this.current = div;
-				this.in_status = true;
-				this.statusarray = [{t: "est", i: id}];
-				this.currarray = this.statusarray;
+				if(area == 0) {
+					div = document.getElementById("aastatus");
+					$(div).empty();
+					div.className = "aalook" + id;
+					this.current = div;
+					this.in_status = 1;
+					this.statusarray = [{t: "est", i: id}];
+					this.currarray = this.statusarray;
+				} else {
+					div = document.createElement("div");
+					div.className = "aalook" + id;
+					this.current.appendChild(div);
+					this.current = div;
+					this.in_status = 2;
+					this.currarray.push({t: "eis", i: id});
+					if(this.old_inline) {
+						$(this.old_inline).detach();
+					}
+					this.old_inline = div;
+				}
 			}
 		},
 		leave_status: function() {
@@ -672,35 +811,41 @@ window.run_game = function(story64, options) {
 			if(this.in_status) {
 				this.current = this.status_context;
 				this.after_text = true;
-				if(!this.status_visible) {
-					document.getElementById("aastatus").style.display = "block";
-					var b = document.getElementById("aastatusborder");
-					b.style["animation-name"] = "fadein";
-					b.style["animation-duration"] = ".9s";
-					b.style["animation-delay"] = ".1s";
-					this.status_visible = true;
+				if(this.in_status == 1) {
+					if(!this.status_visible) {
+						document.getElementById("aastatus").style.display = "block";
+						var b = document.getElementById("aastatusborder");
+						b.style["animation-name"] = "fadein";
+						b.style["animation-duration"] = ".9s";
+						b.style["animation-delay"] = ".1s";
+						this.status_visible = true;
+					}
+					this.currarray = this.mainarray;
+				} else {
+					this.currarray.push({t: "lis"});
 				}
 				this.in_status = false;
-				this.currarray = this.mainarray;
 			}
 		},
 		install_link: function(span, str) {
 			$(span).on("mouseover", function() {
 				var old;
-				if(status == aaengine.status.get_input) {
+				if(status == aaengine.status.get_input && io.links_enabled) {
 					old = io.protected_inp;
 					if(old && old.length && old[old.length - 1] != " ") old += " ";
 					$(io.aainput).val(old + str);
 				}
 			});
 			$(span).on("mouseout", function() {
-				if(status == aaengine.status.get_input) {
+				if(status == aaengine.status.get_input && io.links_enabled) {
 					$(io.aainput).val(io.protected_inp);
 				}
 			});
 			$(span).on("click", function() {
 				var old;
-				if(status == aaengine.status.get_input) {
+				if(!io.links_enabled || io.viewing_script) {
+					return true;
+				} else if(status == aaengine.status.get_input) {
 					old = io.protected_inp;
 					if(old && old.length && old[old.length - 1] != " ") old += " ";
 					$(io.aainput).val(old + str);
@@ -710,11 +855,14 @@ window.run_game = function(story64, options) {
 				return false;
 			});
 		},
+		have_links: function() {
+			return io.links_enabled;
+		},
 		enter_link: function(str) {
 			var span;
 			this.ensure_par();
 			span = document.createElement("span");
-			$(span).addClass("aalink");
+			$(span).addClass(io.links_enabled? "aalink" : "aahidelink");
 			span.href = "#0";
 			this.current.appendChild(span);
 			this.install_link(span, str);
@@ -729,7 +877,7 @@ window.run_game = function(story64, options) {
 			var span;
 			this.ensure_par();
 			span = document.createElement("span");
-			$(span).addClass("aalink");
+			$(span).addClass(io.links_enabled? "aalink" : "aahidelink");
 			span.href = "#0";
 			this.current.appendChild(span);
 			this.self_link_span = span;
@@ -755,7 +903,7 @@ window.run_game = function(story64, options) {
 
 			this.ensure_par();
 			a = document.createElement("a");
-			$(a).addClass("aalink");
+			$(a).addClass("aailink");
 			a.href = this.transform_url(res.url);
 			a.setAttribute("target", "_blank");
 			this.current.appendChild(a);
@@ -786,8 +934,16 @@ window.run_game = function(story64, options) {
 			return !!res.url.match(/\.(png|jpe?g)$/i);
 		},
 		adjust_size: function() {
-			var aamain = $("#aamain");
-			var newheight = $(window).innerHeight() - $("#aaouterstatus").outerHeight() - (aamain.outerHeight(true) - aamain.innerHeight()) - 40;
+			var aamain, newheight;
+
+			newheight = $(window).innerHeight() - $("#aaouterstatus").outerHeight() - 40;
+			if(io.viewing_script) {
+				aamain = $("#aascriptinner");
+				newheight -= $("#aascriptclose").outerHeight();
+			} else {
+				aamain = $("#aamain");
+			}
+			newheight -= aamain.outerHeight(true) - aamain.innerHeight();
 			aamain.height(newheight);
 		},
 		progressbar: function(p, total) {
@@ -861,18 +1017,26 @@ window.run_game = function(story64, options) {
 			this.current.removeChild(inp);
 		},
 		activate_input: function() {
+			var cfg, vmstate, autosave;
+
 			if(typeof(Storage) !== "undefined") {
-				var vmstate = aaengine.async_save(status);
-				var autosave = {
+				vmstate = aaengine.async_save(status);
+				cfg = {};
+				toggles.forEach(function(t) {
+					cfg[t.id] = document.getElementById(t.id).checked;
+				});
+				autosave = {
 					vm: encode_b64(vmstate),
 					ma: this.mainarray,
 					sa: this.statusarray,
 					script: this.transcript.full,
-					undo: aaengine.get_undo_array().map(encode_b64)
+					undo: aaengine.get_undo_array().map(encode_b64),
+					cfg: cfg
 				};
-				if(remoteinitialized) {
-					autosave.remsess = remotesession;
-					autosave.rempos = remotepos;
+				if(aaremote.up) {
+					autosave.remsess = aaremote.sessionid;
+					autosave.remservpos = aaremote.servpos;
+					autosave.remstrpos = aaremote.strpos;
 				}
 				try {
 					localStorage.setItem(aaengine.get_story_key(), JSON.stringify(autosave));
@@ -895,7 +1059,7 @@ window.run_game = function(story64, options) {
 			this.aainput.style.display = "inline-block";
 			//$(this.aainput).val($(this.current).width() + ", " + $(this.aainput).position().left);
 			this.aainput.style.maxWidth = ($(this.current).width() - $(this.aainput).position().left) + "px";
-			handleremote();
+			aaremote.update();
 			this.maybe_focus();
 			if(status == aaengine.status.quit || status == aaengine.status.restore) {
 				$(this.aainput).detach();
@@ -905,9 +1069,9 @@ window.run_game = function(story64, options) {
 			if(this.sticky_focus || this.always_refocus) {
 				this.aainput.focus();
 			} else if(this.scroll_anchor) {
-				this.scroll_anchor.scrollIntoView(true);
+				scroll_to(this.scroll_anchor);
 			} else {
-				this.aainput.scrollIntoView();
+				scroll_to(this.aainput);
 			}
 		},
 		hist_add: function(str) {
@@ -958,7 +1122,9 @@ window.run_game = function(story64, options) {
 				} else if(t == "la") {
 					this.leave_all();
 				} else if(t == "i") {
-					this.print_input(e.s);
+					this.print_input(e.s, true);
+				} else if(t == "di") {
+					this.print_input(e.s, false);
 				} else if(t == "ss") {
 					this.setstyle(e.s);
 				} else if(t == "rs") {
@@ -981,8 +1147,14 @@ window.run_game = function(story64, options) {
 					this.embed_res(e.r);
 				} else if(t == "pb") {
 					this.progressbar(e.p, e.tot);
+				} else if(t == "cd") {
+					this.clear_div();
 				} else if(t == "est") {
-					this.enter_status(e.i);
+					this.enter_status(0, e.i);
+				} else if(t == "eis") {
+					this.enter_status(1, e.i);
+				} else if(t == "lis") {
+					this.leave_status();
 				} else if(t == "edl" || t == "ldl") {
 				} else {
 					console.log(e);
@@ -1035,17 +1207,25 @@ window.run_game = function(story64, options) {
 
 	$("#aaform").on('submit', function() {
 		var str = $(io.aainput).val();
-		any_input = true;
+		aaremote.any_input = true;
 		if(status == aaengine.status.get_input) {
 			io.hist_add(str);
 			io.aainput.style.display = "none";
-			io.print_input(str);
+			io.print_input(str, true);
+			if(!io.in_status) {
+				io.seen_index = io.mainarray.length;
+				io.seen_divs = io.divs.slice();
+			}
 			status = aaengine.vm_proceed_with_input(str);
 			io.activate_input();
 		} else if(status == aaengine.status.get_key) {
 			io.leave_inner();
 			io.after_text = true;
 			io.scroll_anchor = null;
+			if(!io.in_status) {
+				io.seen_index = io.mainarray.length;
+				io.seen_divs = io.divs.slice();
+			}
 			status = aaengine.vm_proceed_with_key((str && str.length)? str.charCodeAt(0) : aaengine.keys.KEY_RETURN);
 			io.activate_input();
 		}
@@ -1067,18 +1247,37 @@ window.run_game = function(story64, options) {
 	});
 
 	function update_night() {
+		var ta = document.getElementById("aascriptinner");
 		if(document.getElementById("aacbn").checked) {
 			$("body").css("background-color", "#000");
 			$("p").css("color", "#ccc");
 			io.aainput.style.color = "#ccc";
 			$("#aastatusborder").css("background-color", "#ccc");
+			ta.style.backgroundColor = "#222";
+			ta.style.color = "#ddd";
 		} else {
 			$("body").css("background-color", "#eee");
 			$("p").css("color", "#000");
 			io.aainput.style.color = "#000";
 			$("#aastatusborder").css("background-color", "#000");
+			ta.style.backgroundColor = "#ddd";
+			ta.style.color = "#222";
 		}
 		io.maybe_focus();
+	}
+
+	function update_hyperlinks() {
+		var en;
+
+		en = document.getElementById("aacbl").checked;
+		if(en != io.links_enabled) {
+			io.links_enabled = en;
+			if(en) {
+				$(".aahidelink").removeClass("aahidelink").addClass("aalink");
+			} else {
+				$(".aalink").removeClass("aalink").addClass("aahidelink");
+			}
+		}
 	}
 
 	$("#aacbn").on("change", function() {
@@ -1087,6 +1286,10 @@ window.run_game = function(story64, options) {
 
 	$("#aacbf").on("change", function() {
 		io.maybe_focus();
+	});
+
+	$("#aacbl").on("change", function() {
+		update_hyperlinks();
 	});
 
 	$("#aacba").on("change", function() {
@@ -1115,6 +1318,28 @@ window.run_game = function(story64, options) {
 		io.reset();
 		status = aaengine.async_restart();
 		io.activate_input();
+		return false;
+	});
+
+	$("#aaviewscript").on("click", function() {
+		var ta = document.getElementById("aascriptinner");
+		document.getElementById("aamain").style.display = "none";
+		document.getElementById("aascriptouter").style.display = "block";
+		document.getElementById("aamenu").style.display = "none";
+		ta.value = aatranscript.full;
+		ta.scrollTop = ta.scrollHeight;
+		io.viewing_script = true;
+		io.adjust_size();
+		return false;
+	});
+
+	$("#aascriptclose").on("click", function() {
+		document.getElementById("aascriptouter").style.display = "none";
+		document.getElementById("aascriptinner").value = "";
+		document.getElementById("aamain").style.display = "block";
+		document.getElementById("aamenu").style.display = "none";
+		io.viewing_script = false;
+		io.adjust_size();
 		return false;
 	});
 
@@ -1166,7 +1391,7 @@ window.run_game = function(story64, options) {
 	update_night();
 
 	aaengine = window.aaengine;
-	aaengine.prepare_story(storybytes, io, undefined, true, false);
+	aaengine.prepare_story(storybytes, io, undefined, false, true, true);
 	io.styles = aaengine.get_styles();
 	io.storage_key = aaengine.get_story_key();
 	document.getElementsByTagName("head")[0].appendChild(prepare_styles(io.styles));
@@ -1197,7 +1422,7 @@ window.run_game = function(story64, options) {
 		document.getElementById("aaaboutouter").style.display = "none";
 		return false;
 	});
-	$("#aaerrorclose").on("click", function() {
+	$("#aaerrorclose, #aaerrorouter").on("click", function() {
 		document.getElementById("aaerrorouter").style.display = "none";
 		return false;
 	});
@@ -1214,10 +1439,18 @@ window.run_game = function(story64, options) {
 		stored_state = localStorage.getItem(io.storage_key);
 		if(!stored_state) throw(0);
 		stored_state = JSON.parse(stored_state);
+		if(stored_state.cfg) {
+			toggles.forEach(function(t) {
+				if(typeof(stored_state.cfg[t.id] !== undefined)) {
+					document.getElementById(t.id).checked = stored_state.cfg[t.id];
+				}
+			});
+		}
 		if(stored_state.remsess) {
-			remotesession = stored_state.remsess;
-			remotepos = stored_state.rempos || 0;
-			remoteinitialized = true;
+			aaremote.sessionid = stored_state.remsess;
+			aaremote.servpos = stored_state.remservpos || 0;
+			aaremote.strpos = stored_state.remstrpos || 0;
+			aaremote.up = true;
 		}
 		io.reset();
 		aaengine.async_restore(decode_b64(stored_state.vm));
@@ -1227,14 +1460,17 @@ window.run_game = function(story64, options) {
 			io.replay_array(stored_state.sa);
 			io.leave_status();
 		}
+		io.after_text = false;
 		io.replay_array(stored_state.ma);
 		io.transcript.restore(stored_state.script);
 		status = aaengine.async_resume();
-		setTimeout(function() { io.current.scrollIntoView() }, 100);
+		scroll_to(io.current);
 	} catch(e) {
 		if(e != 0) console.log(e);
 		status = aaengine.async_restart();
 	}
+	update_night();
+	update_hyperlinks();
 	io.scroll_anchor = null;
 	io.activate_input();
 };

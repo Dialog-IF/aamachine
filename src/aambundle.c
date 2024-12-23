@@ -231,7 +231,7 @@ int main(int argc, char **argv) {
 
 	fclose(f);
 
-	if(story[20] != 0 || story[21] > 4) {
+	if(story[20] != 0 || story[21] > 5) {
 		fprintf(stderr, "Unsupported story file version %d.%d\n", story[20], story[21]);
 		exit(1);
 	}

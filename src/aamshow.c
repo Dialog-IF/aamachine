@@ -933,7 +933,7 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	if(chunk[0].data[0] != 0 || chunk[0].data[1] > 4) {
+	if(chunk[0].data[0] != 0 || chunk[0].data[1] > 5) {
 		fprintf(stderr, "Error: Unsupported aastory file format version (%d.%d)\n",
 			chunk[0].data[0],
 			chunk[0].data[1]);

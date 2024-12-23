@@ -217,7 +217,7 @@ function decodestr(e, addr) {
 	return str;
 }
 
-function prepare_story(file_array, io, seed, links, quit) {
+function prepare_story(file_array, io, seed, quit, toparea, inlinearea) {
 	var e, i, stopptr, stopend;
 
 	function findch(name, mandatory) {
@@ -312,8 +312,9 @@ function prepare_story(file_array, io, seed, links, quit) {
 
 		undodata:	[],
 		pruned_undo:	false,
-		havelinks:	links,
 		havequit:	quit,
+		havetop:	toparea,
+		haveinline:	inlinearea,
 
 		create_pair:	function(head, tail, e) {
 			var addr = this.top;
@@ -327,7 +328,7 @@ function prepare_story(file_array, io, seed, links, quit) {
 		}
 	};
 
-	if(e.head[0] != 0 || e.head[1] > 4) {
+	if(e.head[0] != 0 || e.head[1] > 5) {
 		throw "Unsupported aastory file format version (" + e.head[0] + "." + e.head[1] + ")";
 	}
 	if(e.head[2] != 2) {
@@ -1351,6 +1352,9 @@ function vm_run(e, param) {
 					if(e.sim >= 0x8000) e.sim = e.cho;
 					e.inst = fcode();
 					break;
+				case 0x87: // tail
+					if(e.sim >= 0x8000) e.sim = e.cho;
+					break;
 				case 0x08: case 0x88: // push_env byte/0
 					a1 = (op & 0x80)? 0 : e.code[e.inst++];
 					addr = ((e.env < e.cho) ? e.env : e.cho) - 4 - a1;
@@ -1439,6 +1443,10 @@ function vm_run(e, param) {
 					break;
 				case 0x14: // aux_push_val value
 					push_aux(fvalue());
+					break;
+				case 0x94: // aux_push_raw 0
+					if(e.aux >= e.trl) throw AUXFULL;
+					e.auxdata[e.aux++] = 0;
 					break;
 				case 0x15: // aux_push_raw word
 					if(e.aux >= e.trl) throw AUXFULL;
@@ -2049,13 +2057,13 @@ function vm_run(e, param) {
 						e.spc = e.SP_PAR;
 					}
 					break;
-				case 0x67: // enter_status index
+				case 0x67: // enter_status 0 index
 					a1 = findex();
 					if(!e.cwl) {
 						if(e.in_status || e.n_span) {
 							throw IOSTATE;
 						}
-						io.enter_status(a1);
+						io.enter_status(0, a1);
 						e.in_status = a1;
 						e.spc = e.SP_PAR;
 					}
@@ -2190,6 +2198,18 @@ function vm_run(e, param) {
 						e.spc = e.SP_AUTO;
 					}
 					break;
+				case 0x6f: // enter_status byte index
+					a1 = e.code[e.inst++];
+					a2 = findex();
+					if(!e.cwl) {
+						if(e.in_status || e.n_span) {
+							throw IOSTATE;
+						}
+						io.enter_status(a1, a2);
+						e.in_status = a2;
+						e.spc = e.SP_PAR;
+					}
+					break;
 				case 0x70: // ext0 byte
 					a1 = e.code[e.inst++];
 					switch(a1) {
@@ -2271,6 +2291,15 @@ function vm_run(e, param) {
 					case 0x0f: // clear_links
 						io.clear_links();
 						break;
+					case 0x10: // clear_old
+						if(e.n_span) {
+							throw IOSTATE;
+						}
+						io.clear_old();
+						break;
+					case 0x11: // clear_div
+						io.clear_div();
+						break;
 					default:
 						throw 'Unimplemented ext0 ' + a1.toString(16) + ' at ' + (e.inst - 2).toString(16);
 					}
@@ -2329,10 +2358,16 @@ function vm_run(e, param) {
 						v = 1;
 						break;
 					case 0x42: // interpreter supports links
-						v = e.havelinks? 1 : 0;
+						v = io.have_links()? 1 : 0;
 						break;
 					case 0x43: // interpreter supports quit
 						v = e.havequit? 1 : 0;
+						break;
+					case 0x60: // interpreter supports top status area
+						v = e.havetop? 1 : 0;
+						break;
+					case 0x61: // interpreter supports inline status area
+						v = e.haveinline? 1 : 0;
 						break;
 					default:
 						if(a1 < 0x40) {
@@ -2427,10 +2462,15 @@ function parse_word(chars, e) {
 	var enddecoder = get16(e.lang, 4);
 
 	function buildlist(list) {
-		var i, v = 0x3f00;
+		var i, v = 0x3f00, ch;
 
 		for(i = 0; i < list.length; i++) {
-			v = e.create_pair(0x3e00 | list[i], v);
+			ch = list[i];
+			if(ch >= 0x30 && ch <= 0x39) {
+				v = e.create_pair(ch + 0x4000 - 0x30, v);
+			} else {
+				v = e.create_pair(0x3e00 | ch, v);
+			}
 		}
 		return v;
 	}
@@ -2598,15 +2638,20 @@ function vm_proceed_with_key(e, code) {
 		return status.get_key;
 	} else {
 		e.spc = e.SP_SPACE;
-		return vm_run(e, 0x3e00 | v);
+		if(v >= 0x30 && v <= 0x39) {
+			v += 0x4000 - 0x30;
+		} else {
+			v |= 0x3e00;
+		}
+		return vm_run(e, v);
 	}
 }
 
 var instance_e;
 
 var aaengine = {
-	prepare_story: function(file_array, io, seed, links, quit) {
-		instance_e = prepare_story(file_array, io, seed, links, quit);
+	prepare_story: function(file_array, io, seed, quit, toparea, inlinearea) {
+		instance_e = prepare_story(file_array, io, seed, quit, toparea, inlinearea);
 		this.keys = keys;
 		this.status = status;
 	},

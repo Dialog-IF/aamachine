@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
-This archive contains version 0.4 of the Å-machine specification, and version
-0.4.4 of the tools and official interpreters.
+This archive contains version 0.5 of the Å-machine specification, and version
+0.5.1 of the tools and official interpreters.
 
 The following interpreters are included:
 
@@ -18,7 +18,7 @@ Version number:
 	to the specification.
 
 	* The second part changes when there are backwards-compatible changes
-	to the specification (i.e. a 0.4 interpreter must be able to run any
+	to the specification (i.e. a 0.5 interpreter must be able to run any
 	0.1 story), or when errors are corrected in the specification document.
 
 	* The third part is incremented when the tools are improved without
@@ -122,6 +122,48 @@ Project website:
 
 Release notes:
 
+	0.5.1:
+
+		Specification (and engines): Optional support for multiple
+		status areas, with the ability to detect which status areas are
+		available at runtime.
+
+		Specification (and engines): Optional ability to clear the
+		current div.
+
+		Specification (and engines): Optional ability to clear all text
+		that the player has had a chance to read.
+
+		Specification (and engines): Words that consist of a single
+		digit are now consistently represented by numbers. This affects
+		line input, keypress input, word splitting, and word joining.
+
+		Specification (and engines): Some new opcodes and opcode
+		variants.
+
+		Specification: Updates and clarifications.
+
+		Web interpreter: Inline status area. Ability to clear the
+		current div. Ability to clear all text that the player has had
+		a chance to read.
+
+		Web interpreter: Ability to view the current transcript without
+		saving it.
+
+		Web interpreter: Ragged right margin by default.
+
+		Web interpreter: Checkbox to turn off hyperlinks.
+
+		Web interpreter: Checkbox to toggle smooth scrolling.
+
+		Web interpreter: Checkbox settings are automatically saved to
+		local web storage.
+
+		Web interpreter: Transcript converts non-zero div margins into
+		paragraph breaks.
+
+		Web interpreter: Improved remote transcript functionality.
+
 	0.4.4:
 
 		C64 interpreter: Added French accented characters to the font.
@@ -166,7 +208,7 @@ Release notes:
 
 		Specification (and engines): New runtime error: Invalid output
 		state.
-		
+
 		Specification (and engines): Ability to check whether a value
 		is a dictionary word that doesn't appear in the game dictionary
 		(i.e. is represented internally by a list of characters).

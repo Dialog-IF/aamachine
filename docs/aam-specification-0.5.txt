@@ -1,0 +1,2811 @@
+This file contains a detailed description of the Aa-machine version 0.5,
+including the two file formats (story and saved game) and the bytecode
+semantics. Be warned that the description is technically comprehensive and
+rather condensed.
+
+Changes in v0.5:
+
+	New opcodes:
+
+		TAIL
+		CLEAR_OLD
+		CLEAR_DIV
+	
+	New opcode variants:
+
+		AUX_PUSH_RAW	0
+		ENTER_STATUS	BYTE INDEX
+
+	New vm_info items:
+
+		60	Interpreter supports the top status area.
+		61	Interpreter supports the inline status area.
+
+	Updated the output model chapter to reflect multiple status areas.
+
+	Digits are stored as numbers inside extended dictionary words. The
+	pseudo-code for parse_word has been updated to reflect this.
+
+	GET_KEY must return digits as numbers.
+
+These are still early days, and everything is subject to change. When only the
+minor version number is incremented, efforts are made to keep all changes
+backwards-compatible.
+
+
+Runtime data
+============
+
+Words:
+
+	Most data is organized into words. A word is currently always 16 bits.
+	When words are stored in a save file, the byte order is big-endian.
+
+	The internal format of a 16-bit word could be:
+
+		* A raw 16-bit value, such as an index into one of the heap
+		areas.
+
+		* 16 independent flags, numbered 0..15 starting with the most
+		significant bit.
+
+			The unconventional bit order works together with
+			big-endian byte ordering to allow interpreters to work
+			with word-addressing or byte-addressing when dealing
+			with flag numbers.
+
+		* A live value (tagged reference), as follows:
+
+			0001..1fff	Object
+			2000..3dff	Word (index into dictionary)
+			3e00..3eff	Character
+			3f00		[] (empty list)
+			3f01..3fff	reserved
+			4000..7fff	Integer in the range 0..16383
+			8000..9fff	Indirect reference (index into heap)
+			a000..bfff	reserved
+			c000..dffe	Pair (index into heap)
+			e000..fffe	Word, extended (index into heap)
+
+			In this document, tagged references are described as if
+			they had two independent fields, "tag" and "value". But
+			the tag is actually determined from a variable number
+			of upper bits of the word, as follows (v is the value):
+
+			00000000 00000000			null_tag
+			000vvvvv vvvvvvvv	v > 0		object
+			001vvvvv vvvvvvvv	v < 0x1e00	word
+			00111110 vvvvvvvv			char
+			00111111 00000000			empty_tag
+			01vvvvvv vvvvvvvv			number
+			100vvvvv vvvvvvvv			reference
+			101vvvvv vvvvvvvv			(reserved)
+			110vvvvv vvvvvvvv			pair
+			111vvvvv vvvvvvvv			extdict
+
+		* A stored value, as follows:
+
+			0000		Unset (Null)
+			0001..7fff	Literal value as above
+			8000..fffe	Index into long-term storage area
+
+		* Part of a serialized data stream:
+
+			0000		End of stream marker
+			0001..7fff	Literal value as above
+			8000		Unbound variable
+			8001..80ff	reserved
+			8100		Extended word marker
+			8101..bfff	reserved
+			c000..dfff	Proper list marker
+			e000..fffe	Improper list marker
+
+		The special value 3f3f marks unused words in the main heap,
+		aux, and random access areas. This is handy for measuring peak
+		memory usage.
+
+Text:
+
+	The game-specific CHARACTER SET is a single-byte encoding.
+		00-1f are reserved. Some represent special keypresses:
+			08	backspace/delete
+			0d	return
+			10	up
+			11	down
+			12	left
+			13	right
+		20-7e correspond to the ASCII characters
+		7f    is reserved
+		80-ff are game-specific
+
+	Characters 80-ff are mapped to unicode glyphs by a game-specific
+	"character mapping table".
+
+	Characters from the CHARACTER SET may appear in input, dictionary
+	words, and output. As part of input processing, characters are
+	converted to lowercase. The character mapping table contains
+	information about case conversion for letters other than A-Z.
+
+	Strings are sequences of printable characters (20-7e, 80-ff) and
+	dictionary words, packed into bit streams according to a
+	Huffman-inspired encoding.
+
+		* Characters in the ranges 20-7e and 80-9f (ASCII and 32 other
+		  glyphs as per the character mapping table) have a compact,
+		  variable-length encoding.
+
+		* Characters in the range 9f-ff and dictionary words are
+		  represented by a less efficient (but simpler) encoding.
+
+	There is a game-specific bitstream decoding tree with up to 128 nodes
+	(see LANG).
+
+Game state:
+
+	Unsaved data:
+
+		* Most output state (Style, screen contents, ...)
+		* Runtime flags (transcript, trace, uppercase)
+		* TMP (global register used during some recursive operations)
+
+	With the exception of the random access area (see below), the following
+	data is not directly addressable by runtime code, so interpreters are
+	free to work with a different internal representation at runtime.
+
+	Special-purpose registers:
+
+		LONG		INST	Instruction pointer
+		LONG		CONT	Continuation pointer
+
+		WORD		TOP	Main heap top
+		WORD		ENV	Env frame pointer
+		WORD		CHO	Choice frame pointer
+		WORD		SIM	Simple cut or null
+
+		WORD		AUX	Aux stack pointer
+		WORD		TRL	Trail stack pointer
+
+		WORD		STA	Stoppable aux pointer
+		WORD		STC	Stoppable choice pointer
+
+		BYTE		CWL	Collect-words level
+		BYTE		SPC	Whitespace state
+	
+		Values for SPC:
+			0 auto
+			1 nospace
+			2 pendingspace
+			3 space
+			4 line
+			5 par
+
+	General-purpose registers:
+
+		WORD[64]	R00-R3f	Registers (args, temps, constants,
+					globals) (R3f is IDX)
+
+		Suggested global register allocation (i.e. used by dialogc):
+
+			R00..R0c	Arguments (with optional just-pointer)
+			R0d..R3c	Temporary values
+			R3d		Quick temporary register
+			R3e		Constant [] (3f00)
+
+	With a few exceptions, all of the registers (special-purpose and
+	general-purpose) are initialized to zero when the virtual machine
+	starts or restarts. The exceptions are:
+
+		INST = 1
+		ENV = HEAD.heapsz
+		CHO = HEAD.heapsz
+		TRL = HEAD.auxsz
+		SIM = 0xffff
+		SPC = line
+
+	In case of a runtime error, the machine is restarted with R00
+	initialized to a tagged integer according to the following table:
+
+		1: Heap space exhausted
+		2: Auxiliary heap space exhausted
+		3: Type error: Expected object
+		4: Type error: Expected bound value
+		6: Long-term heap space exhausted
+		7: Invalid output state.
+		Error code 5 is not used by the Aa-machine.
+
+	Saved output state:
+
+		WORD		Number of active divs
+		WORD[n]		Active divs (class ids), outermost first
+
+	The main chunk of saved data follows. The game state must conform to
+	this format during restart, save and restore operations (including the
+	big-endian byte ordering).
+
+	Initialized registers:
+
+		WORD		NOB	Number of objects
+		WORD		LTB	Long-term heap bottom (index into
+					random access area)
+		WORD		LTT	Long-term heap top (index into random
+					access area)
+
+	Random access area:
+
+		This memory is addressable, and it may contain pointers in the
+		form of word offsets into itself.
+
+		WORD				Word offset of global data
+		WORD[NOB]			Word offset of per-object data
+		WORD[HEAD.ramsz - NOB - 1]	Data
+
+		The word offset of a data field is given by the following
+		pseudo-code:
+
+		def field_addr(field, obj):
+			if(obj > NOB) {
+				runtime_error(3)
+			} else {
+				return ram[obj] + field
+			}
+
+		When reading, non-null non-objects should return zero:
+
+		def read_field(field, obj):
+			if(obj > NOB) {
+				return 0
+			} else {
+				return ram[ram[obj] + field]
+			}
+
+	Heaps:
+
+		WORD[HEAD.auxsz]	Auxiliary heap (aux, trail)
+		WORD[HEAD.heapsz]	Main heap (heap, env, choice)
+
+	Saved games contain a RAM area that matches the layout described here
+	(starting with 'Initialized registers'). The on-disk representation
+	is a run-length encoded xor difference with the contents of the INIT
+	chunk (padded by copies of the 'unused' word, 3f3f).
+
+	It is possible to track the game state in RAM in the same format at
+	runtime, although it may be more efficient to represent words in the
+	native byte order.
+
+	--
+
+	Long-term storage
+	
+		The long-term storage area is part of the random access area,
+		specifically all the words from LTB (inclusive) to LTT
+		(exclusive).
+
+		Data in the long-term storage area is organized into chunks:
+
+		WORD		n	Size in words of this chunk
+		WORD			Pointer to owner reference (index into
+					random access area)
+		WORD[n - 2]		Serialized data
+
+		These chunks can move around at runtime (see psuedo-code for
+		clear_longterm() below). When this happens, pointers are
+		updated in the random access area.
+
+	Env frame format (from lower to higher heap index):
+
+		WORD		Saved ENV
+		WORD		Saved SIM
+		LONG		Saved CONT
+		WORD[]		Local variables
+
+	Choice frame format (from lower to higher heap index):
+
+		WORD		Saved ENV
+		WORD		Saved SIM
+		LONG		Saved CONT
+		LONG		Failure handler
+		WORD		Saved CHO
+		WORD		Saved TOP
+		WORD		Saved TRL
+		WORD[]		Saved arguments
+
+	Stop frame format (from lower to higher aux index):
+
+		WORD		Saved STA
+		WORD		Saved STC
+
+
+Savefile
+========
+
+Saved games are stored in an IFF format, with form identifier "AASV" and the
+following chunks. HEAD must be the first chunk inside the form.
+
+	HEAD		Story file header
+	DATA		Compressed game state
+	REGS		Registers and active divs
+
+HEAD:
+
+	The contents of this chunk must exactly match the HEAD chunk of the
+	story file.
+
+DATA:
+
+	Take the game state (including the full extent of the heaps), then
+	exclusive-or with the contents of the INIT chunk padded with the
+	'unused' word (0x3f3f). This stream of bytes is run-length encoded in
+	the following way: A non-null byte is represented by itself. A stretch
+	of N (1..256) null-bytes is represented by a null-byte, followed by a
+	byte of value N - 1.
+
+REGS:
+
+	WORD[64]	State of the general-purpose registers
+	BYTE[26]	State of the special-purpose registers
+	WORD		Number of active divs
+	WORD[n]		Active divs (class ids), outermost first
+
+The game state is stored as part of the SAVE opcode, and the saved value of
+INST is taken from one of the operands. In addition, interpreters may save
+during any ongoing GET_INPUT or GET_KEY operation. In that case, the saved INST
+must point to the GET_INPUT or GET_KEY instruction, so that it will execute
+again when the game is restored.
+
+Interpreters may create additional chunks describing the current output state.
+These can be in any format, and should probably include the name and version of
+the interpreter. Unrecognized chunks must be ignored on loading.
+
+
+Story file
+==========
+
+The story file is in IFF format, with form identifier "AAVM" and the following
+chunks. HEAD must be the first chunk inside the form. In the following table,
+'*' marks the chunks that participate in the story checksum.
+
+	HEAD		File header
+
+	CODE	*	Bytecode instructions
+	DICT	*	Game dictionary
+	FILE		Embedded resource file (may appear more than once)
+	INIT	*	Initial game state, also needed for save/restore
+	LANG	*	Character set, bitstream decoder, word endings
+	LOOK	*	Style sheet
+	MAPS	*	Word-to-object maps
+	META		(optional) Story metadata
+	TAGS		(optional) Internal object names
+	URLS		Table of resources
+	WRIT	*	Compressed text
+
+An interpreter may regard the entire story file as being mapped into a single,
+contiguous read-only address space, and add the corresponding file offset to
+addresses within the chunks. Or it could regard each chunk as a separate
+address space.
+
+HEAD:
+	BYTE[2]		version	File format version (major, minor)
+	BYTE		wordsz	Word size (currently always 2)
+	BYTE		shift	Shift amount for short/long string pointers
+
+	BYTE[2]		release	Story release number
+	BYTE[6]		serial	Story serial number
+
+	BYTE[4]		crc	Running CRC-32 of the contents of LOOK, LANG,
+				MAPS, DICT, INIT, CODE, and WRIT, in that
+				specific order
+
+	WORD		heapsz	Size (in words) of heap/env/choice area
+	WORD		auxsz	Size (in words) of aux/trail area
+	WORD		ramsz	Size (in words) of random access area
+				(including long-term heap)
+
+	BYTE[46]	ifid	(optional) "UUID://...//" + null-byte
+
+INIT:
+
+	This chunk corresponds to the format of the game state detailed above,
+	starting with the 'Initialized registers'. Words are stored in
+	big-endian byte order. The chunk can be smaller than the RAM area.
+	Remaining words are assumed to be filled with the 'unused' value
+	(0x3f3f).
+
+LANG:
+
+	BYTE[2]		Offset in chunk of bitstream decoding table
+	BYTE[2]		Offset in chunk of extended character table
+	BYTE[2]		Offset in chunk of word endings decoder
+	BYTE[2]		Offset in chunk of special characters
+
+	Bitstream decoding table:
+
+		BYTE[][2]	Up to 128 2-byte entries. Entry 0 is the root.
+
+		Each entry:
+		xxxxxxxx yyyyyyyy	If the bit was 0, perform x, otherwise
+					perform y.
+
+		An individual byte in the table is decoded as follows:
+		00..5e, 60..7f	Character 0x20 + x
+		5f		Escape code (see below)
+		80		End of string
+		81..ff		Go to table entry x - 0x80
+
+		Escape code handling for story-file version 0.3 or earlier:
+
+			* Read 7 bits, msb first, from the stream. Call this X.
+
+			* Produce character 0x80 + X. Note that X must be
+			greater than or equal to 0x20.
+
+		Escape code handling for story-file version 0.4 or later:
+
+			* Let B = max(0, n_ext - 32) where n_ext is the number
+			of extended characters, as defined in the LANG chunk.
+
+			* Let K = ceil(2log(B + n_dict)) where n_dict is the
+			number of dictionary words, as defined in the DICT chunk.
+
+			* Read K bits, msb first, from the stream. Call this X.
+
+			* If X < B, produce character 0xa0 + X.
+
+			* Otherwise, produce a space character (0x20) followed by
+			dictionary word X - B.
+
+	Extended character table:
+
+		BYTE		Number of extended characters
+		{
+			BYTE		Corresponding lowercase character
+						(can be the same)
+			BYTE		Corresponding uppercase character
+						(can be the same)
+			BYTE[3]		Unicode codepoint
+		}
+
+	Word endings decoder (an array of instruction bytes)
+
+		00	Fail
+		01	Check
+		xx yy	Shift xx, jump yy
+
+		Fail: The word is not valid. Shift all letters and create an
+		unrecognized word.
+
+		Check: If the word is in the dictionary, succeed (with the
+		current ending).
+
+		Shift xx, jump yy: If the last character is xx, then move it to
+		the ending and resume execution at byte offset yy in the
+		decoder.
+
+	Special characters
+
+		BYTE[]		Stop characters: A null-terminated set of
+				characters that will be treated as separate
+				words when parsing player input.
+
+		The following fields are present if the story-file version is
+		0.4 or more.
+
+		BYTE[]		Null-terminated subset of stop characters that
+				will inhibit whitespace before them, such as
+				".". [spec 0.4]
+
+		BYTE[]		Null-terminated subset of stop characters that
+				will inhibit whitespace after them, such as
+				"(". [spec 0.4]
+
+DICT:
+
+	WORD			Number of dictionary words
+	{
+		BYTE		Length (2..255)
+		BYTE[2]		Start of characters (offset in chunk)
+	}
+
+	Strings of characters referenced by the dictionary. Can overlap each
+	other.
+
+MAPS:
+
+	BYTE[2]			Number of word-to-object maps
+	{
+		BYTE[2]		Offset in chunk of word-to-object map
+	}
+
+	Each word-to-object map:
+
+	BYTE[2]		Number of entries (sorted by index value)
+	{
+		WORD	Index value (dictionary word)
+		WORD	Single object id + 0xe000, offset in chunk of payload,
+			or null (for wildcard words such as 'the')
+	}
+
+	Payload data:
+
+	00		End
+	01..df		Short object id (0001..00df)
+	e0..ff xx	Long object id (0001..1fff)
+
+LOOK:
+
+	BYTE[2]			Number of style classes
+	{
+		BYTE[2]		Offset in chunk of style definition
+	}
+
+	Each style definition consists of zero or more null-terminated CSS
+	key-value pairs without the final semicolon, e.g. "width: 100%". The
+	original case from the Dialog source code is preserved, so interpreters
+	must perform case-insensitive comparison. Leading whitespace has been
+	removed from the entries. A blank entry (just the terminating
+	null-byte) marks the end.
+
+
+TAGS: (optional)
+
+	WORD			Number of named objects
+	{
+		BYTE[2]		Offset in chunk of null-terminated object name
+	}
+
+	Strings of characters for the object names.
+
+META: (optional)
+
+	BYTE			Number of entries
+	{
+		BYTE		Identifier
+		BYTE[]		Null-terminated string (variable length)
+	}
+
+	Identifiers:
+
+	01	Story title
+	02	Story author
+	03	Story noun
+	04	Story blurb (double linefeed is a paragraph break)
+	05	Release date in YYYY-MM-DD format
+	06	Compiler version string
+
+WRIT:
+
+	A byte-addressable read-only chunk containing packed bitstreams.
+	Streams always begin on a byte boundary. Bits are packed into bytes
+	starting with the MSB. Extra null-bytes can be inserted to make better
+	use of packed addressing modes.
+
+URLS:
+
+	BYTE[2]			Number of resources
+	{
+		BYTE[2]		Offset in chunk of descriptor
+	}
+
+	Each descriptor is:
+
+	BYTE[3]			String pointer to alt-text (shift according to
+				header)
+
+	followed by a null-terminated URL, followed by a null-terminated option
+	string. The option string is currently always empty.
+
+	It is up to the interpreter to decide how to embed (or link to) a
+	resource. The filename ending can be significant, in addition to the
+	file contents.
+
+	The URL scheme "file" refers to data inside FILE chunks, e.g.
+	"file:title.png".
+
+FILE:
+
+	A null-terminated filename, e.g. "title.png", immediately followed by
+	the file contents.
+
+CODE:
+
+	A byte-addressable read-only chunk, up to 8 MB in size, containing
+	bytecode instructions.
+
+	Address 0 must always contain the FAIL instruction. Interpreters may
+	thus intercept branches to address 0 and trigger a failure condition
+	immediately, which may be faster.
+
+	Address 1 is the program/error entry point. The error code is passed as
+	a tagged integer in register R00. For regular program entry, R00 is
+	null.
+
+	An opcode is always one byte, and it determines the number and format
+	of subsequent operands. The MSB of the opcode often distinguishes
+	between two variants of the same operation. This gives interpreter
+	authors a choice between dispatching on the entire byte (256 table
+	entries), or dispatching on the lower seven bits (128 table entries),
+	and then branching on the MSB at a later stage while processing the
+	instruction.
+
+	Operand types (always big-endian byte ordering):
+
+	BYTE: (e.g. number of slots to allocate, small constants, ...)
+		xxxxxxxx
+
+	VBYTE: (raw constant value, displayed as value in disassembly)
+		xxxxxxxx
+
+	WORD: (raw constant value, line number, ...)
+		xxxxxxxx xxxxxxxx		(depending on word size, which
+						is currently always 2)
+
+	VALUE:
+		0xxxxxxx xxxxxxxx		Constant 0000-7fff
+		10xxxxxx			Value of register 00..3f
+		11xxxxxx			Value of env slot 00..3f
+
+	DEST:
+		00xxxxxx			Store into register 00..3f
+		01xxxxxx			Store into env slot 00..3f
+		10xxxxxx			Unify with register 00..3f
+		11xxxxxx			Unify with env slot 00..3f
+
+	INDEX:
+		0xxxxxxx			Index 00..7f
+		10xxxxxx			Index 80..bf
+		11xxxxxx xxxxxxxx		Index 0000..3fff
+
+	CODE:
+		00000000			Absolute address 0 (known to
+						contain the FAIL opcode)
+		00xxxxxx			Close relative pointer
+						(+ 1..3f bytes)
+		01xxxxxx xxxxxxxx		Relative pointer (+/- 8 kB),
+						relative to end of operand
+		1xxxxxxx xxxxxxxx xxxxxxxx	Absolute pointer (full 8 MB
+						range)
+
+	STRING:
+		0xxxxxxx			Tiny pointer (shift by 1, i.e.
+						reaches 256 bytes)
+		10xxxxxx xxxxxxxx		Short pointer (shift according
+						to header)
+		11xxxxxx xxxxxxxx xxxxxxxx	Long pointer (shift according
+						to header)
+
+	Decoding of a CODE operand can sometimes can be postponed until after
+	the execute stage, when it may be possible to decode straight into INST
+	or skip the operand altogether.
+
+	The instructions (semantics below):
+
+	0x	Execution flow
+	1x	Live data manipulation, stoppable environments
+	2x	Random access data manipulation
+	3x	Conditional branches
+	4x	Conditional branches (negated)
+	5x	Arithmetic
+	6x	Output
+	7x	Input, system control, miscellaneous
+
+	Opcode	Mnemonic		Args
+
+	00	NOP
+
+	01	FAIL
+
+	02	SET_CONT		CODE
+	03	PROCEED
+
+	04	JMP			CODE
+	05	JMP_MULTI		CODE
+	85	JMPL_MULTI		CODE
+	06	JMP_SIMPLE		CODE
+	86	JMPL_SIMPLE		CODE
+	07	JMP_TAIL		CODE
+	87	TAIL
+
+	08/88	PUSH_ENV		BYTE/0
+	09	POP_ENV
+	89	POP_ENV_PROCEED
+
+	0a/8a	PUSH_CHOICE		BYTE/0 CODE
+	0b/8b	POP_CHOICE		BYTE/0
+	0c/8c	POP_PUSH_CHOICE		BYTE/0 CODE
+
+	0d	CUT_CHOICE
+	0e	GET_CHO			DEST
+	0f	SET_CHO			VALUE
+
+	10	ASSIGN			VALUE DEST
+	90	ASSIGN			VBYTE DEST		[spec 0.4]
+
+	11	MAKE_VAR		DEST
+
+	12	MAKE_PAIR		DEST DEST DEST
+	13/93	MAKE_PAIR		WORD/VBYTE DEST DEST
+
+	14	AUX_PUSH_VAL		VALUE
+	94	AUX_PUSH_RAW		0			[spec 0.5]
+	15/95	AUX_PUSH_RAW		WORD/VBYTE
+	16	AUX_POP_VAL		DEST			[deprecated]
+	17	AUX_POP_LIST		DEST
+	18	AUX_POP_LIST_CHK	VALUE
+	19	AUX_POP_LIST_MATCH	VALUE
+
+	1b	SPLIT_LIST		VALUE VALUE DEST
+
+	1c	STOP
+	1d	PUSH_STOP		CODE
+	1e	POP_STOP
+
+	1f	SPLIT_WORD		VALUE DEST		[spec 0.4]
+	9f	JOIN_WORDS		VALUE DEST		[spec 0.4]
+
+	20/a0	LOAD_WORD		VALUE/0 INDEX DEST
+	21/a1	LOAD_BYTE		VALUE/0 INDEX DEST
+	22/a2	LOAD_VAL		VALUE/0 INDEX DEST
+
+	24/a4	STORE_WORD		VALUE/0 INDEX VALUE
+	25/a5	STORE_BYTE		VALUE/0 INDEX VALUE
+	26/a6	STORE_VAL		VALUE/0 INDEX VALUE
+
+	28/a8	SET_FLAG		VALUE/0 INDEX
+	29/a9	RESET_FLAG		VALUE/0 INDEX
+
+	2d/ad	UNLINK			VALUE/0 INDEX INDEX VALUE
+
+	2e/ae	SET_PARENT		VALUE/VBYTE VALUE
+	2f/af	SET_PARENT		VALUE/VBYTE VBYTE
+
+	30/b0	IF_RAW_EQ		WORD/0 VALUE CODE
+	31	IF_BOUND		VALUE CODE
+	32	IF_EMPTY		VALUE CODE
+	33	IF_NUM			VALUE CODE
+	34	IF_PAIR			VALUE CODE
+	35	IF_OBJ			VALUE CODE
+	36	IF_WORD			VALUE CODE
+	b6	IF_UWORD		VALUE CODE		[spec 0.4]
+	37	IF_UNIFY		VALUE VALUE CODE
+	38	IF_GT			VALUE VALUE CODE
+	39/b9	IF_EQ			WORD/VBYTE VALUE CODE
+	3a/ba	IF_MEM_EQ		VALUE/0 INDEX VALUE CODE
+	3b/bb	IF_FLAG			VALUE/0 INDEX CODE
+	3c	IF_CWL			CODE
+	3d/bd	IF_MEM_EQ		VALUE/0 INDEX VBYTE CODE [spec 0.4]
+
+	40/c0	IFN_RAW_EQ		WORD/0 VALUE CODE
+	41	IFN_BOUND		VALUE CODE
+	42	IFN_EMPTY		VALUE CODE
+	43	IFN_NUM			VALUE CODE
+	44	IFN_PAIR		VALUE CODE
+	45	IFN_OBJ			VALUE CODE
+	46	IFN_WORD		VALUE CODE
+	c6	IFN_UWORD		VALUE CODE		[spec 0.4]
+	47	IFN_UNIFY		VALUE VALUE CODE
+	48	IFN_GT			VALUE VALUE CODE
+	49/c9	IFN_EQ			WORD/VBYTE VALUE CODE
+	4a/ca	IFN_MEM_EQ		VALUE/0 INDEX VALUE CODE
+	4b/cb	IFN_FLAG		VALUE/0 INDEX CODE
+	4c	IFN_CWL			CODE
+	4d/cd	IFN_MEM_EQ		VALUE/0 INDEX VBYTE CODE [spec 0.4]
+
+	50	ADD_RAW			VALUE VALUE DEST
+	d0	INC_RAW			VALUE DEST
+	51	SUB_RAW			VALUE VALUE DEST
+	d1	DEC_RAW			VALUE DEST
+	52	RAND_RAW		BYTE DEST
+
+	58	ADD_NUM			VALUE VALUE DEST
+	d8	INC_NUM			VALUE DEST
+	59	SUB_NUM			VALUE VALUE DEST
+	d9	DEC_NUM			VALUE DEST
+	5a	RAND_NUM		VALUE VALUE DEST
+	5b	MUL_NUM			VALUE VALUE DEST
+	5c	DIV_NUM			VALUE VALUE DEST
+	5d	MOD_NUM			VALUE VALUE DEST
+
+	60	PRINT_A_STR_A		STRING
+	e0	PRINT_N_STR_A		STRING
+	61	PRINT_A_STR_N		STRING
+	e1	PRINT_N_STR_N		STRING
+
+	62	NOSPACE
+	e2	SPACE
+	63	LINE
+	e3	PAR
+
+	64	SPACE_N			VALUE
+
+	65	PRINT_VAL		VALUE
+
+	66	ENTER_DIV		INDEX
+	e6	LEAVE_DIV
+
+	67	ENTER_STATUS		0 INDEX
+	e7	LEAVE_STATUS
+
+	68	ENTER_LINK_RES		VALUE			[spec 0.2]
+	e8	LEAVE_LINK_RES					[spec 0.2]
+
+	69	ENTER_LINK		VALUE
+	e9	LEAVE_LINK
+
+	6a	ENTER_SELF_LINK					[spec 0.4]
+	ea	LEAVE_SELF_LINK					[spec 0.4]
+
+	6b	SET_STYLE		BYTE
+	eb	RESET_STYLE		BYTE
+
+	6c	EMBED_RES		VALUE			[spec 0.2]
+	ec	CAN_EMBED_RES		VALUE DEST		[spec 0.2]
+
+	6d	PROGRESS		VALUE VALUE
+
+	6e	ENTER_SPAN		VALUE			[spec 0.4]
+	ee	LEAVE_SPAN					[spec 0.4]
+
+	6f	ENTER_STATUS		BYTE INDEX		[spec 0.5]
+
+		00	normal (top) status area
+		01	inline status area
+
+	70	EXT0			BYTE
+
+		00	QUIT
+		01	RESTART
+		02	RESTORE
+		03	UNDO
+		04	UNSTYLE
+		05	PRINT_SERIAL
+		06	CLEAR
+		07	CLEAR_ALL
+		08	SCRIPT_ON
+		09	SCRIPT_OFF
+		0a	TRACE_ON
+		0b	TRACE_OFF
+		0c	INC_CWL
+		0d	DEC_CWL
+		0e	UPPERCASE
+		0f	CLEAR_LINKS				[spec 0.4]
+		10	CLEAR_OLD				[spec 0.5]
+		11	CLEAR_DIV				[spec 0.5]
+
+	72	SAVE			CODE	
+	f2	SAVE_UNDO		CODE
+
+	73	GET_INPUT		DEST
+	f3	GET_KEY			DEST
+
+	74	VM_INFO			BYTE DEST
+
+		These return tagged numeric values:
+		00	peak heap
+		01	peak aux
+		02	peak longterm
+
+		These return raw 0/1 values and default to 0:
+		40	interpreter supports undo
+		41	interpreter supports save/restore
+		42	interpreter supports hyperlinks
+		43	interpreter supports quit
+		60	interpreter supports top status		[spec 0.5]
+		61	interpreter supports inline status	[spec 0.5]
+
+	78	SET_IDX			VALUE
+	79/f9	CHECK_EQ		WORD/VBYTE CODE
+	7a/fa	CHECK_GT_EQ		WORD/VBYTE CODE CODE
+	7b/fb	CHECK_GT		VALUE/BYTE CODE
+	7c	CHECK_WORDMAP		INDEX CODE
+
+	7d	CHECK_EQ_2		WORD WORD CODE		[spec 0.4]
+	fd	CHECK_EQ_2		VBYTE VBYTE CODE	[spec 0.4]
+
+	7f	TRACEPOINT		STRING STRING STRING WORD
+
+
+Output model
+============
+
+	In this and the following chapter, we will assume that an Aa-machine
+	interpreter contains a virtual machine "engine" that decodes and
+	executes opcodes, and a device-specific output subsystem coupled to the
+	engine. The present chapter describes this coupling, as an API, while
+	the next chapter provides pseudo-code for the engine.
+
+	Output flows from the Aa-machine into a set of areas: The main area and
+	one or more status areas. Interpreters may freely ignore all or a
+	subset of the status areas, which is handy when the output device is
+	e.g. a screen reader or a dumb terminal.
+
+	The interpreter engine selects a target area with the API calls:
+
+		output_enterstatus(area, style_class)
+		output_leavestatus()
+
+	The former call takes a parameter indicating the desired status area
+	(see ENTER_STATUS above for a list of supported values), and another
+	indicating the desired style class for the status area (see the LOOK
+	chunk). Each time a status area is entered, it is also implicitly
+	cleared.
+
+	Within each area, output is organized as a stream of characters,
+	linefeeds, and paragraph breaks. This stream is further subdivided into
+	nested elements called divs and spans. A div has implicit linefeeds at
+	its beginning and end. A link is a special kind of span.
+
+	The engine transmits this output stream using a series of API calls:
+
+		output_string(string)
+		output_char(charcode)
+		output_space()
+		output_space_n(number)
+		output_newline()
+		output_endpar()
+
+		output_uppercase() // convert next character to uppercase
+
+		output_enterdiv(style_class)
+		output_leavediv(style_class)
+
+		output_enterspan(style_class)
+		output_leavespan()
+
+		output_enter_selflink()
+		output_leave_selflink()
+		output_enterlink(string)
+		output_leavelink()
+		output_enterlink_res(resource_id)
+		output_leavelink_res()
+
+		output_embed_res(resource_id)
+		output_progress_bar(amount, full_amount)
+
+	In addition, it is possible to insert changes of text-style into the
+	stream, to e.g. turn italics on or off. Such changes are valid until
+	the next beginning or end of a subdivision, or until the end of the
+	current paragraph.
+
+		output_setstyle(bits) // see SET_STYLE for bit values
+		output_resetstyle(bits)
+		output_unstyle()
+
+	Additional API calls perform high-level operations on the output state:
+
+		output_clear() // keep current stack of divs, but clear them
+		output_clear_all() // as above, and hide the status areas
+		output_clear_links() // transform old links into static text
+		output_clear_div() // clear current div
+		output_clear_old() // clear old text
+		output_leave_all()
+		output_sync()
+		bool output_script_on() // returns true to indicate success
+		output_script_off()
+		bool output_can_embed_res(resource_id) // can it be embedded?
+
+	The exact meaning of each of the above API calls is not specified here.
+	It is up to the output subsystem of the interpreter to react to them in
+	some sensible way.
+
+	Paragraph breaks can legally appear inside spans, but the output
+	subsystem may choose to ignore them.
+
+	The engine must ensure that the following rules are followed:
+
+		* All calls to the enter- and leave-functions are perfectly
+		  balanced, with one exception: It is possible to call
+		  output_leave_all() at any point to return to the initial
+		  state (i.e. to clear the stack of spans and divs and leave
+		  any status area).
+
+		* A div will not be nested inside a span (but a span may be
+		  nested inside a div or a span, and a div may be nested inside
+		  a div).
+
+		* A link will not be nested inside another link (at any level).
+
+		* No attempt will be made to enter a status area from
+		  inside a span or a status area.
+
+		* No attempt will be made to clear or clear_all from inside a
+		  span or a status area.
+
+		* No attempt will be made to save the game (to a file or an
+		  undo buffer) from within a span or a status area.
+
+	The storyfile (and by extension the compiler) is responsible for
+	balancing each enter-call with a matching leave-call. Depending on the
+	story authoring language, this may include cutting choice points to
+	ensure return-once semantics, and setting up temporary stop-frames to
+	catch non-local returns from inner code.
+
+	If the storyfile attempts to enter a link from within a link, the inner
+	link will behave like static text (forming a part of the outer link).
+
+	For the remaining restrictions, the engine will detect violations and
+	throw a runtime error (invalid output state). Details are provided in
+	the next chapter. All runtime errors involve a call to
+	output_leave_all().
+
+	In order to detect such violations (and to provide the correct argument
+	to output_leavediv), the engine tracks output state using four global
+	variables (in addition to SPC and CWL):
+
+		nSpan		integer, initially 0
+		nLink		integer, initially 0
+		inStatus	boolean, initially false
+		divList		list/array of style classes, initially empty
+
+	Of these, only divList is stored as part of a saved game (see REGS
+	chunk). Interpreters may impose a limit on the size of divList, but it
+	must have room for at least eight items.
+
+	All runtime errors invoke output_leave_all(), reset nSpan, nLink,
+	inStatus, and divList to their initial values, and restart the virtual
+	machine.
+
+	Interpreters that do not support clickable links at all should treat
+	them as static text. Such interpreters do not need the nLink variable.
+
+
+Opcode semantics
+================
+
+	There could be errors. Recommendation is to double-check with the
+	javascript interpreter.
+
+	NOP
+
+		Do nothing
+
+	FAIL
+
+		fail
+
+		def fail:
+			INST = (heap[CHO + 4] << 16) | heap[CHO + 5]
+			leave recursive unify/push/pop/(de)serialize operation
+
+	SET_CONT		CODE
+
+		CONT = arg
+
+	PROCEED
+
+		if(SIM < 0x8000) CHO = SIM
+		INST = CONT
+
+	JMP			CODE
+
+		INST = arg
+
+	JMP_MULTI		CODE
+
+		SIM = 0xffff
+		INST = arg
+
+	JMPL_MULTI		CODE
+
+		CONT = next_instruction
+		SIM = 0xffff
+		INST = arg
+
+	JMP_SIMPLE		CODE
+
+		SIM = CHO
+		INST = arg
+
+	JMPL_SIMPLE		CODE
+
+		CONT = next_instruction
+		SIM = CHO
+		INST = arg
+
+	JMP_TAIL		CODE
+
+		if(SIM >= 0x8000) SIM = CHO
+		INST = arg
+
+	TAIL
+
+		if(SIM >= 0x8000) SIM = CHO
+
+	PUSH_ENV		BYTE/0
+
+		local variable addr = min(ENV, CHO) - 4 - arg
+		if(addr < TOP) runtime_error(1)
+
+		heap[addr + 0] = ENV
+		heap[addr + 1] = SIM
+		heap[addr + 2] = CONT >> 16
+		heap[addr + 3] = CONT & 0xffff
+
+		ENV = addr
+
+	POP_ENV
+
+		CONT = (heap[ENV + 2] << 16) | heap[ENV + 3]
+		SIM = heap[ENV + 1]
+		ENV = heap[ENV + 0]
+
+	POP_ENV_PROCEED
+
+		INST = (heap[ENV + 2] << 16) | heap[ENV + 3]
+		if(heap[ENV + 1] < 0x8000) CHO = heap[ENV + 1]
+		ENV = heap[ENV + 0]
+
+	PUSH_CHOICE		BYTE/0 CODE
+
+		push_choice(arg1, arg2)
+
+		def push_choice(narg, next):
+			local variable addr = min(ENV, CHO) - 9 - narg
+			if(addr < TOP) runtime_error(1)
+			heap[addr + 0] = ENV
+			heap[addr + 1] = SIM
+			heap[addr + 2] = CONT >> 16
+			heap[addr + 3] = CONT & 0xffff
+			heap[addr + 4] = next >> 16
+			heap[addr + 5] = next & 0xffff
+			heap[addr + 6] = CHO
+			heap[addr + 7] = TOP
+			heap[addr + 8] = TRL
+			for(local variable i = 0; i < narg; i++) {
+				heap[addr + 9 + i] = R[i] // register R00..
+			}
+			CHO = addr
+
+	POP_CHOICE		BYTE/0
+
+		for(local variable i = 0; i < arg; i++) {
+			R[i] = heap[CHO + 9 + i]
+		}
+		while(TRL < heap[CHO + 8]) {
+			heap[aux[TRL++]] = 0
+		}
+		TOP = heap[CHO + 7]
+		CONT = (heap[CHO + 2] << 16) | heap[CHO + 3]
+		SIM = heap[CHO + 1]
+		ENV = heap[CHO + 0]
+		CHO = heap[CHO + 6]
+
+	POP_PUSH_CHOICE		BYTE/0 CODE
+
+		heap[CHO + 4] = arg2 >> 16
+		heap[CHO + 5] = arg2 & 0xffff
+		for(local variable i = 0; i < arg1; i++) {
+			R[i] = heap[CHO + 9 + i]
+		}
+		while(TRL < heap[CHO + 8]) {
+			heap[aux[TRL++]] = 0
+		}
+		TOP = heap[CHO + 7]
+		CONT = (heap[CHO + 2] << 16) | heap[CHO + 3]
+		SIM = heap[CHO + 1]
+		ENV = heap[CHO + 0]
+
+	CUT_CHOICE
+
+		CHO = heap[CHO + 6]
+
+	GET_CHO			DEST
+
+		arg <- CHO
+
+	SET_CHO			VALUE
+
+		CHO = arg
+
+	ASSIGN			VALUE/VBYTE DEST
+
+		arg2 <- arg1
+
+		def unify(a, b):
+			while(true) {
+				a = deref(a)
+				b = deref(b)
+				if(a.tag == reference && b.tag == reference) {
+					if(TRL <= AUX) runtime_error(2)
+					if(a.value < b.value) {
+						aux[--TRL] = b.value
+						heap[b.value] = a
+					} else {
+						aux[--TRL] = a.value
+						heap[a.value] = b
+					}
+					break
+				} else if(a.tag == reference) {
+					if(TRL <= AUX) runtime_error(2)
+					aux[--TRL] = a.value
+					heap[a.value] = b
+					break
+				} else if(b.tag == reference) {
+					if(TRL <= AUX) runtime_error(2)
+					aux[--TRL] = b.value
+					heap[b.value] = a
+					break
+				} else if(a.tag == extdict
+					&& b.tag == extdict)
+				{
+					a = heap[a.value]
+					b = heap[b.value]
+				} else if(a.tag == extdict) {
+					a = heap[a.value]
+				} else if(b.tag == extdict) {
+					b = heap[b.value]
+				} else if(a == b) {
+					break
+				} else if(a.tag == pair && b.tag == pair) {
+					unify(
+						<reference, a.value + 0>,
+						<reference, b.value + 0>)
+					a = <reference, a.value + 1>
+					b = <reference, b.value + 1>
+				} else {
+					fail
+				}
+			}
+
+		def deref(a):
+			while(a.tag == reference && heap[a.value] != 0) {
+				a = heap[a.value]
+			}
+			return a
+
+		def runtime_error(error_code):
+			R00 = error_code
+			reinitialize special-purpose registers
+			leave recursive unify/push/pop/(de)serialize operation
+
+	MAKE_VAR		DEST
+
+		local variable addr = TOP++
+		if(TOP > min(ENV, CHO)) runtime_error(1)
+		heap[addr] = 0
+		arg <- <reference, addr>
+
+	MAKE_PAIR		WORD/VBYTE/DEST DEST DEST
+
+		if(arg3 is a store variant) {
+			local variable addr = TOP
+			TOP += 2
+			if(TOP > min(ENV, CHO)) runtime_error(1)
+			if(arg1 is a store variant) {
+				heap[addr + 0] = 0
+				arg1 <- <reference, addr + 0>
+			} else {
+				heap[addr + 0] = arg1
+			}
+			if(arg2 is a store variant) {
+				heap[addr + 1] = 0
+				arg2 <- <reference, addr + 1>
+			} else {
+				heap[addr + 1] = arg2
+			}
+			arg3 <- <pair, addr>
+		} else {
+			local variable a3 = deref(arg3)
+			if(a3.tag == reference) {
+				local variable addr = TOP
+				TOP += 2
+				if(TOP > min(ENV, CHO)) runtime_error(1)
+				if(arg1 is a store variant) {
+					heap[addr + 0] = 0
+					arg1 <- <reference, addr + 0>
+				} else {
+					heap[addr + 0] = arg1
+				}
+				if(arg2 is a store variant) {
+					heap[addr + 1] = 0
+					arg2 <- <reference, addr + 1>
+				} else {
+					heap[addr + 1] = arg2
+				}
+				unify(a3, <pair, addr>)
+			} else if(a3.tag == pair) {
+				arg1 <- <reference, a3.value + 0>
+				arg2 <- <reference, a3.value + 1>
+			} else {
+				fail
+			}
+		}
+
+	AUX_PUSH_VAL		VALUE
+
+		push_serialized(arg)
+
+		def push_serialized(v):
+			v = deref(v)
+			if(v.tag == pair) {
+				local variable count = 0
+				while(true) {
+					push_serialized(<reference, v.value>)
+					count++
+					v = deref(<reference, v.value + 1>)
+					if(v == empty_list) {
+						v = 0xc000 + count
+						break
+					} else if(v.tag != pair) {
+						push_serialized(v)
+						v = 0xe000 + count
+						break
+					}
+				}
+			} else if(v.tag == extdict) {
+				push_serialized(heap[v.value + 1])
+				push_serialized(heap[v.value + 0])
+				v = 0x8100
+			} else if(v.tag == reference) {
+				v = 0x8000
+			}
+			if(AUX >= TRL) runtime_error(2)
+			aux[AUX++] = v
+
+	AUX_PUSH_RAW		WORD/VBYTE/0
+
+		if(AUX >= TRL) runtime_error(2)
+		aux[AUX++] = arg
+
+	AUX_POP_VAL		DEST
+
+		Note: This instruction is deprecated. No version of the dialog
+		compiler generates it. The pop_serialized subroutine is
+		nevertheless used by AUX_POP_LIST.
+
+		arg <- pop_serialized()
+
+		def pop_serialized:
+			local variable v = aux[--AUX]
+			if(v == 0x8000) {
+				local variable addr = TOP++
+				if(TOP > min(ENV, CHO)) runtime_error(1)
+				heap[addr] = 0
+				v = <reference, addr>
+			} else if(v == 0x8100) {
+				local variable addr = TOP
+				TOP += 2
+				if(TOP > min(ENV, CHO)) runtime_error(1)
+				heap[addr + 0] = pop_serialized()
+				heap[addr + 1] = pop_serialized()
+				v = <extdict, addr>
+			} else if((v & 0xc000) == 0xc000) {
+				local variable count = v & 0x1fff
+				if(v & 0x2000) {
+					v = pop_serialized()
+				} else {
+					v = empty_list
+				}
+				while(count--) {
+					local variable addr = TOP
+					TOP += 2
+					if(TOP > min(ENV, CHO)) runtime_error(1)
+					heap[addr + 0] = pop_serialized()
+					heap[addr + 1] = v
+					v = <pair, addr>
+				}
+			}
+			return v
+
+	AUX_POP_LIST		DEST
+
+		arg <- pop_serialized_list()
+
+		def pop_serialized_list():
+			local variable list = empty_list
+			while(local variable v = pop_serialized()) {
+				local variable addr = TOP
+				TOP += 2
+				if(TOP > min(ENV, CHO)) runtime_error(1)
+				heap[addr + 0] = v
+				heap[addr + 1] = list
+				list = <pair, addr>
+			}
+			return list
+
+	AUX_POP_LIST_CHK	VALUE
+
+		local variable flag = 0
+		local variable key = deref(arg)
+
+		while(local variable v = aux[--AUX]) {
+			if(v == key) {
+				flag = 1
+			}
+		}
+
+		if(!flag) {
+			fail
+		}
+
+	AUX_POP_LIST_MATCH	VALUE
+
+		local variable old_top = TOP
+
+		local variable key = deref(arg)
+		local variable list = pop_serialized_list()
+		// no need to deref the elements inside list
+
+		while(key.tag == pair) {
+			local variable iter = list
+			local variable match = 0
+			while(iter.tag == pair && !match) {
+				if(would_unify(
+					<reference, iter.value>,
+					<reference, key.value>))
+				{
+					match = 1
+				}
+				iter = heap[iter.value + 1]
+			}
+			if(!match) {
+				fail
+			}
+			key = heap[key.value + 1]
+		}
+
+		TOP = old_top	// return the heap memory that we used
+
+	SPLIT_LIST		VALUE VALUE DEST
+
+		arg3 <- split_list(arg1, arg2)
+
+		def split_list(list, end):
+			list = deref(list)
+			end = deref(end)
+			if(list == end || list.tag != pair) {
+				return empty_list
+			} else {
+				local variable first, curr
+				first = curr = TOP
+				TOP += 2
+				if(TOP > min(ENV, CHO)) runtime_error(1)
+				while(true) {
+					heap[curr + 0] = heap[list.value + 0]
+					list = deref(heap[list.value + 1])
+					if(list == end || list.tag != pair) {
+						break
+					} else {
+						heap[curr + 1] = <pair, TOP>
+						curr = TOP
+						TOP += 2
+						if(TOP > min(ENV, CHO)) {
+							runtime_error(1)
+						}
+					}
+				}
+				heap[curr + 1] = empty_list
+				return <pair, first>
+			}
+
+	STOP
+
+		CHO = STC
+		fail
+
+	PUSH_STOP		CODE
+
+		if(AUX + 2 > TRL) runtime_error(2)
+		aux[AUX++] = STC
+		aux[AUX++] = STA
+		STA = AUX
+		push_choice(0, arg)
+		STC = CHO
+
+	POP_STOP
+
+		AUX = STA
+		STA = aux[--AUX]
+		STC = aux[--AUX]
+
+	SPLIT_WORD		VALUE DEST
+
+		arg1 = deref(arg1)
+		if(arg1.tag == char) {
+			arg2 <- create_pair(arg1, empty_list)
+		} else if(arg1.tag == word) {
+			arg2 <- prepend_chars(arg1, empty_list)
+		} else if(arg1.tag == extdict) {
+			local variable part1 = heap[arg1.value + 0]
+			if(part1.tag == pair) {
+				arg2 <- part1
+			} else {
+				local variable part2 = heap[arg1.value + 1]
+				arg2 <- prepend_chars(part1, part2)
+			}
+		} else if(arg1.tag == number) {
+			local variable i = arg1.value
+			local variable list = empty_list
+			do {
+				list = create_pair(<number, i % 10>, list)
+				i /= 10
+			} while(i)
+			arg2 <- list
+		} else {
+			fail
+		}
+
+		def prepend_chars(word, list):
+			local variable str = word_to_string(word)
+			local variable i
+			for(i = str.length - 1; i >= 0; i--) {
+				list = create_pair(<char, str[i]>, list)
+			}
+			return list
+
+	JOIN_WORDS		VALUE DEST
+
+		arg1 = deref(arg1)
+		if(arg1.tag != pair) {
+			fail
+		}
+		local variable v1 = deref(heap[arg1.value + 0])
+		local variable v2 = deref(heap[arg1.value + 1])
+		if(v1.tag == char && v2 == empty_list) {
+			// Allow e.g. stop characters on their own.
+			arg2 <- v1
+		} else {
+			arg2 <- parse_word(wordlist_to_string(arg1))
+		}
+
+		def wordlist_to_string(list):
+			// The string buffer "str" may have a limited size,
+			// but should be at least as large as the input buffer
+			// used during GET_INPUT.
+			// If the buffer space is exhausted, the instruction
+			// fails.
+			local variable str = ""
+			do {
+				local variable v = deref(heap[list.value + 0])
+				if(v.tag == char) {
+					local variable ch = v.value
+					// Stop characters are defined
+					// in the LANG chunk.
+					if(ch <= 0x20
+					|| ch is a stop character) {
+						fail
+					}
+					str += ch
+				} else if(v.tag == word) {
+					str += dictionary[v.value]
+				} else if(v.tag == extdict) {
+					local variable part1 = heap[v.value + 0]
+					if(part1.tag == pair) {
+						str += wordlist_to_string(part1)
+					} else {
+						// Reinterpret the extdict cell
+						// as a list node:
+						str += wordlist_to_string(v)
+					}
+				} else if(v.tag == number) {
+					str += number_to_decimal_string(v.value)
+				} else {
+					fail
+				}
+				list = deref(heap[list.value + 1])
+			} while(list.tag == pair)
+			if(list != empty_list) {
+				fail
+			}
+			return str
+
+	LOAD_WORD		VALUE/0 INDEX DEST
+
+		arg3 <- read_field(arg2, deref(arg1))
+
+	LOAD_BYTE		VALUE/0 INDEX DEST
+
+		arg3 <- (read_field(arg2 / 2, deref(arg1))
+			>> ((arg2 & 1)? 0 : 8)) & 0xff
+
+	LOAD_VAL		VALUE/0 INDEX DEST
+
+		local variable val = get_longterm(read_field(arg2, deref(arg1)))
+		if(!val) {
+			fail
+		}
+		arg3 <- val
+
+		def get_longterm(v):
+			if(v & 0x8000) {
+				TMP = v & 0x7fff
+				TMP += ram[TMP]
+				v = pop_longterm()
+			}
+			return v
+
+		def pop_longterm():
+			local variable v = ram[--TMP]
+			if(v == 0x8000) {
+				local variable addr = TOP
+				TOP++
+				if(TOP > min(ENV, CHO)) runtime_error(1)
+				heap[addr] = 0
+				v = <reference, addr>
+			} else if(v == 0x8100) {
+				local variable addr = TOP
+				TOP += 2
+				if(TOP > min(ENV, CHO)) runtime_error(1)
+				heap[addr + 0] = pop_longterm()
+				heap[addr + 1] = pop_longterm()
+				v = <extdict, addr>
+			} else if((v & 0xc000) == 0xc000) {
+				local variable count = v & 0x1fff
+				if(v & 0x2000) {
+					v = pop_longterm()
+				} else {
+					v = empty_list
+				}
+				while(count--) {
+					local variable addr = TOP
+					TOP += 2
+					if(TOP > min(ENV, CHO)) runtime_error(1)
+					heap[addr + 0] = pop_longterm()
+					heap[addr + 1] = v
+					v = <pair, addr>
+				}
+			}
+			return v
+
+	STORE_WORD		VALUE/0 INDEX VALUE
+
+		ram[field_addr(arg2, deref(arg1))] = arg3
+
+	STORE_BYTE		VALUE/0 INDEX VALUE
+
+		local variable addr = field_addr(arg2 / 2, deref(arg1))
+		if(arg2 & 1) {
+			ram[addr] = (ram[addr] & 0xff00) | (arg3 & 0xff)
+		} else {
+			ram[addr] = (ram[addr] & 0x00ff) | (arg3 << 8)
+		}
+
+	STORE_VAL		VALUE/0 INDEX VALUE
+
+		arg1 = deref(arg1)
+		if(arg1 == null || arg1.tag == object || arg3 != null) {
+			store_longterm(field_addr(arg2, arg1), arg3)
+		}
+
+		def store_longterm(addr, v):
+			clear_longterm(addr)
+			v = deref(v)
+			if(v.tag == pair
+			|| v.tag == extdict
+			|| v.tag == reference) {
+				TMP = LTT + 2
+				if(TMP > HEAD.ramsz) runtime_error(6)
+				push_longterm(v)
+				ram[addr] = 0x8000 + LTT
+				ram[LTT + 0] = TMP - LTT
+				ram[LTT + 1] = addr
+				LTT = TMP
+			} else {
+				ram[addr] = v
+			}
+
+		def push_longterm(v):
+			v = deref(v)
+			if(v.tag == pair) {
+				local variable count = 0
+				while(true) {
+					push_longterm(heap[v.value + 0])
+					count++
+					v = deref(heap[v.value + 1])
+					if(v == empty_list) {
+						v = 0xc000 | count
+						break
+					} else if(v.tag != pair) {
+						push_longterm(v)
+						v = 0xe000 | count
+						break
+					}
+				}
+			} else if(v.tag == extdict) {
+				push_longterm(heap[v.value + 1])
+				push_longterm(heap[v.value + 0])
+				v = 0x8100
+			} else if(v.tag == reference) {
+				runtime_error(4)
+			}
+			if(TMP > HEAD.ramsz) runtime_error(6)
+			ram[TMP++] = v
+
+		def clear_longterm(addr):
+			local variable v = ram[addr]
+			if(v & 0x8000) {
+				ram[addr] = 0
+				v &= 0x7fff
+				local variable size = ram[v]
+				for(local variable i = v; i < LTT - size; i++)
+				{
+					ram[i] = ram[i + size]
+				}
+				LTT -= size
+				while(v < LTT) {
+					ram[ram[v + 1]] -= size
+					v += ram[v]
+				}
+			}
+
+	SET_FLAG		VALUE/0 INDEX
+
+		ram[field_addr(arg2 / BITS_PER_WORD, deref(arg1))] |=
+			(1 << (BITS_PER_WORD - 1)) >> (arg2 % BITS_PER_WORD)
+
+	RESET_FLAG		VALUE/0 INDEX
+
+		arg1 = deref(arg1)
+		if(arg1 == null || arg1.tag == object) {
+			ram[field_addr(arg2 / BITS_PER_WORD, arg1)] &=
+				~((1 << (BITS_PER_WORD - 1)) >> (arg2 % BITS_PER_WORD))
+		}
+
+	UNLINK			VALUE/0 INDEX INDEX VALUE
+
+		unlink(field_addr(arg2, deref(arg1)), arg3, arg4)
+
+		def unlink(root_addr, field, key):
+			key = deref(key)
+			if(key.tag != object) {
+				return
+			}
+			local variable tail =
+				ram[field_addr(field, key.value)]
+			local variable addr = root_addr
+			while(ram[addr] != 0) {
+				if(ram[addr] == key) {
+					ram[addr] = tail
+					return
+				}
+				addr = field_addr(field, ram[addr].value)
+			}
+
+	SET_PARENT		VBYTE/VALUE VBYTE/VALUE
+
+		constant FIELD_PARENT = 0
+		constant FIELD_CHILD = 1
+		constant FIELD_SIBLING = 2
+
+		arg1 = deref(arg1)
+		arg2 = deref(arg2)
+		if(arg2 != null) {
+			if(arg1.tag != object) runtime_error(3)
+			if(arg2.tag != object) runtime_error(3)
+		}
+		if(arg1.tag == object) {
+			local variable old_parent =
+				ram[field_addr(FIELD_PARENT, arg1.value)]
+			if(old_parent != 0) {
+				unlink(
+					field_addr(FIELD_CHILD, old_parent),
+					FIELD_SIBLING,
+					arg1)
+			}
+			ram[field_addr(FIELD_PARENT, arg1.value)] = arg2
+			if(arg2.tag == object) {
+				ram[field_addr(FIELD_SIBLING, arg1.value)] =
+					ram[field_addr(FIELD_CHILD, arg2.value)]
+				ram[field_addr(FIELD_CHILD, arg2.value)] = arg1
+			}
+		}
+
+	IF_RAW_EQ		WORD/0 VALUE CODE
+
+		if(arg1 == arg2) INST = arg3
+
+	IFN_RAW_EQ		WORD/0 VALUE CODE
+
+		if(arg1 != arg2) INST = arg3
+
+	IF_BOUND		VALUE CODE
+
+		if(deref(arg1).tag != reference) INST = arg2
+
+	IFN_BOUND		VALUE CODE
+
+		if(deref(arg1).tag == reference) INST = arg2
+
+	IF_EMPTY		VALUE CODE
+
+		if(deref(arg1) == empty_list) INST = arg2
+
+	IFN_EMPTY		VALUE CODE
+
+		if(deref(arg1) != empty_list) INST = arg2
+
+	IF_NUM			VALUE CODE
+
+		if(deref(arg1).tag == number) INST = arg2
+
+	IFN_NUM			VALUE CODE
+
+		if(deref(arg1).tag != number) INST = arg2
+
+	IF_PAIR			VALUE CODE
+
+		if(deref(arg1).tag == pair) INST = arg2
+
+	IFN_PAIR		VALUE CODE
+
+		if(deref(arg1).tag != pair) INST = arg2
+
+	IF_OBJ			VALUE CODE
+
+		// arg1 is guaranteed not to be null
+		if(deref(arg1).tag == object) INST = arg2
+
+	IFN_OBJ			VALUE CODE
+
+		// arg1 is guaranteed not to be null
+		if(deref(arg1).tag != object) INST = arg2
+
+	IF_WORD			VALUE CODE
+
+		if(deref(arg1).tag == word
+		|| deref(arg1).tag == char
+		|| deref(arg1).tag == extdict) INST = arg2
+
+	IFN_WORD		VALUE CODE
+
+		if(deref(arg1).tag != word
+		&& deref(arg1).tag != char
+		&& deref(arg1).tag != extdict) INST = arg2
+
+	IF_UWORD		VALUE CODE
+
+		arg1 = deref(arg1)
+		if(arg1.tag == extdict && heap[arg1.value + 0].tag == pair) {
+			INST = arg2
+		}
+
+	IFN_UWORD		VALUE CODE
+
+		arg1 = deref(arg1)
+		if(arg1.tag != extdict || heap[arg1.value + 0].tag != pair) {
+			INST = arg2
+		}
+
+	IF_UNIFY		VALUE VALUE CODE
+
+		if(would_unify(arg1, arg2)) INST = arg3
+
+		def would_unify(a, b):
+			while(true) {
+				a = deref(a)
+				b = deref(b)
+				if(a.tag == reference || b.tag == reference) {
+					return true
+				} else if(a.tag == extdict
+					&& b.tag == extdict)
+				{
+					a = heap[a.value + 0]
+					b = heap[b.value + 0]
+				} else if(a.tag == extdict) {
+					a = heap[a.value + 0]
+				} else if(b.tag == extdict) {
+					b = heap[b.value + 0]
+				} else if(a == b) {
+					return true
+				} else if(a.tag == pair && b.tag == pair) {
+					if(!would_unify(
+						<reference, a.value + 0>,
+						<reference, b.value + 0>))
+					{
+						return false
+					}
+					a = <reference, a.value + 1>
+					b = <reference, b.value + 1>
+				} else {
+					return false
+				}
+			}
+
+	IFN_UNIFY		VALUE VALUE CODE
+
+		if(!would_unify(arg1, arg2)) INST = arg3
+
+	IF_GT			VALUE VALUE CODE
+
+		arg1 = deref(arg1)
+		arg2 = deref(arg2)
+		if(arg1.tag == number
+		&& arg2.tag == number
+		&& arg1.value > arg2.value) {
+			INST = arg3
+		}
+
+	IFN_GT			VALUE VALUE CODE
+
+		arg1 = deref(arg1)
+		arg2 = deref(arg2)
+		if(!(arg1.tag == number
+		&& arg2.tag == number
+		&& arg1.value > arg2.value)) {
+			INST = arg3
+		}
+
+	IF_EQ			WORD/VBYTE VALUE CODE
+
+		if(arg1 == deref(arg2)) INST = arg3
+
+	IFN_EQ			WORD/VBYTE VALUE CODE
+
+		if(arg1 != deref(arg2)) INST = arg3
+
+	IF_MEM_EQ		VALUE/0 INDEX VALUE/VBYTE CODE
+
+		if(read_field(arg2, deref(arg1)) == arg3) INST = arg4
+
+	IFN_MEM_EQ		VALUE/0 INDEX VALUE/VBYTE CODE
+
+		if(read_field(arg2, deref(arg1)) != arg3) INST = arg4
+
+	IF_FLAG			VALUE/0 INDEX CODE
+
+		if(read_field(arg2 / BITS_PER_WORD, deref(arg1)) &
+			((1 << (BITS_PER_WORD - 1)) >> (arg2 % BITS_PER_WORD)))
+		{
+			INST = arg3
+		}
+
+	IFN_FLAG		VALUE/0 INDEX CODE
+
+		if(!(read_field(arg2 / BITS_PER_WORD, deref(arg1)) &
+			((1 << (BITS_PER_WORD - 1)) >> (arg2 % BITS_PER_WORD))))
+		{
+			INST = arg3
+		}
+
+	IF_CWL			CODE
+
+		if(CWL != 0) INST = arg1
+
+	IFN_CWL			CODE
+
+		if(CWL == 0) INST = arg1
+
+	ADD_RAW			VALUE VALUE DEST
+		arg3 <- (arg1 + arg2) & 0xffff
+
+	ADD_NUM			VALUE VALUE DEST
+
+		local variable result = unbox_int(arg1) + unbox_int(arg2)
+		arg3 <- box_int(result)
+
+		def unbox_int(v):
+			v = deref(v)
+			if(v.tag != number) fail
+			return v.value
+
+		def box_int(v):
+			if(v < 0 || v > 0x3fff) fail
+			return <number, v>
+
+	SUB_RAW			VALUE VALUE DEST
+		arg3 <- (arg1 - arg2) & 0xffff
+
+	SUB_NUM			VALUE VALUE DEST
+
+		local variable result = unbox_int(arg1) - unbox_int(arg2)
+		arg3 <- box_int(result)
+
+	MUL_NUM			VALUE VALUE DEST
+
+		local variable result = unbox_int(arg1) * unbox_int(arg2)
+		result = result & 0x3fff
+		arg3 <- box_int(result)
+
+	DIV_NUM			VALUE VALUE DEST
+
+		if(unbox_int(arg2) == 0) fail
+		local variable result = unbox_int(arg1) / unbox_int(arg2)
+		arg3 <- box_int(result)
+
+	MOD_NUM			VALUE VALUE DEST
+
+		if(unbox_int(arg2) == 0) fail
+		local variable result = unbox_int(arg1) % unbox_int(arg2)
+		arg3 <- box_int(result)
+
+	RAND_NUM		VALUE VALUE DEST
+
+		local variable start = unbox_int(arg1)
+		local variable range = unbox_int(arg2) - start + 1
+		if(range < 1) fail
+		// any timer-seeded PRNG can be used:
+		local variable result = start + (rand() % range)
+		arg3 <- box_int(result)
+
+	RAND_RAW		BYTE DEST
+
+		// any timer-seeded PRNG can be used:
+		arg2 <- (rand() % (arg1 + 1)) & 0xffff
+
+	INC_NUM			VALUE DEST
+
+		local variable result = unbox_int(arg1) + 1
+		arg2 <- box_int(result)
+
+	DEC_NUM			VALUE DEST
+
+		local variable result = unbox_int(arg1) - 1
+		arg2 <- box_int(result)
+
+	INC_RAW			VALUE DEST
+
+		arg2 <- (arg1 + 1) & 0xffff
+
+	DEC_RAW			VALUE DEST
+
+		arg2 <- (arg1 - 1) & 0xffff
+
+	PRINT_A_STR_A		STRING
+
+		if(SPC == auto || SPC == pendingspace) output_space()
+		output_string(arg)
+		SPC = auto
+
+	PRINT_N_STR_A		STRING
+
+		if(SPC == pendingspace) output_space()
+		output_string(arg)
+		SPC = auto
+
+	PRINT_A_STR_N		STRING
+
+		if(SPC == auto || SPC == pendingspace) output_space()
+		output_string(arg)
+		SPC = nospace
+
+	PRINT_N_STR_N		STRING
+
+		if(SPC == pendingspace) output_space()
+		output_string(arg)
+		SPC = nospace
+
+	NOSPACE
+
+		if(CWL == 0) {
+			if(SPC < nospace) {
+				SPC = nospace
+			}
+		}
+
+	SPACE
+
+		if(CWL == 0) {
+			if(SPC < pendingspace) {
+				SPC = pendingspace
+			}
+		}
+
+	LINE
+
+		if(CWL == 0) {
+			if(SPC < line) {
+				output_newline()
+				SPC = line
+			}
+		}
+
+	PAR
+
+		if(CWL == 0) {
+			if(SPC < par) {
+				output_endpar()
+				SPC = par
+			}
+		}
+
+	SPACE_N			VALUE
+
+		if(CWL == 0) {
+			arg = deref(arg)
+			if(arg.tag == number) {
+				output_space_n(arg.value)
+				SPC = space
+			}
+		}
+
+	PRINT_VAL		VALUE
+
+		if(CWL == 0) {
+			print_value(deref(arg))
+		} else {
+			push_serialized(deref(arg))
+		}
+
+		def print_value(v):
+			if(v.tag == char) {
+				local variable ch = v.value
+				if(ch is listed as no-space-before in LANG chunk) {
+					if(SPC < nospace) {
+						SPC = nospace
+					}
+				}
+				if(SPC == auto || SPC == pendingspace) output_space()
+				output_char(ch)
+				if(ch is listed as no-space-after in LANG chunk) {
+					SPC = nospace
+				} else {
+					SPC = auto
+				}
+			} else {
+				if(SPC == auto || SPC == pendingspace) output_space()
+				if(v.tag == object) {
+					output_string("#")
+					if(TAGS chunk is present) {
+						output_string(get_object_name(v.value))
+					}
+				} else if(v.tag == number) {
+					output_string(number_to_decimal_string(v.value))
+				} else if(v.tag == word || v.tag == extdict) {
+					output_string(word_to_string(v))
+				} else if(v.tag == reference) {
+					output_string("$")
+				} else if(v == empty_list) {
+					output_string("[]")
+				} else if(v.tag == pair) {
+					output_string("[")
+					print_value(deref(heap[v.value + 0]))
+					local variable tail = deref(heap[v.value + 1])
+					while(tail != empty_list) {
+						if(tail.tag == pair) {
+							SPC = pendingspace
+							print_value(deref(heap[tail.value + 0]))
+							tail = deref(heap[tail.value + 1])
+						} else {
+							output_space()
+							output_string("|")
+							SPC = pendingspace
+							print_value(tail)
+							tail = empty_list
+						}
+					}
+					output_string("]")
+				}
+				SPC = auto
+			}
+
+		def word_to_string(v):
+			local variable str = ""
+			if(v.tag == word) {
+				str += dictionary[v.value]
+			} else if(v.tag == extdict) {
+				local variable part1 = heap[v.value + 0]
+				if(part1.tag == pair) {
+					while(part1.tag == pair) {
+						str += char_to_string(heap[part1.value + 0].value)
+						part1 = heap[part1.value + 1]
+					}
+				} else {
+					str += word_to_string(part1)
+					local variable part2 = heap[v.value + 1]
+					while(part2.tag == pair) {
+						str += char_to_string(heap[part2.value + 0].value)
+						part2 = heap[part2.value + 1]
+					}
+				}
+			}
+			return str
+
+	ENTER_DIV		INDEX
+
+		if(CWL == 0) {
+			if(nSpan > 0) runtime_error(7)
+			output_enterdiv(arg)
+			append arg to divList
+			SPC = par
+		}
+
+	LEAVE_DIV
+
+		if(CWL == 0) {
+			local variable style_class = last element of divList
+			remove last element from divList
+			output_leavediv(style_class)
+			SPC = par
+		}
+
+	ENTER_SPAN		INDEX
+
+		if(CWL == 0) {
+			if(SPC == auto || SPC == pendingspace) output_space()
+			output_enterspan(arg)
+			SPC = nospace
+			nSpan++
+		}
+
+	LEAVE_SPAN
+
+		if(CWL == 0) {
+			output_leavespan()
+			SPC = auto
+			nSpan--
+		}
+
+	ENTER_STATUS		BYTE INDEX
+
+		if(inStatus || nSpan > 0) runtime_error(7)
+		if(CWL == 0) {
+			output_enterstatus(arg1, arg2)
+			SPC = par
+			inStatus = true
+		}
+
+	LEAVE_STATUS
+
+		if(CWL == 0) {
+			output_leavestatus()
+			SPC = par
+			inStatus = false
+		}
+
+	ENTER_LINK_RES		VALUE
+
+		if(CWL == 0) {
+			if(nLink == 0) {
+				if(SPC == auto || SPC == pendingspace) output_space()
+				output_enterlink_res(deref(arg))
+				SPC = nospace
+			}
+			nLink++
+			nSpan++
+		}
+
+	LEAVE_LINK_RES
+
+		if(CWL == 0) {
+			nSpan--
+			nLink--
+			if(nLink == 0) output_leavelink_res()
+		}
+
+	ENTER_LINK		VALUE
+
+		if(CWL == 0) {
+			if(nLink == 0) {
+				if(SPC == auto || SPC == pendingspace) output_space()
+				local variable input = ""
+				arg = deref(arg)
+				while(arg.tag == pair) {
+					local variable w = deref(heap[arg.value + 0])
+					if(w.tag == word
+					|| w.tag == char
+					|| w.tag == extdict
+					|| w.tag == number) {
+						* if input is non-empty, then append
+							space to end of input
+						* append text of w to end of input
+					}
+					arg = deref(heap[arg.value + 1])
+				}
+				output_enterlink(input)
+				SPC = nospace
+			}
+			nLink++
+			nSpan++
+		}
+
+	LEAVE_LINK
+
+		if(CWL == 0) {
+			nSpan--
+			nLink--
+			if(nLink == 0) output_leavelink()
+		}
+
+	ENTER_SELF_LINK
+
+		if(CWL == 0) {
+			if(nLink == 0) {
+				if(SPC == auto || SPC == pendingspace) output_space()
+				output_enter_selflink()
+				SPC = space
+			}
+			nLink++
+			nSpan++
+		}
+
+	LEAVE_SELF_LINK
+
+		if(CWL == 0) {
+			nSpan--
+			nLink--
+			if(nLink == 0) output_leave_selflink()
+		}
+
+	SET_STYLE		BYTE
+
+		// 1 = reverse, 2 = bold, 4 = italic, 8 = fixed
+		if(CWL == 0) {
+			if(SPC == auto || SPC == pendingspace) output_space()
+			output_setstyle(arg)
+			SPC = space
+		}
+
+	RESET_STYLE		BYTE
+
+		// 1 = reverse, 2 = bold, 4 = italic, 8 = fixed
+		if(CWL == 0) {
+			output_resetstyle(arg)
+		}
+
+	UNSTYLE
+
+		if(CWL == 0) {
+			output_unstyle()
+		}
+
+	PRINT_SERIAL
+
+		if(CWL == 0) {
+			if(SPC == auto || SPC == pendingspace) output_space()
+			output_string(HEAD.serial)
+			SPC = auto
+		}
+
+	CLEAR
+
+		if(CWL == 0) {
+			if(inStatus || nSpan > 0) runtime_error(7)
+			output_clear()
+		}
+
+	CLEAR_ALL
+
+		if(CWL == 0) {
+			if(inStatus || nSpan > 0) runtime_error(7)
+			output_clear_all()
+		}
+
+	EMBED_RES		VALUE
+
+		if(CWL == 0) {
+			output_embed_res(deref(arg1))
+		}
+
+	CAN_EMBED_RES		VALUE DEST
+
+		if(output_can_embed_res(deref(arg1))) {
+			arg2 <- 1 // raw, unboxed integer
+		} else {
+			arg2 <- null
+		}
+
+	PROGRESS		VALUE VALUE
+
+		if(CWL == 0) {
+			arg1 = deref(arg1)
+			arg2 = deref(arg2)
+			if(arg1.tag == number && arg2.tag == number) {
+				output_progress_bar(arg1.value, arg2.value)
+			}
+		}
+
+	QUIT
+
+		output_sync()
+		Return or exit the engine.
+
+	RESTART
+
+		output_leave_all()
+		inStatus = false
+		nSpan = 0
+		nLink = 0
+		divList = empty array/list
+		// May rewrite all game state, including INST.
+		vm_restart()
+
+	RESTORE
+
+		if(vm_restore()) {
+			// By now, the game state has changed drastically,
+			// including INST and divList.
+			output_leave_all()
+			inStatus = false
+			nSpan = 0
+			nLink = 0
+			for(i = 0; i < divList.length; i++) {
+				output_enterdiv(divList[i])
+			}
+		}
+
+	UNDO
+
+		if(vm_undo()) {
+			// By now, the game state has changed drastically,
+			// including INST and divList.
+			output_leave_all()
+			inStatus = false
+			nSpan = 0
+			nLink = 0
+			for(i = 0; i < divList.length; i++) {
+				output_enterdiv(divList[i])
+			}
+		}
+
+	SAVE			CODE
+
+		//fails on error/cancel, continues on success, jumps on restore
+		if(inStatus || nSpan > 0) runtime_error(7)
+		if(!vm_save(arg)) {
+			fail
+		}
+
+	SAVE_UNDO		CODE
+
+		//fails on error/cancel, continues on success, jumps on restore
+		if(inStatus || nSpan > 0) runtime_error(7)
+		if(!vm_save_undo(arg)) {
+			fail
+		}
+
+	GET_INPUT		DEST
+
+		if(SPC == auto || SPC == pendingspace) output_space()
+		output_sync()
+		arg <- input_get_line()
+		SPC = line
+
+		The string of characters typed by the player is converted into
+		lowercase, and split into substrings as follows:
+
+			* Every stop character (as declared in the LANG chunk)
+			becomes a single substring.
+
+			* Remaining characters are separated by whitespace.
+
+		Thus, the string "drop    ball.north" is split into the
+		substrings "drop", "ball", ".", and "north".
+
+		The list of substrings is converted into a list of Aa-machine
+		values as follows:
+
+		local variable list = empty_list
+		local variable i
+		for(i = list_of_substrings.length - 1; i >= 0; i--) {
+			local variable val = parse_word(list_of_substrings[i])
+			list = create_pair(val, list)
+		}
+		return list // this gets stored into arg
+
+		def create_pair(head, tail) {
+			local variable addr = TOP
+			TOP += 2
+			if(TOP > min(ENV, CHO)) runtime_error(1)
+			heap[addr + 0] = head
+			heap[addr + 1] = tail
+			return <pair, addr>
+		}
+
+		def parse_word(input) {
+			if(input.length == 1) {
+				if(input[0] >= '0' && input[0] <= '9') {
+					return <number, input[0] - '0'>
+				} else {
+					return <char, input[0]>
+				}
+			}
+
+			// Look for an exact match in the DICT chunk:
+			local variable d = dict_lookup(input)
+			if(d) {
+				return <word, d>
+			}
+
+			// Check for a decimal number in the range 0-16383:
+			local variable num = parse_decimal(input)
+			if(num && num >= 0 && num <= 16383) {
+				return <number, num>
+			}
+
+			// Otherwise, run the word endings decoder:
+			local variable state = 0
+			local variable ending = empty_list
+			local variable pos = input.length
+			while(true) {
+				local variable addr
+				if(decoder[state] == 0x00) {
+					while(pos > 0) {
+						addr = TOP
+						TOP += 2
+						if(TOP > min(ENV, CHO)) {
+							runtime_error(1)
+						}
+						local variable c = input[--pos]
+						local variable v
+						if(c >= '0' && c <= '9') {
+							v = <number, c - '0'>
+						} else {
+							v = <char, c>
+						}
+						heap[addr + 0] = v
+						heap[addr + 1] = ending
+						ending = <pair, addr>
+					}
+					addr = TOP
+					TOP += 2
+					if(TOP > min(ENV, CHO)) {
+						runtime_error(1)
+					}
+					heap[addr + 0] = ending
+					heap[addr + 1] = empty_list
+					return <extdict, addr>
+				} else if(decoder[state] == 0x01) {
+					d = dict_lookup(input.first_n(pos))
+					if(d) {
+						// The first pos characters
+						// exactly match a dictionary
+						// word.
+						addr = TOP
+						TOP += 2
+						if(TOP > min(ENV, CHO)) {
+							runtime_error(1)
+						}
+						heap[addr + 0] = <word, d>
+						heap[addr + 1] = ending
+						return <extdict, addr>
+					} else {
+						state++
+					}
+				} else {
+					local variable ch = input[pos - 1]
+					if(ch == decoder[state]) {
+						addr = TOP
+						TOP += 2
+						if(TOP > min(ENV, CHO)) {
+							runtime_error(1)
+						}
+						heap[addr + 0] = <char, ch>
+						heap[addr + 1] = ending
+						ending = <pair, addr>
+						state = decoder[state + 1]
+						pos--
+					} else {
+						state += 2
+					}
+				}
+			}
+		}
+
+	GET_KEY			DEST
+
+		if(SPC == auto || SPC == pendingspace) output_space()
+		output_sync()
+		arg <- input_get_key() // digits are numbers, others are chars
+
+	SCRIPT_ON
+
+		if(!output_script_on()) {
+			fail
+		}
+
+	SCRIPT_OFF
+
+		output_script_off()
+
+	TRACE_ON
+
+		vm_trace_on()
+
+	TRACE_OFF
+
+		vm_trace_off()
+
+	INC_CWL
+
+		CWL++
+
+	DEC_CWL
+
+		CWL--
+
+	UPPERCASE
+
+		if(CWL == 0) {
+			output_uppercase()
+		}
+
+	CLEAR_LINKS
+
+		// Turn all links in the main text area into non-clickable,
+		// ordinary text. The status areas are not affected.
+
+		output_clear_links()
+
+	CLEAR_OLD
+
+		// Clear any text that the player has had a chance to read.
+		// This means everything up to and including the last input.
+		// The interpreter may ignore this operation.
+
+		if(nSpan > 0) runtime_error(7)
+		output_clear_old()
+
+	CLEAR_DIV
+
+		// Clear or fold away the current div.
+		// The interpreter may ignore this operation.
+
+		output_clear_div();
+
+	VM_INFO			BYTE DEST
+
+		if(arg1 & 0x40) {
+			arg2 <- vm_terp_feature(arg1 & 0x3f)
+		} else {
+			local variable count = 0
+			if(arg1 == 0) {
+				for(local variable i = 0; i < HEAD.heapsz; i++)
+				{
+					if(heap[i] != unused) count++
+				}
+			} else if(arg1 == 1) {
+				for(local variable i = 0; i < HEAD.auxsz; i++)
+				{
+					if(aux[i] != unused) count++
+				}
+			} else if(arg1 == 2) {
+				for(local variable i = LTB; i < HEAD.ramsz; i++)
+				{
+					if(ram[i] != unused) count++
+				}
+			}
+			arg2 <- box_int(count)
+		}
+
+	SET_IDX			VALUE
+
+		IDX = deref(arg)	// IDX is another name for R3f
+		if(IDX.tag == extdict) {
+			IDX = heap[IDX.value + 0]
+		}
+
+	CHECK_EQ		WORD/VBYTE CODE
+
+		if(IDX == arg1) INST = arg2
+	
+	CHECK_GT_EQ		WORD/VBYTE CODE CODE
+
+		if(IDX > arg1) {
+			INST = arg2
+		} else if(IDX == arg1) {
+			INST = arg3
+		}
+
+	CHECK_GT		VALUE/BYTE CODE
+
+		if(IDX > arg1) INST = arg2
+
+	CHECK_WORDMAP		INDEX CODE
+
+		local variable objs[] = find_in_wordmap(wordmaps[arg1], IDX)
+		if(objs == null) {
+			// The word was not in the table, and should not
+			// match anything.
+			// Nothing was pushed, so jump to enforce that.
+			INST = arg2
+		} else if(objs.length == 0) {
+			// The word is a wildcard, so don't jump.
+		} else {
+			// The word matches a limited number of objects.
+			// Push them and jump to enforce that.
+			if(AUX + objs.length > TRL) runtime_error(2)
+			for(local variable i = 0; i < objs.length; i++) {
+				aux[AUX++] = objs[i]
+			}
+			INST = arg2
+		}
+
+	CHECK_EQ_2		WORD/VBYTE WORD/VBYTE CODE
+
+		if(IDX == arg1 || IDX == arg2) INST = arg3
+
+	TRACEPOINT		STRING STRING STRING WORD
+
+		// event, predicate, file, line
+		vm_tracepoint(arg1, arg2, arg3, arg4)
+
+
+Examples
+========
+
+	To traverse children (A1 is incoming parent):
+
+		LOAD_VAL	A1.'child', >T1
+		JUMP		entry
+	loop
+		POP_CHOICE	#2
+		ASSIGN		A1, >T1
+	entry
+		LOAD_WORD	T1.'sibling', >A1
+		IF_RAW_EQ	0, A1, last
+		PUSH_CHOICE	#2, loop
+	last
+		ASSIGN		T1, =A0
+		...
+
+	To traverse a list of flagged objects:
+
+		LOAD_VAL	0.'root', >T1
+		JUMP		entry
+	loop
+		POP_CHOICE	#2
+		ASSIGN		A1, >T1
+	entry
+		LOAD_WORD	T1.'next', >A1
+		IF_RAW_EQ	0, A1, last
+		PUSH_CHOICE	#2, loop
+	last
+		ASSIGN		T1, =A0
+		...
+
+	To flag object A0 with list:
+
+		IF_FLAG		A0.'flag', skip
+		SET_FLAG	A0.'flag'
+		LOAD_WORD	0.'root', >T0
+		STORE_WORD	A0.'next', T0
+		STORE_VAL	0.'root', A0
+	skip
+
+	To clear object A0 with list:
+
+		IFN_FLAG	A0.'flag', skip
+		RESET_FLAG	A0.'flag'
+		UNLINK		0.'root', 'next', A0
+	skip
+
+	To clear list of flagged objects:
+
+		LOAD_WORD	0.'root', >T1
+		IF_RAW_EQ	0, T1, skip
+	loop
+		RESET_FLAG	T1.'flag'
+		LOAD_WORD	T1.'next', >T1
+		IFN_NULL	T1, loop
+		STORE_WORD	0.'root', #0
+	skip
+
+	To clear a property for every object:
+
+		ASSIGN		max_obj_id, >T1
+	loop
+		STORE_VAL	T1.'prop', #0
+		DEC_RAW		T1, >T1
+		IFN_NULL	T1, loop
+
+	To select 'then at random' with four choices:
+
+		LOAD_BYTE	0.'state', >R3f
+		CHECK_GT_EQ	#3, random, last
+		INC_RAW		R3f, >T0
+		JMP		done
+	last
+		ASSIGN		#7, >T0
+		JMP		done
+	random
+		SUB_RAW		R3f, #4, >R3f
+		RAND_RAW	#2, >T0
+		CHECK_GT	T0, noadjust
+		INC_RAW		T0, >T0
+	noadjust
+		ASSIGN		T0, >R3f
+		ADD_RAW		T0, #4, T0
+	done
+		STORE_BYTE	0.'state', T0
+
+		CHECK_EQ	#1, case1
+		CHECK_EQ	#2, case2
+		CHECK_EQ	#3, case3
+	case0
+		...
+	case1
+		...
+	case2
+		...
+	case3
+		...
+
+This document was written by Linus Akesson.

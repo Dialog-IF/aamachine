@@ -121,7 +121,34 @@ body {
 	margin: .3em;
 	padding-right: 1.3em;
 	clear: right;
-	text-align: justify;
+}
+
+#aascriptouter {
+	height: 80%;
+	margin: .3em;
+	padding-right: 1.3em;
+	clear: right;
+	display: none;
+}
+
+#aascriptinner {
+	width: 100%;
+	border: 0px;
+	padding: .2em;
+}
+
+#aascriptclose {
+	border: .1em solid black;
+	border-radius: .3em;
+	width: 20ch;
+	text-align: center;
+	margin: auto;
+	padding: .1em;
+	background-color: #bbb;
+}
+
+#aascriptclose:hover {
+	background-color: #ddd;
 }
 
 #aainput {
@@ -174,6 +201,14 @@ a {
 	color: #aa8;
 }
 
+.aailink {
+	color: #875;
+}
+
+.aailink:hover {
+	color: #aa8;
+}
+
 @keyframes fadelink {
 	0% {
 		color: #875;
@@ -188,6 +223,26 @@ a {
 	animation-duration: .9s;
 	animation-delay: .1s;
 	animation-fill-mode: both;
+}
+
+.aahidelink {
+	color: inherit;
+}
+
+.aareveal {
+	margin-top: .8em;
+	margin-bottom: .8em;
+	color: #875;
+	animation-name: fadein;
+	animation-duration: .9s;
+	animation-delay: .1s;
+	animation-fill-mode: both;
+	text-align: center;
+	font-size: .8em;
+}
+
+.aareveal:hover {
+	color: #aa8;
 }
 
 #aaaboutouter {

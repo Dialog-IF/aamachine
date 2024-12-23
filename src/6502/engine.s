@@ -69,7 +69,7 @@ endpos	= $9c
 wordend	= $9d
 dictlen	= $9e
 
-stflag	= $a0	; 00/ff
+stflag	= $a0	; 00/ff/80
 screenw	= $a1
 undosz	= $a2	; word
 stybase	= $a4	; word
@@ -366,6 +366,8 @@ noupper
 
 	jmp	io_mputc
 st
+	bvc	skip
+
 	ldx	stposx
 	cpx	stendx
 	bcs	skip
@@ -396,6 +398,8 @@ vio_line
 skip
 	rts
 st
+	bvc	skip
+
 	ldy	stposy
 	cpy	stsizey
 	beq	skip
@@ -433,6 +437,8 @@ loop
 done
 	rts
 st
+	bvc	done
+
 	ldy	stposy
 stloop
 	cmp	rspc
@@ -943,9 +949,10 @@ traceinst
 #endif
 
 fetchbyteor0
-	.(
 	bcc	fetchbyte
 
+fetch0
+	.(
 	lda	#0
 	sta	operlsb,x
 	inx
@@ -2366,8 +2373,15 @@ extloop
 	dey
 	lda	(phydata),y
 	sta	opermsb+0
-	dey
+	ldy	#0
 	lda	(phydata),y
+	iny
+	cmp	#$40
+	lda	(phydata),y
+	bcc	nonumchar
+
+	ora	#$30
+nonumchar
 	jsr	vio_putc
 	jmp	extloop
 extdone
@@ -3048,15 +3062,22 @@ done
 	.)
 
 op_aux_push_raw
-	.(
 	jsr	fetchwordorvbyte
+
+aux_push_raw_1
 	sty	`pclsb
 	jsr	push_aux
 	jmp	ldyfetchnext
-	.)
 
 op_aux_push_val
 	.(
+	bcc	val
+
+	lda	#0
+	sta	operlsb+0
+	sta	opermsb+0
+	beq	aux_push_raw_1
+val
 	jsr	fetchvalue
 	sty	`pclsb
 +aux_push_val
@@ -3582,6 +3603,8 @@ enter
 	bit	stflag
 	bpl	no_en_fl
 
+	bvc	skip1
+
 	ldy	#STY_FLAGS
 	lda	(phydata),y
 	cmp	#STYF_FLOATL
@@ -3684,6 +3707,8 @@ leave
 	bit	stflag
 	bpl	no_lv_fl
 
+	bvc	skip2
+
 	ldy	#STY_FLAGS
 	lda	(phydata),y
 	cmp	#STYF_FLOATL
@@ -3711,7 +3736,7 @@ no_lv_fl
 	jsr	vio_vspace
 post_lv_fl
 	jsr	unstyle
-
+skip2
 	jmp	ldyfetchnext
 	.)
 
@@ -3754,6 +3779,39 @@ op_en_lv_st
 	.(
 	bcs	leave
 
+	jsr	fetch0
+	jmp	enter_status
+leave
+	sty	`pclsb
+	lda	#SPC_PAR
+	sta	rspc
+
+	lda	rcwl
+	bne	skip
+
+	dec	divsp
+	dec	divsp
+
+	ldx	stflag
+	;lda	#0
+	sta	stflag
+
+	inx
+	bne	skip
+
+	jsr	io_scommit
+skip
+	jmp	ldyfetchnext
+	.)
+
+op_en_st_1
+	.(
+	jsr	fetchbyte
+	;jmp	enter_status
+	.)
+
+enter_status
+	.(
 	jsr	fetchindex
 	sty	`pclsb
 
@@ -3769,9 +3827,9 @@ op_en_lv_st
 	bne	err
 
 	ldx	divsp
-	lda	opermsb+0
+	lda	opermsb+1
 	sta	divstk,x
-	lda	operlsb+0
+	lda	operlsb+1
 	sta	divstk+1,x
 	inx
 	inx
@@ -3779,18 +3837,25 @@ op_en_lv_st
 	stx	stdivsp
 
 	asl
-	rol	opermsb+0
+	rol	opermsb+1
 	asl
-	rol	opermsb+0
+	rol	opermsb+1
 	asl
-	rol	opermsb+0
+	rol	opermsb+1
 	;clc
 	adc	stybase
 	sta	phydata
-	lda	opermsb+0
+	lda	opermsb+1
 	adc	stybase+1
 	sta	phydata+1
 
+	lda	operlsb+0
+	beq	top
+
+	sec
+	ror	stflag
+	bcc	skip ; always
+top
 	ldy	#STY_FLAGS
 	lda	(phydata),y
 	and	#STYF_RELH
@@ -3826,23 +3891,6 @@ skip
 err
 	lda	#7
 	jmp	error
-leave
-	sty	`pclsb
-	lda	#SPC_PAR
-	sta	rspc
-
-	lda	rcwl
-	bne	skip
-
-	dec	divsp
-	dec	divsp
-
-	;lda	#0
-	sta	stflag
-
-	jsr	io_scommit
-
-	jmp	ldyfetchnext
 	.)
 
 op_ext0
@@ -3935,9 +3983,18 @@ chardone
 key
 	jsr	syncspace
 	jsr	vio_getc
+	ldx	#$3e
+	cmp	#$30
+	bcc	nodigkey
+
+	cmp	#$3a
+	bcs	nodigkey
+
+	and	#$0f
+	ldx	#$40
+nodigkey
+	stx	result+0
 	sta	result+1
-	lda	#$3e
-	sta	result+0
 store
 	jmp	ldystorefetchnext
 	.)
@@ -4034,13 +4091,25 @@ endfail
 	; shift char and keep going
 
 	jsr	alloc_pair
-	ldy	#0
-	lda	#$3e
-	sta	(phydata),y
-	iny
+	ldy	#$3e
 	dec	wordend
 	ldx	wordend
 	lda	inpbuf,x
+	cmp	#$30
+	bcc	nodigit
+
+	cmp	#$3a
+	bcs	nodigit
+
+	and	#$0f
+	ldy	#$40
+nodigit
+	pha
+	tya
+	ldy	#0
+	sta	(phydata),y
+	iny
+	pla
 	sta	(phydata),y
 	iny
 	lda	opermsb+4
@@ -4798,6 +4867,8 @@ jmpl_common
 
 op_jmp_tail
 	.(
+	bcs	tail
+
 	jsr	fetchcode
 
 	lda	rsim+0
@@ -4809,6 +4880,16 @@ op_jmp_tail
 	sta	rsim+1
 simple
 	jmp	jumpvirdata
+tail
+	lda	rsim+0
+	bpl	simple1
+
+	lda	rcho+0
+	sta	rsim+0
+	lda	rcho+1
+	sta	rsim+1
+simple1
+	jmp	fetchnext
 	.)
 
 op_line_par
@@ -5667,6 +5748,8 @@ nosat
 
 	bit	stflag
 	bpl	nostw
+
+	bvc	skip
 
 	lda	stfullw
 	jmp	poststw
@@ -7829,6 +7912,10 @@ defnull
 	cmp	#$43
 	beq	yes
 #endif
+#if HAVE_STATUS
+	cmp	#$60
+	beq	yes
+#endif
 	cmp	#$40
 	bne	cdone
 
@@ -7840,7 +7927,7 @@ cdone
 	jmp	ldystorefetchnext
 	.)
 
-N_EXT0	= $10
+N_EXT0	= $12
 ext0_lsb
 	.byt	<ext0_quit	; 00
 	.byt	<ext0_restart	; 01
@@ -7858,6 +7945,8 @@ ext0_lsb
 	.byt	<ext0_dec_cwl	; 0d
 	.byt	<ext0_upper	; 0e
 	.byt	<ext0_clr_links	; 0f
+	.byt	<ext0_clr_old	; 10
+	.byt	<ext0_clr_div	; 11
 ext0_msb
 	.byt	>ext0_quit	; 00
 	.byt	>ext0_restart	; 01
@@ -7875,6 +7964,8 @@ ext0_msb
 	.byt	>ext0_dec_cwl	; 0d
 	.byt	>ext0_upper	; 0e
 	.byt	>ext0_clr_links	; 0f
+	.byt	>ext0_clr_old	; 10
+	.byt	>ext0_clr_div	; 11
 
 ext0_quit
 	jsr	io_mflush
@@ -8203,6 +8294,8 @@ ext0_trace_on
 	sta	rtrace
 ext0_scrpt_off
 ext0_clr_links
+ext0_clr_old
+ext0_clr_div
 	jmp	ldyfetchnext
 
 ext0_trace_off
@@ -9087,7 +9180,7 @@ optable
 	.word	op_embed	; 6c
 	.word	op_progress	; 6d
 	.word	op_en_lv_span	; 6e
-	.word	op_bad		; 6f
+	.word	op_en_st_1	; 6f
 	.word	op_ext0		; 70
 	.word	op_bad		; 71
 	.word	op_save		; 72
