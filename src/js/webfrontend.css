@@ -6,6 +6,16 @@ body {
 	color: #000000;
 }
 
+body.enlarge {
+	font-size: 2em;
+}
+
+h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-central/source/layout/style/res/html.css */
+	display: inline;
+	font-size: 1em;
+	font-weight: normal;
+}
+
 #aacontainer {
 	max-width: 60ch;
 	margin: auto;
@@ -104,6 +114,7 @@ body {
 #aamenulist div {
 	margin: 1px;
 	overflow: hidden;
+	cursor: pointer;
 }
 
 #aamenulist div:hover {
@@ -229,6 +240,7 @@ a {
 
 .aahidelink {
 	color: inherit;
+	cursor: text; /* Since now they're <a>s, they default to a pointer */
 }
 
 .aareveal {

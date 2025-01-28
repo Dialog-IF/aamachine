@@ -34,6 +34,7 @@ var toggles = [
 	{id: "aacbs", text: "Smooth scrolling", init: false},
 	{id: "aacbn", text: "Night mode", init: false},
 	{id: "aacba", text: "Always re-focus", init: false},
+	{id: "aacbi", text: "Increase font size", init: false},
 ];
 
 var aaengine;
@@ -654,8 +655,9 @@ window.run_game = function(story64, options) {
 
 			this.scroll_anchor = this.current;
 			if(link) {
-				span = document.createElement("span");
+				span = document.createElement("h2"); // Using an H2 instead of a span makes it easier for screen readers to jump to it
 				$(span).addClass(io.links_enabled? "aalink" : "aahidelink");
+				$(span).addClass("aainputtext"); // For styling input differently, if desired; currently unused
 				span.href = "#0";
 				span.appendChild(document.createTextNode(str));
 				this.current.appendChild(span);
@@ -677,6 +679,7 @@ window.run_game = function(story64, options) {
 					this.ensure_par();
 					span = document.createElement("span");
 					span.className = "aaspanb";
+					span.setAttribute("role", "strong");
 					this.current.appendChild(span);
 					this.current = span;
 					this.n_inner++;
@@ -685,6 +688,7 @@ window.run_game = function(story64, options) {
 					this.ensure_par();
 					span = document.createElement("span");
 					span.className = "aaspani";
+					span.setAttribute("role", "emphasis");
 					this.current.appendChild(span);
 					this.current = span;
 					this.n_inner++;
@@ -693,6 +697,7 @@ window.run_game = function(story64, options) {
 					this.ensure_par();
 					span = document.createElement("span");
 					span.className = "aaspanf";
+					span.setAttribute("role", "code");
 					this.current.appendChild(span);
 					this.current = span;
 					this.n_inner++;
@@ -892,7 +897,7 @@ window.run_game = function(story64, options) {
 		enter_link: function(str) {
 			var span;
 			this.ensure_par();
-			span = document.createElement("span");
+			span = document.createElement("a"); // Using an A instead of a span makes it clear that this is a link, and makes it easier for screen readers to jump to them
 			$(span).addClass(io.links_enabled? "aalink" : "aahidelink");
 			span.href = "#0";
 			this.current.appendChild(span);
@@ -907,7 +912,7 @@ window.run_game = function(story64, options) {
 		enter_self_link: function() {
 			var span;
 			this.ensure_par();
-			span = document.createElement("span");
+			span = document.createElement("a"); // As above
 			$(span).addClass(io.links_enabled? "aalink" : "aahidelink");
 			span.href = "#0";
 			this.current.appendChild(span);
@@ -1294,6 +1299,11 @@ window.run_game = function(story64, options) {
 			ta.style.backgroundColor = "#ddd";
 			ta.style.color = "#222";
 		}
+		if(document.getElementById("aacbi").checked) {
+			$("body").addClass("enlarge");
+		} else {
+			$("body").removeClass("enlarge");
+		}
 		io.maybe_focus();
 	}
 
@@ -1312,6 +1322,10 @@ window.run_game = function(story64, options) {
 	}
 
 	$("#aacbn").on("change", function() {
+		update_night();
+	});
+	
+	$("#aacbi").on("change", function() {
 		update_night();
 	});
 
