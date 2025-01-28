@@ -343,7 +343,11 @@ function prepare_styles(styles, style_data) {
 		html += "." + name + " {";
 		for(j in styles[i]) {
 			if(j.startsWith("aria-")) { // Copy aria-* declarations to a special array, since we want to assign these to the HTML tag, not just leave them in the CSS
-				style_data[i].attrs[j] = styles[i][j];
+				if(j == "aria-role") { // The HTML name is simply "role"
+					style_data[i].attrs["role"] = styles[i][j];
+				} else {
+					style_data[i].attrs[j] = styles[i][j];
+				}
 			}
 			// But we also copy *everything* across into the CSS, regardless of aria-* or style-name, because these might be meaningful in some future spec
 			html += j + ": " + styles[i][j] + ";";
