@@ -663,7 +663,10 @@ window.run_game = function(story64, options) {
 				this.current.appendChild(span);
 				this.install_link(span, str);
 			} else {
-				this.current.appendChild(document.createTextNode(str));
+				span = document.createElement("h2");
+				$(span).addClass("aainputtext"); // For styling input differently, if desired; currently unused
+				span.appendChild(document.createTextNode(str));
+				this.current.appendChild(span);
 			}
 			this.transcript.print(str);
 			this.transcript.line();
