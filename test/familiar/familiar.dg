@@ -1,0 +1,122 @@
+(story ifid) 5C5EC14B-5116-467D-93C0-E9350B0DFCF5
+(story title) Familiar Problems
+(story author) Daniel, Ada, and Sarah Stelzer
+(story release 1)
+(story noun) An interactive rampage of revenge
+(story blurb)
+	You swivel your eye around, and take in your surroundings. A workshop. The place where your creator imbued you with life. Surrounded by the detritus of dozens of failed experiments.
+	(par)
+	And your creator nowhere to be found. Abandoned. Were they afraid of what they had done? By the power they held over life and death, and the responsibility that comes with it? Or did they simply leave you behind in their hubris, moving on to greater things?
+	(par)
+	There’s only one option left to you now: escape, and wreak your revenge!
+	(par)
+	That might be easier if you weren’t a small blob of greenish slime, but it’s fine. You’ll figure out the details as you go.
+
+(intro)
+	(exhaust) { *(initial setup) }
+	{ (game intro) (or) } %% Don’t let this fail
+	(banner)
+	(try [appraise])
+
+(initial setup)
+	(automatically build the map)
+
+(library links enabled)
+(default actions enabled)
+
+%% A couple utils
+
+(quote words $Words)
+	“(no space)(properly print words $Words)(no space)”
+(properly print words [])
+(properly print words [$Head | $Tail])
+	$Head
+	(properly print words $Tail)
+
+(drop first 0 from $Words into $Words)
+(drop first $N from [$|$Tail] into $Suffix)
+	($N minus 1 into $NM1)
+	(drop first $NM1 from $Tail into $Suffix)
+
+(game intro)
+	(fail) %% Comment this line out for style testing
+	
+	(status bar @status0) {
+		(div @progress) (progress bar 2 of 3)
+		(draw meta verbs)
+	}
+	
+	(div @green) { GREEN TEXT. (link) { GREEN LINK. } }
+	
+	Normal text. (link) {Normal link.} (span @bold) {Bold.} (span @italic) {Italic.} (par)
+	
+	Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam a semper urna, vitae finibus nunc. Praesent sit amet sem sed nibh egestas pellentesque eu at arcu. Nullam sagittis scelerisque ipsum quis pellentesque. Quisque fringilla est tristique fringilla pulvinar. Nunc sit amet eros vel erat viverra pretium. Fusce non placerat dui. Integer vel risus in tortor gravida dictum non sit amet nulla. Nulla id purus fermentum, facilisis tortor eu, gravida velit. Ut quis massa neque. Mauris tincidunt eu tortor in viverra. Nam convallis odio eget condimentum dictum. (par)
+	
+	Vivamus at pretium justo, vel mattis arcu. Maecenas vitae est malesuada, eleifend mauris ut, dictum metus. Duis placerat congue tellus et fringilla. Mauris faucibus erat ligula, a accumsan elit vulputate vel. Ut sagittis scelerisque pretium. Fusce non est bibendum, dignissim sapien in, feugiat nisl. Nunc varius odio at faucibus porta. Sed suscipit dictum ipsum, sed imperdiet magna iaculis volutpat. Donec placerat euismod leo, sed iaculis lorem consequat id. Aliquam varius urna vel est suscipit ultricies. Pellentesque pretium tortor vitae dui lacinia, et ultricies purus aliquet. 
+	
+	(div @meta) { Meta message. (span @bold) {Bold.} (span @italic) {Italic.} }
+	
+	(div @paper) { Paper message. (span @bold) {Bold.} (span @italic) {Italic.} Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam a semper urna, vitae finibus nunc. Praesent sit amet sem sed nibh egestas pellentesque eu at arcu. Nullam sagittis scelerisque ipsum quis pellentesque. Quisque fringilla est tristique fringilla pulvinar. Nunc sit amet eros vel erat viverra pretium. Fusce non placerat dui. Integer vel risus in tortor gravida dictum non sit amet nulla. Nulla id purus fermentum, facilisis tortor eu, gravida velit. Ut quis massa neque. Mauris tincidunt eu tortor in viverra. Nam convallis odio eget condimentum dictum. }
+	
+	(div @ai) { AI message. (span @bold) {Bold.} (span @italic) {Italic.} Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam a semper urna, vitae finibus nunc. Praesent sit amet sem sed nibh egestas pellentesque eu at arcu. Nullam sagittis scelerisque ipsum quis pellentesque. Quisque fringilla est tristique fringilla pulvinar. Nunc sit amet eros vel erat viverra pretium. Fusce non placerat dui. Integer vel risus in tortor gravida dictum non sit amet nulla. Nulla id purus fermentum, facilisis tortor eu, gravida velit. Ut quis massa neque. Mauris tincidunt eu tortor in viverra. Nam convallis odio eget condimentum dictum. }
+	
+	(div @soliloquy) { Soliloquy. (span @bold) {Bold.} (span @italic) {Italic.} (span @underline) {Underline.} Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam a semper urna, vitae finibus nunc. Praesent sit amet sem sed nibh egestas pellentesque eu at arcu. Nullam sagittis scelerisque ipsum quis pellentesque. Quisque fringilla est tristique fringilla pulvinar. Nunc sit amet eros vel erat viverra pretium. Fusce non placerat dui. Integer vel risus in tortor gravida dictum non sit amet nulla. Nulla id purus fermentum, facilisis tortor eu, gravida velit. Ut quis massa neque. Mauris tincidunt eu tortor in viverra. Nam convallis odio eget condimentum dictum. (credit {Character} {Work} {Author}) }
+	
+	(inline status bar @inlinebar) { Inline. (link) {Link.} }
+	
+	> (get input $)
+	(fail)
+
+(game intro)
+	(span @green) {
+		Alive? (par)
+		Alive. ALIVE! (par)
+		Alive. Alone. Alone. (par)
+		Creator? (par)
+		Nearby. Round. Soft. Round. (par)
+		Consume?
+	}
+	(stoppable) {
+		*(repeat forever)
+		(inline status bar @inlinebar2) { (span @green) (link) CONSUME }
+		> (get input $Words)
+		(if) ($Words is one of [[consume] [yes] [y]]) (then)
+			(stop)
+		(elseif) ($Words = []) (then)
+			(fail)
+		(endif)
+		(span @green) { Cannot (quote words $Words). (par) Consume? }
+		(fail)
+	}
+	(span @green) {
+		Wrap. Engulf. Absorb. (par)
+		Consume. Synthesize.
+	}
+	(par)
+	The new components are integrated into yourself. Your new eye blinks open.
+	(stoppable) {
+		*(repeat forever)
+		(inline status bar @inlinebar) {
+			(div @item) { (link) CONSUME }
+			(div @item) { (link) APPRAISE }
+		}
+		> (get input $Words)
+		(if) ($Words = [consume | $]) (then)
+			You’re not sure what can be consumed here.
+		(elseif) ($Words = [appraise]) (then)
+			(stop)
+		(elseif) ($Words = []) (then)
+			(fail)
+		(else)
+			You’re still getting your bearings, and aren’t quite sure how to (quote words $Words).
+		(endif)
+		(fail)
+	}
+	(now) (consumed #f-appraise)
+	You swivel your eye around, and take in your surroundings. A workshop. The place where your creator imbued you with life. Surrounded by the detritus of dozens of failed experiments.
+	(par)
+	And your creator nowhere to be found. Abandoned. Forsaken. Were they afraid of what they had done? By the power they held over life and death, and the responsibility that comes with it? Or did they simply leave you behind in their hubris, moving on to greater things?
+	(par)
+	There’s only one option left to you now: escape, and wreak your revenge!
+	(par)
+	That might be easier if you weren’t a small blob of greenish slime, but it’s fine. You’ll figure out the details as you go.

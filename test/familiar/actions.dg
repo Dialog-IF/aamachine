@@ -1,0 +1,787 @@
+(when $Familiar is not consumed to $Verb)
+	~(consumed $Familiar)
+	(bad verb $Verb)
+
+(bad verb $Verb)
+	You have no ability to 
+	(if) (word $Verb) (then)
+		“(no space)$Verb(no space)”
+	(else)
+		(quote words $Verb)
+	(endif)
+	(no space)...yet, at least.
+
+%% We’ve removed all the non-command actions from stdlib.dg, and reimplemented the important ones here
+
+%% FIND <obj>
+%% Notably FIND will never be typed directly but the implementation gets Messy if this is the same action as GO TO
+
+%% FIND takes the player to the room that currently contains the object.
+%% For objects that move around autonomously, it may be a good idea to override
+%% this rule, to say e.g. “you don’t know where the cat might be right now”.
+%% Note that floating objects, including doors, will remain in the room where
+%% they were last encountered. This will usually put the player on the expected
+%% side of doors.
+
+(grammar [navigate to [any]] for [find $])
+	(consumed #f-navigate)
+(describe action [find $Obj])
+	navigate to find (the $Obj)
+
+(unlikely [find $Obj])
+	($Obj is nowhere)
+
+~(refuse [find $])
+
+(prevent [find $Obj])
+	($Obj is in room $Room)
+	(current room $Room)
+	(The $Obj) (is $Obj) right here!
+
+(prevent [find $Obj])
+	($Obj is in room $Room)
+	(current room $Here)
+	~(shortest path from $Here to $Room is $)
+	(The $Obj) (is $Obj)n’t anywhere on your map.
+
+(prevent [find ($Obj is nowhere)])
+	(The $Obj) (is $Obj) gone.
+
+(perform [find (held $Obj)])
+	(collect words)
+		(the $Obj)
+	(into $Name)
+	(The $Obj) (is $Obj) in your extradimensional storage, ready to be (link [retrieve | $Name]) retrieved .
+
+(perform [find $Obj])
+	($Obj is in room $Room)
+	(line) \( navigating to (the $Room) \) (line)
+	(try [navigate to $Room])
+
+%% EXAMINE <obj>
+
+(grammar [appraise/examine/x [object]] for [appraise $])
+
+~(refuse [appraise $]) %% No need for reachability.
+
+(perform [appraise $Obj]) %% Redirect to LOOK
+	(current player $Player)
+	($Player is nested #in $Obj)
+	(try [appraise])
+
+(perform [appraise $Obj])
+	(descr $Obj)
+	(if) (supporter $Obj) (then)
+		(if) (fungibility enabled) (then)
+			(collect $Child)
+				*($Child is #on $Obj)
+			(into $OnList)
+			(fungibility-enabled appearance $OnList #on $Obj)
+		(else)
+			(exhaust) {
+				*($Child is #on $Obj)
+				(par)
+				(appearance $Child #on $Obj)
+				(notice $Child)
+			}
+		(endif)
+	(endif)
+	(if) (container $Obj) ~{ (opaque $Obj) ($Obj is closed) } (then)
+		(if) (fungibility enabled) (then)
+			(collect $Child)
+				*($Child is #in $Obj)
+			(into $InList)
+			(fungibility-enabled appearance $InList #in $Obj)
+		(else)
+			(exhaust) {
+				*($Child is #in $Obj)
+				(par)
+				(appearance $Child #in $Obj)
+				(notice $Child)
+			}
+		(endif)
+	(endif)
+	(par)
+
+%% LOOK
+
+(grammar [appraise/look/l] for [appraise])
+
+(describe action [appraise])
+	appraise your surroundings
+
+(perform [appraise])
+	(current player $Player)
+	($Player is $Rel $Loc)
+	(div @roomheader) (location headline)
+	(if) (room description suppressed) (then)
+		%% Nothing
+	(elseif) (player can see) (then)
+		(current scope ceiling $Ceil)
+		(look $Ceil)
+		(make appearances $Rel $Loc)
+		(par)
+	(else)
+		(narrate darkness)
+	(endif)
+
+(on every tick) %% This effect lasts only one tick
+	(now) ~(room description suppressed)
+
+%% TAKE <obj>
+
+@(held $Obj)
+	($Obj is #in #heldby)
+
+(add (held $Obj) to scope) %% So the player can refer to it
+
+(prevent [cache | $])
+	(when #f-cache is not consumed to @cache)
+
+(grammar [cache/take/get [takable]] for [cache $])
+	(consumed #f-cache)
+
+(grammar [cache] for itself)
+	(consumed #f-cache)
+(perform [cache])
+	Cache what?
+	(asking for object in [cache []])
+
+(unlikely [cache ~(item $)])
+
+(unlikely [cache $Obj])
+	($Obj has relation $Rel)
+	($Rel is one of [#partof #heldby #wornby])
+
+(prevent [cache (current player $Obj)])
+	You try to wrap around yourself, but it doesn’t quite work.
+
+(prevent [cache (familiar $Obj)])
+	You probably (emph {could}) store (the $Obj)...but why do that when you can consume (them $Obj) instead?
+
+(prevent [cache $Obj])
+	~(item $Obj)
+	You open your storage orifice to engulf (the $Obj), but it’s just not happening. You would have to be more than a few inches off the floor to get your orifice over (them $Obj), and that is unfortunately beyond your abilities.
+
+(prevent [cache $Obj])
+	(held $Other)
+	You try to engulf (the $Obj), but you don’t have quite enough space for (them $Obj) when you’re already holding (the $Other).
+
+(narrate taking $Obj)
+	You open your hinged storage orifice and engulf (the $Obj), sending (them $Obj) to your extradimensional storage space.
+
+(perform [cache $Obj])
+	(narrate taking $Obj)
+	(now) (held $Obj)
+	(now) ($Obj is handled)
+
+%% DROP <obj>
+
+(prevent [retrieve | $])
+	(when #f-cache is not consumed to @retrieve)
+
+(grammar [retrieve/drop [any]] for [retrieve $])
+	(consumed #f-cache)
+
+(grammar [retrieve] for itself)
+	(consumed #f-cache)
+(perform [retrieve])
+	(held $Obj)
+	\( (the $Obj) \) (line)
+	(try [retrieve $Obj])
+(perform [retrieve])
+	You have nothing in your extradimensional storage to retrieve!
+
+~(refuse [retrieve $]) %% Don’t require touchability
+
+(very very unlikely [retrieve $Obj])
+	~(held $Obj)
+
+(prevent [retrieve $Obj])
+	~(held $Obj)
+	That isn’t in your extradimensional storage to retrieve!
+
+(narrate dropping $Obj)
+	You open your storage orifice again and disgorge (the $Obj) onto the ground.
+
+(perform [retrieve $Obj])
+	(narrate dropping $Obj)
+	(current player $Actor)
+	($Actor is $Rel $Loc)
+	(now) ($Obj is $Rel $Loc)
+	(now) ($Obj is handled)
+
+%% INVENTORY
+%% Never hyperlinked but for the benefit of parser players
+
+(prevent [inventory])
+	(when #f-cache is not consumed to @inventory)
+
+(grammar [i/inventory] for [inventory])
+	(consumed #f-cache)
+
+(describe action [inventory])
+	take inventory
+
+(perform [inventory])
+	(collect $C) *(held $C) (into $HeldList)
+	(if) (empty $HeldList) (then)
+		(narrate holding nothing)
+	(else)
+		You have (a $HeldList).
+	(endif)
+	(line)
+
+(narrate holding nothing)
+	You have no possessions.
+
+%% EXITS
+
+(prevent [exits])
+	(when #f-navigate is not consumed to @exits)
+
+(grammar [exits] for [exits])
+	(consumed #f-navigate)
+
+(describe action [exits])
+	list the exits
+
+(perform [exits])
+	(current room $Room)
+	(if)
+		~{
+			*(from $Room go $Dir to $Target)
+			(direction $Dir)
+			{ (room $Target) (or) (door $Target) }
+		}
+	(then)
+		There are no obvious exits here.
+	(else)
+		Obvious exits are: (line)
+		(exhaust) {
+			*(from $Room go $Dir to $Target)
+			(direction $Dir)
+			(if) (door $Target) (or) (room $Target) (then)
+				(if) (library links enabled) (then)
+					(link) (Name $Dir)
+				(else)
+					(Name $Dir)
+				(endif)
+				(if) (door $Target) (then)
+					through (the $Target)
+					(if) ($Target is closed) (then)
+						\(currently closed\)
+					(elseif)
+						(from $Room through $Target to $R)
+					(then)
+						(describe remote room $R)
+					(endif)
+				(else)
+					(describe remote room $Target)
+				(endif)
+				. (line)
+			(endif)
+		}
+	(endif)
+
+(describe remote room $Room)
+	(if) ($Room is visited) (then)
+		to
+		(if) (light reaches ceiling $Room) (then)
+			(the $Room)
+		(else)
+			darkness
+		(endif)
+	(endif)
+
+%% USE <obj>
+
+(understand [use | $Words] as $Action)
+	*(understand $Words as single object $Obj)
+	(implicit action is $Implicit)
+	~(implicit action wants direction)
+	(recover implicit action $Implicit $Obj into $Action)
+
+%% If no implicit action it just won’t be understood
+
+%% GO TO <room>
+
+(prevent [navigate | $])
+	(when #f-navigate is not consumed to @navigate)
+
+%% It is only possible to go to visited rooms and non-hidden objects in this
+%% way.
+
+(understand [navigate/go to | $Words] as [navigate to $Room])
+	(consumed #f-navigate)
+	*(understand $Words as room name $Room)
+
+(understand [navigate/go | $Words] as [navigate to $Room])
+	(consumed #f-navigate)
+	*(understand $Words as room name $Room)
+
+(understand $Words as room name $Room)
+	(filter $Words into $Filtered)
+	(nonempty $Filtered)
+	(determine object $Room)
+		*(room $Room)
+		($Room is visited)
+	(from words)
+		*(dict $Room)
+	(matching all of $Filtered)
+
+(unlikely [navigate to ~(room $)])
+
+~(very unlikely [navigate to $])
+
+~(refuse [navigate to $])
+
+(split last element from [$Last] into [] and $Last)
+(split last element from [$Head | $OldRest] into [$Head | $NewRest] and $Last)
+	(split last element from $OldRest into $NewRest and $Last)
+
+(perform [navigate to $Room])
+	(current room $Here)
+	(if) ($Here = $Room) (then)
+		You are already in (the $Room).
+		(tick) (stop)
+	(elseif) (shortest path from $Here to $Room is $FullPath) (then)
+		(split last element from $FullPath into $Path and $LastStep)
+		%% First, do the main part of the path, suppressing room descriptions
+		(exhaust) {
+			*($Dir is one of $Path)
+			(line) \( (name $Dir) \) (line)
+			(now) (room description suppressed)
+			(try [navigate $Dir])
+			(tick)
+			(par)
+		}
+		%% Now, the last step of it, with full descriptions
+		(line) \( (name $LastStep) \) (line)
+		(try [navigate $LastStep])
+		%% The standard action rules will do the tick and par for us, we don’t have to
+	(else)
+		You can’t find any route from here to there on your map.
+		(tick) (stop)
+	(endif)
+
+%% Navigation by direction:
+
+%% What the player types is eventually translated into one of:
+
+%% [leave $Room $Dir]
+%% [leave $Room $Dir by $Vehicle]
+%% [leave $Room $Dir with $Obj]
+
+%% These are generally the ones to override/extend.
+
+%% The default rules for the aforementioned actions invoke ‘(prevent entering
+%% $Room)’ and ‘(narrate entering $Room)’. These predicates can of course also
+%% be overridden. Thus, entering a room is not an action of its own, but is
+%% an inherent part of leaving a room.
+
+%% GO <direction>
+
+%% The rule for just typing a list of directions (without a verb) is further
+%% down in the file. (i.e. in stdlib.dg)
+
+(grammar [navigate/go [direction]] for [navigate $])
+	(consumed #f-navigate)
+(grammar [navigate/go [to further] [direction]] for [navigate $])
+	(consumed #f-navigate)
+
+(grammar [navigate] for itself)
+	(consumed #f-navigate)
+(perform [navigate])
+	In which direction?
+	(asking for direction in [navigate []])
+
+(unlikely-complex [navigate $DirList] 0)
+	(just)
+	(if) (direction $DirList) (then)
+		($Dir = $DirList)
+	(else)
+		%% Only consider the first direction in the list.
+		([+ $Dir | $] = $DirList)
+	(endif)
+	(unlikely [navigate $Dir])
+
+(unlikely [navigate $Dir])
+	(current room $Room)
+	~{
+		(from $Room go $Dir to $Target)
+		{ (room $Target) (or) (door $Target) (or) (direction $Target) }
+	}
+
+(perform [navigate $Dir])
+	(current room $Room)
+	(try [leave $Room $Dir])
+
+%% LEAVE <room> <dir>
+%% LEAVE <room> <dir> BY <vehicle>
+%% LEAVE <room> <dir> WITH <object>
+
+(instead of [leave $Room $Dir])
+	(from $Room go $Dir to $Target)
+	(direction $Target)
+	(try [leave $Room $Target])
+
+(prevent [leave $Room $Dir])
+	(if) (from $Room go $Dir to $Target) (then)
+		(if) (door $Target) (then)
+			{
+				(when $Target blocks passage)
+			(or)
+				(from $Room through $Target to $OtherRoom)
+				(prevent entering $OtherRoom)
+			}
+		(elseif) (room $Target) (then)
+			(prevent entering $Target)
+		(else)
+			(narrate failing to leave $Room $Dir)
+		(endif)
+	(else)
+		(if) ($Dir is one of [#out #in]) (then)
+			In what direction?
+			(asking for direction in [navigate []])
+		(else)
+			(narrate failing to leave $Room $Dir)
+		(endif)
+	(endif)
+
+(narrate leaving $Room $Dir)
+	(random consumed familiar is $Chosen)
+	You
+	(if) (player can see) (then)
+		(movement verb $Chosen)
+	(else)
+		feel your way blindly
+	(endif)
+	(name $Dir)
+	(if) (from $Room go $Dir to $Target) (door $Target) (then)
+		through (the $Target)
+	(endif)
+	(movement suffix $Chosen)
+	.
+
+(random consumed familiar is $Chosen)
+	(collect $Familiar)
+		*(familiar $Familiar)
+		(consumed $Familiar)
+		~($Familiar is one of [#player #f-appraise]) %% These two can’t move
+	(into $Options)
+	(randomly select $Chosen from $Options)
+
+(perform [leave $Room $Dir])
+	(narrate leaving $Room $Dir)
+	(from $Room go $Dir to room $Target)
+	(enter $Target)
+
+%% Also disable the map when unable to navigate
+(map disabled)
+	~(consumed #f-navigate)
+
+%% Now our specialized ones for this game only, with no precedent!
+
+%% CONSUME
+
+(grammar [consume/eat/absorb [single]] for [consume $])
+
+(grammar [consume] for itself)
+(perform [consume])
+	Consume what?
+	(asking for object in [consume []])
+
+(prevent [consume (current player $Obj)])
+	You try for a moment to engulf yourself, but unfortunately it doesn’t seem possible.
+
+(prevent [consume ~(familiar $Obj)])
+	(The $Obj) (is $Obj)(no space)n’t a familiar, so (it $Obj) probably wouldn’t agree with you.
+
+(prevent [consume ($Obj is dead)])
+	But (the $Obj) (is $Obj) dead! Incorporating (them $Obj) into yourself wouldn’t achieve anything now.
+
+(perform [consume $Obj])
+	(select)
+		You flow and wrap yourself around (the $Obj), steadily engulfing (them $Obj) until (it $Obj is) entirely surrounded by your plasm. With a sudden burst of speed you snap your body closed around (them $Obj), and start integrating (its $Obj) components into yourself!
+	(or)
+		You flow and wrap yourself around (the $Obj), steadily engulfing (them $Obj) until (it $Obj is) entirely surrounded by your plasm.
+	(or)
+		You throw yourself at (the $Obj) and engulf it in your slime.
+	(stopping)
+	(narrate consuming $Obj)
+	(now) (consumed $Obj)
+
+(narrate consuming $Obj)
+	(div @error) { Error: no description for consuming (the $Obj)! }
+
+@(consumed $Obj)
+	($Obj is #in #partof)
+
+%% TRANSMUTE
+
+(prevent [transmute | $])
+	(when #f-transmute is not consumed to @transmute)
+
+(grammar [transmute [single]] for [transmute $])
+	(consumed #f-transmute)
+
+(grammar [transmute] for itself)
+	(consumed #f-transmute)
+(perform [transmute])
+	Transmute what?
+	(asking for object in [transmute []])
+
+(prevent [transmute ~(elemental $Obj)])
+	You focus your inner light, and a beam of pure vermilion energy radiates across (the $Obj). But it isn’t absorbed quite right; (it $Obj) must not consist of a pure element.
+
+(prevent [transmute (current player $)])
+	You try to focus the light on yourself, but the physics just doesn’t quite work.
+
+(perform [transmute $Obj])
+	You focus your inner light, and a beam of pure vermilion energy radiates across (the $Obj).
+	(if) ($Obj is transmuted) (then)
+		(now) ~($Obj is transmuted)
+	(else)
+		(now) ($Obj is transmuted)
+	(endif)
+	(narrate transmuting $Obj)
+
+(narrate transmuting $Obj)
+	(div @error) { ERROR: No description for transmuting (the $Obj)! Report this! }
+
+%% PREPARE
+
+(prevent [prepare])
+	(when #f-escape is not consumed to @prepare)
+
+(grammar [prepare] for itself)
+	(consumed #f-escape)
+
+(perform [prepare])
+	You close your eyes and concentrate on your shell, and it starts to expand, growing larger and larger until it slides off your body onto the floor! You can now (link) ESCAPE back to this (link) shell whenever needed.
+	(par)
+	(if) (#shell is in room $Room) (then)
+		(if) (current room $Room) (then)
+			The
+		(else)
+			Off in (the $Room), the
+		(endif)
+		previous shell shatters into dust.
+	(else)
+		\( A new shell starts to grow around your body, replacing the one you just used. \)
+	(endif)
+	(current room $Current)
+	(now) (#shell is #in $Current)
+
+#shell
+(name *) shed shell
+(dict *) hard red
+(appearance *) A hard red (link) shell sits on the floor, prepared for when you need to (link) ESCAPE .
+(descr *) Although the shell appears impenetrable, it has small breathing holes so that the user can still get oxygen \( if they need it \) . 
+
+%% ESCAPE
+
+(prevent [escape])
+	(when #f-escape is not consumed to @escape)
+
+(grammar [escape] for itself)
+	(consumed #f-escape)
+
+(prevent [escape])
+	(#shell is nowhere)
+	A safety warning rings in your mind. You need to (link) PREPARE a place of safety before you can escape to it.
+
+(perform [escape])
+	(#shell is in room $Room)
+	You focus in on yourself, and your need for safety, retreating into your shell... (par)
+	...and emerge from the (link) shell you left behind in (the $Room)!
+	(enter $Room)
+
+(grammar [prepare/escape [single]] for [prepare $])
+	(consumed #f-escape)
+(perform [prepare $])
+	Preparing and escaping aren’t actions you do to a particular thing, just sort of...in general.
+	(stop)
+
+%% RESONATE
+
+(prevent [resonate | $])
+	(when #f-resonate is not consumed to @resonate)
+
+(grammar [resonate [single]] for [resonate $])
+	(consumed #f-resonate)
+
+(grammar [resonate] for itself)
+	(consumed #f-resonate)
+(perform [resonate])
+	Resonate what?
+	(asking for object in [resonate []])
+
+(prevent [resonate (current player $)])
+	If you tried to resonate with yourself, it wouldn’t be (emph {resonating}), would it? Just...“sonating”.
+
+%% Only works in special cases, no general perform rule
+
+(perform [resonate $Obj])
+	You try to find a note that resonates with (the $Obj), but nothing seems to make (them $Obj) vibrate. (It $Obj) must not be tuned properly.
+	(tick) (stop)
+
+%% DEFENESTRATE
+
+(prevent [defenestrate | $])
+	(when #f-defenestrate is not consumed to @defenestrate)
+
+(grammar [defenestrate/throw/yeet [single]] for [defenestrate $])
+	(consumed #f-defenestrate)
+
+(grammar [defenestrate] for itself)
+	(consumed #f-defenestrate)
+(perform [defenestrate])
+	Defenestrate what?
+	(asking for object in [defenestrate []])
+
+(prevent [defenestrate (current player $)])
+	You try to find a way to defenestrate yourself, but there’s just no way to provide a proper fulcrum.
+
+(prevent [defenestrate $Obj])
+	~{ (animate $Obj) ($Obj is alive) }
+	You consider defenestrating (the $Obj), but somehow it just doesn’t seem right to do that to something inanimate. Defenestration is the sort of thing you do to (emph {people}), not things.
+
+(prevent [defenestrate (familiar $Obj)])
+	Oh, but then you wouldn’t be able to consume (them $Obj)! And that would just be a tragedy!
+
+(prevent [defenestrate | $])
+	(current room $Room)
+	~($Room is one of [#stagecraft #theology])
+	You look around, but sadly, there’s no fenes in sight.
+
+%% VIVIFY
+
+(prevent [vivify | $])
+	(when #f-vivify is not consumed to @vivify)
+
+(grammar [vivify/revive [single]] for [vivify $])
+	(consumed #f-vivify)
+
+(grammar [vivify] for itself)
+	(consumed #f-vivify)
+(perform [vivify])
+	Vivify what?
+	(asking for object in [vivify []])
+
+(prevent [vivify (current player $)])
+	But if you weren’t already alive, you wouldn’t be able to vivify anything in the first place! Better this way, really.
+
+(prevent [vivify (animate $Obj)])
+	($Obj is alive)
+	But (the $Obj) (is $Obj) already alive!
+
+(prevent [vivify ($Obj is alive)]) %% Most things never have the “dead” flag set at all
+	You try to restore life to (the $Obj), but (it $Obj) may never have had it in the first place, because nothing happens.
+
+(perform [vivify $Obj])
+	(narrate vivifying $Obj)
+	(now) ($Obj is alive)
+
+(narrate vivifying $Obj)
+	(div @error) { ERROR: no message for vivifying (the $Obj)! }
+
+@($Obj is alive) ~($Obj is dead) %% Defining a new flag for this, why not - by default, everything counts as “alive”
+
+%% SOLILOQUIZE
+
+(prevent [soliloquize])
+	(when #f-soliloquize is not consumed to @soliloquize)
+
+(grammar [soliloquize/soliloquy/monologue/monolog] for [soliloquize])
+	(consumed #f-soliloquize)
+
+(grammar [soliloquize [single]] for [soliloquize $])
+	(consumed #f-soliloquize)
+(perform [soliloquize $])
+	You don’t have the ability to direct your soliloquies to specific people. You perform, and the entire audience gets to enjoy!
+	(stop)
+
+(perform [soliloquize])
+	You draw on all your oratorial prowess, and summon up a monologue...
+	(div @soliloquy) (soliloquy)
+	...of course, since you have no tongue or teeth, it just comes out as a sort of “(no space) (vague moaning) (no space)”. Still, it’s the thought that counts.
+
+%% And finally, a special case for the interface
+%% This cancels an implicit action without doing anything else or letting any time pass
+
+(understand command [never mind])
+(perform [never mind])
+	(now) ~(implicit action is $)
+
+%% Also SCORE
+
+(understand command [score])
+(perform [score])
+	You have successfully conquered (list solved puzzles).
+
+%% And MAP for debugging without a status bar
+
+(understand command [map])
+	(consumed #f-navigate)
+(perform [map])
+	(current room $Room)
+	($Room has coordinates [$ $ $Z])
+	(draw map $Z)
+
+%% A couple more debugging commands
+
+(puzzle status for $Puzzle)
+	(the $Puzzle)
+	(if) (solved $Puzzle) (then)
+		\( solved \)
+	(elseif) (solvable $Puzzle) (then)
+		\( open \)
+	(endif)
+	(space) - (space) depends on
+	(collect $Depend)
+		*($Puzzle depends on $Depend)
+	(into $List)
+	(listing $List {(puzzle status internal $_)} @and [] 0)
+	(line)
+
+(puzzle status internal $Puzzle)
+	(the $Puzzle)
+	(if) ~(puzzle $Puzzle) (then)
+		$Puzzle \(!\)
+	(elseif) (solved $Puzzle) (then)
+		\(s\)
+	(elseif) (solvable $Puzzle) (then)
+		\(o\)
+	(endif)
+
+(understand command [puzzles])
+(perform [puzzles])
+	(exhaust) {
+		*(puzzle $Puzzle)
+		(puzzle status for $Puzzle)
+	}
+
+(understand command [die])
+(perform [die])
+	(game over {You have died})
+
+(understand command [hints])
+(perform [hints])
+	(link resource @hints) { Click here to view hints. }
+
+%% ABOUT
+(grammar [about/credits/info] for [about])
+(command [about])
+(perform [about])
+	(div @meta) {
+		Confused about what to do? The links at the top and bottom of the page contain everything you’ll need! Experiment with your abilities, and figure out what they can do! NUDGE will tell you which puzzles you’re currently equipped to solve, while HINTS will give you more direct help on how to solve those puzzles. (par)
+		This game was made for ECTOCOMP 2024, originally for the Petite Mort category, but moved to the Grand Guignol after we realized how much testing it would require. (par)
+		Many thanks to our testers, Hidnook, Manonamora, Tabitha, and Mel Jason!
+	}
+
+%% WAIT for the parser fans
+(grammar [wait/z] for [wait])
+(perform [wait])
+	You wait. Time passes.

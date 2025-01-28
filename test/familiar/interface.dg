@@ -1,0 +1,407 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% STYLE CLASSES AND RESOURCES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+(style class @inlinebar) %% Taken from Gosling
+	text-align: left;
+	border: 1px solid rgb\(128, 128, 128\);
+	background-color: rgba\(128, 128, 128, 0.33\);
+	padding: 0.125em;
+	padding-left: 0.67em;
+	border-radius: 12px;
+	margin-top: 1em;
+	aria-role: toolbar;
+
+(style class @inlinebar2) %% Used in the opening to fix one padding issue
+	text-align: left;
+	border: 1px solid rgb\(128, 128, 128\);
+	background-color: rgba\(128, 128, 128, 0.33\);
+	padding: 0.125em;
+	padding-left: 0.67em;
+	border-radius: 12px;
+	margin-top: 1em;
+	padding-top: 0.33em;
+	aria-role: toolbar;
+
+(style class @item) %% Likewise
+	margin-top: 0.25em;
+	margin-bottom: 0.25em;
+	padding-left: 2em; %% Indent of all lines
+	text-indent: -2em; %% Indent of first line (so in other words, indent all following lines by 2em)
+
+(style class @metaverbs) %% The list of meta verbs
+	width: 100\%;
+	font-size: smaller;
+	text-align: center;
+
+(style class @metaverbs2) %% For when no map
+	width: 100\%;
+	font-size: smaller;
+	text-align: center;
+	margin-top: 0.25em;
+	margin-bottom: 0.25em;
+
+(style class @progress) %% The progress bar
+	width: 100\%;
+
+(style class @map) %% The map in between
+	width: 100\%;
+	font-family: monospace;
+	text-align: center;
+
+%% These four are used depending how many lines the map should take up
+(style class @status0)
+	height: 2em; %% For the Z-machine
+	height: 2.25em !important;
+(style class @status3)
+	height: 5em;
+(style class @status5)
+	height: 7em;
+(style class @status7)
+	height: 9em;
+
+%% A div for announcements (and really anything that should appear “on paper”)
+(style class @paper)
+	margin-top: 1em;
+	margin-bottom: 1em;
+	margin-left: 2em;
+	margin-right: 2em;
+	background-color: rgba\(255, 255, 255, 0.25\);
+	font-family: "Charm", serif;
+	padding: 0.33em 0.5em;
+	font-size: 1.15em;
+	line-height: 1.33;
+
+%% And one for Markov nonsense
+(style class @ai)
+	margin-top: 1em;
+	margin-bottom: 1em;
+	margin-left: 2em;
+	margin-right: 2em;
+	background-color: rgba\(255, 255, 255, 0.25\);
+	font-family: "Space Mono", monospace;
+	padding: 0.33em;
+
+%% Monologues
+(style class @soliloquy)
+	margin-top: 1em;
+	margin-bottom: 1em;
+	margin-left: 2em;
+	margin-right: 2em;
+	font-family: "Charm", serif;
+	font-size: 1.1em;
+	line-height: 1.33;
+
+%% Credit for a monologue
+(style class @credit)
+	margin-top: 1em;
+%%	padding-left: 4em; %% Indent of all lines
+%%	text-indent: -2em; %% Indent of first line (so in other words, indent all following lines by 2em)
+	padding-left: 2em;
+	text-align: right;
+
+(style class @underline)
+	text-decoration: underline;
+
+%% New powers granted
+(style class @new)
+	margin-top: 1em;
+	margin-bottom: 1em;
+	font-weight: bold;
+
+%% To actually center the game-over text
+(style class @gameover)
+	margin-top: 1em;
+	margin-bottom: 1em;
+	font-weight: bold;
+	text-align: center;
+
+(style class @title)
+	font-family: Montserrat, sans-serif;
+	font-weight: bold;
+	font-size: 1.4em;
+	margin-top: 1em;
+
+(style class @roomheader)
+	margin-top: .5em;
+	font-size: 1.1em;
+	font-family: Montserrat, sans-serif;
+	font-weight: bold;
+
+(style class @error)
+	font-weight: bold;
+	color: red;
+
+(style class @meta)
+	font-family: Montserrat, sans-serif;
+	background-color: rgb\(0,0,255,0.25\);
+	padding: 0.33em 0.5em;
+	font-style: italic;
+	font-style: normal !important;
+	margin: 0.33em;
+
+(style class @green) %% Used for when the synthesis familiar is on its own, nothing else consumed yet.
+	font-family: Arima, serif;
+	font-size: 1.15em;
+	--black: \#009900;
+	--lightgray: \#009900;
+	--link: \#009900;
+	--alink: \#00bb00;
+	color: \#009900;
+	aria-nonsense: test;
+
+(define resource @hints) hints.html; a file of hints
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% GENERAL UTILS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+(emph $Closure)
+	(span @italic) (query $Closure)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% INLINE BAR COMPONENTS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% What did we just examine?
+(global variable (focused object $))
+(after [appraise $Obj])
+	(now) (focused object $Obj)
+
+%% We only need special code for the self-object this time, since we have no (your $) objects this time - if we did, put the code for them here
+(status-link (current player $))
+	(link [myself]) yourself
+%% We also use some special code to bold directions if they lead to unvisited rooms
+(status-link (direction $Dir))
+	(current room $Current)
+	(from $Current go $Dir to room $Next)
+	($Next is unvisited)
+	(span @bold) (link) (name $Dir)
+(status-link (direction $Dir))
+	(link) (name $Dir)
+(status-link $Obj)
+	(link) (the $Obj)
+
+(options bar for things)
+	(collect $Thing)
+		(current room $Room)
+		{ *($Thing has ancestor $Room) (or) *(held $Thing) }
+		($Thing is in scope)
+	(into $List)
+	(inline status bar @inlinebar) {
+		(listing $List { (status-link $_) } [] @the 0)
+		\( or (link) { never mind } \) %% To cancel the implicit action
+	}
+
+(options bar for directions)
+	(collect $Dir)
+		(current room $Room)
+		*(direction $Dir)
+		(from $Room go $Dir to $Target)
+		{ (room $Target) (or) (door $Target) }
+	(into $List)
+	(inline status bar @inlinebar) {
+		(listing $List { (status-link $_) } [] [] 0)
+		(link [never mind]) { \( never mind \) } %% To cancel the implicit action
+	}
+
+(options bar for actions)
+	(inline status bar @inlinebar) {
+		(exhaust) *(action line)
+	}
+
+(action line)
+	(div @item) {
+		(link) APPRAISE \( (link [appraise myself]) yourself
+		(if) (held $Obj) (then) %% Also list held object if any - inventory limit 1 means we never have to worry about multiple
+			(collect words)
+				(the $Obj)
+			(into $Noun)
+			, (link [appraise | $Noun]) (the $Obj)
+		(endif)
+		\)
+	}
+(action line)
+	(consumed #f-navigate)
+	(action line for directional {NAVIGATE})
+(action line)
+	(action line for transitive {CONSUME})
+(action line)
+	(consumed #f-cache)
+	(if) (held $Obj) (then)
+		(collect words)
+			RETRIEVE (the $Obj)
+		(into $RetList)
+		(div @item) { (link $RetList) RETRIEVE (the $Obj) }
+	(else)
+		(action line for transitive {CACHE})
+	(endif)
+(action line)
+	(consumed #f-escape)
+	(div @item) { (link) PREPARE
+		(if) (#shell is in room $Room) (then)
+			, or (link) ESCAPE to (the $Room)
+		(endif)
+	}
+(action line)
+	(consumed #f-transmute)
+	(action line for transitive {TRANSMUTE})
+(action line)
+	(consumed #f-resonate)
+	(action line for transitive {RESONATE})
+(action line)
+	(consumed #f-vivify)
+	(action line for transitive {VIVIFY})
+(action line)
+	(consumed #f-defenestrate)
+	(action line for transitive {DEFENESTRATE})
+(action line)
+	(consumed #f-soliloquize)
+	(action line for intransitive {SOLILOQUIZE})
+
+(action line for intransitive $Verb) %% VERB
+	(div @item) (link) (query $Verb)
+
+(action line for transitive $Verb) %% VERB (the current noun)
+	(div @item) {
+		(link) (query $Verb)
+		(if) (focused object $Noun) ~(current player $Noun) (then) %% Don’t suggest actions on the player, it’s just simpler that way
+			(collect words)
+				(query $Verb)
+				(the $Noun)
+			(into $Link)
+			\( (link $Link) (the $Noun) \)
+		(endif)
+	}
+
+(action line for directional $Verb) %% VERB (directions)
+	(div @item) {
+		(link) (query $Verb)
+		(collect $Dir)
+			(current room $Room)
+			*(direction $Dir)
+			(from $Room go $Dir to $Target)
+			{ (room $Target) (or) (door $Target) }
+		(into $List)
+		(if) (nonempty $List) (then)
+			\( (listing $List { (status-link $_) } [] [] 0) \)
+		(endif)
+	}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% PUTTING IT TOGETHER
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+(draw inline bar)
+	(implicit action is $)
+	(implicit action wants direction)
+	(options bar for directions)
+
+(draw inline bar)
+	(implicit action is $)
+	(options bar for things)
+
+(draw inline bar)
+	(options bar for actions)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TOP STATUS BAR
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+(redraw status bar)
+	(draw top bar)
+	(draw inline bar)
+	(now) ~(focused object $) %% It got its one turn of focus, now it’s done
+
+(game over status bar) %% Keep it even after the end of the game
+	(draw top bar)
+
+(draw top bar)
+	(map disabled)
+	(status bar @status0) {
+		(draw progress bar)
+		(draw meta verbs)
+	}
+(draw top bar)
+	(current room $Room)
+	($Room has coordinates [$ $ $Z])
+	(map of layer $Z needs $Lines lines)
+	(if) ($Lines = 3) (then)
+		(status bar @status3) {
+			(draw progress bar)
+			(draw map $Z)
+			(draw meta verbs)
+		}
+	(elseif) ($Lines = 5) (then)
+		(status bar @status5) {
+			(draw progress bar)
+			(draw map $Z)
+			(draw meta verbs)
+		}
+	(elseif) ($Lines = 7) (then)
+		(status bar @status7) {
+			(draw progress bar)
+			(draw map $Z)
+			(draw meta verbs)
+		}
+	(else)
+		(status bar @status0) {
+			ERROR: MAP HAS $Lines LINES WHICH IS NOT 3, 5, OR 7
+		}
+	(endif)
+
+(draw progress bar)
+	(accumulate 1)
+		*(puzzle $)
+	(into $Total)
+	(accumulate 1)
+		*(puzzle $Puzzle)
+		(solved $Puzzle)
+	(into $Solved)
+	(div @progress) (progress bar $Solved of $Total)
+
+(draw map $Z)
+	(div @map) (draw map of layer $Z)
+
+(bullet)
+	(space) - (space)
+
+(draw meta verbs)
+	(if) (map disabled) (then)
+		(div @metaverbs2) (list meta verbs) %% Hack to make the margins work right
+	(else)
+		(div @metaverbs) (list meta verbs)
+	(endif)
+
+(list meta verbs)
+	(link) undo (bullet)
+	(link) save (bullet)
+	(link) restore (bullet)
+	(link) about (bullet)
+	(link resource @hints) hints (bullet)
+	(link) nudge
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% MAP GLYPHS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% @ for the player, ! for a puzzle, O for the shell, otherwise a space
+
+($Room has puzzle available)
+	*($Obj has ancestor $Room)
+	(puzzle $Obj)
+	~(solved $Obj)
+	(solvable $Obj)
+
+(room glyph (current room $))
+	\@
+
+(room glyph ($ has puzzle available))
+	!
+
+(room glyph $Room)
+	(#shell is in room $Room)
+	O
+
+(room glyph $)
+	(space 1)
