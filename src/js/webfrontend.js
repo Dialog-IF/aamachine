@@ -661,61 +661,57 @@ window.run_game = function(story64, options) {
 		},
 		setstyle: function(s) {
 			var span;
-			if(!this.in_status) {
-				if(s & 2) {
-					this.ensure_par();
-					span = document.createElement("span");
-					span.className = "aaspanb";
-					this.current.appendChild(span);
-					this.current = span;
-					this.n_inner++;
-				}
-				if(s & 4) {
-					this.ensure_par();
-					span = document.createElement("span");
-					span.className = "aaspani";
-					this.current.appendChild(span);
-					this.current = span;
-					this.n_inner++;
-				}
-				if(s & 8) {
-					this.ensure_par();
-					span = document.createElement("span");
-					span.className = "aaspanf";
-					this.current.appendChild(span);
-					this.current = span;
-					this.n_inner++;
-				}
+			if(s & 2) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspanb";
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
+			}
+			if(s & 4) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspani";
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
+			}
+			if(s & 8) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspanf";
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
 			}
 			this.currarray.push({t: "ss", s: s});
 		},
 		resetstyle: function(s) {
 			var span;
-			if(!this.in_status) {
-				if(s & 2) {
-					this.ensure_par();
-					span = document.createElement("span");
-					span.className = "aaspanunb";
-					this.current.appendChild(span);
-					this.current = span;
-					this.n_inner++;
-				}
-				if(s & 4) {
-					this.ensure_par();
-					span = document.createElement("span");
-					span.className = "aaspanuni";
-					this.current.appendChild(span);
-					this.current = span;
-					this.n_inner++;
-				}
-				if(s & 8) {
-					this.ensure_par();
-					span = document.createElement("span");
-					span.className = "aaspanunf";
-					this.current.appendChild(span);
-					this.current = span;
-					this.n_inner++;
-				}
+			if(s & 2) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspanunb";
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
+			}
+			if(s & 4) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspanuni";
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
+			}
+			if(s & 8) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspanunf";
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
 			}
 			this.currarray.push({t: "rs", s: s});
 		},
@@ -766,20 +762,16 @@ window.run_game = function(story64, options) {
 		},
 		enter_span: function(id) {
 			var span;
-			if(this.in_status != 1) {
-				this.raw_unstyle();
-				this.ensure_par();
-				span = document.createElement("span");
-				span.className = "aalook" + id;
-				this.current.appendChild(span);
-				this.current = span;
-			}
+			this.raw_unstyle();
+			this.ensure_par();
+			span = document.createElement("span");
+			span.className = "aalook" + id;
+			this.current.appendChild(span);
+			this.current = span;
 			this.currarray.push({t: "es", i: id});
 		},
 		leave_span: function() {
-			if(this.in_status != 1) {
-				this.current = this.current.parentNode;
-			}
+			this.current = this.current.parentNode;
 			this.currarray.push({t: "ls"});
 		},
 		enter_status: function(area, id) {
