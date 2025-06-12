@@ -436,6 +436,7 @@ window.run_game = function(story64, options) {
 		seen_index: 0,
 		seen_divs: [],
 		links_enabled: true,
+		audio: {},
 
 		flush: function() {
 		},
@@ -923,15 +924,30 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "lrl"});
 		},
 		embed_res: function(res) {
-			var img;
+			var img, chan;
 
-			if(this.can_embed_res(res)) {
+			if(this.res_is_image(res)) { // Images
 				this.ensure_par();
 				img = document.createElement("img");
 				img.src = this.transform_url(res.url);
 				img.setAttribute("alt", res.alt);
 				this.current.appendChild(img);
-			} else {
+			} else if(this.res_is_audio(res)) { // Audio
+				let m = res.options.match(/\bchannel (\w+)\b/);
+				if(m) {
+					chan = m[1];
+				} else {
+					chan = "main";
+				}
+				if(chan in this.audio) { // Channel already exists
+					this.audio[chan].pause();
+					this.audio[chan].removeAttribute("src");
+					this.audio[chan].load();
+				}
+				this.audio[chan] = new Audio(this.transform_url(res.url));
+				this.audio[chan].play();
+				this.audio[chan].loop = !!res.options.match(/\bloop\b/);
+			} else { // Anything else is not recognized
 				this.print("[");
 				this.print(res.alt);
 				this.print("]");
@@ -939,7 +955,13 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "er", r: res});
 		},
 		can_embed_res: function(res) {
+			return this.res_is_image(res) || this.res_is_audio(res);
+		},
+		res_is_image: function(res) {
 			return !!res.url.match(/\.(png|jpe?g)$/i);
+		},
+		res_is_audio: function(res) {
+			return !!res.url.match(/\.(ogg|mp3|wav)$/i);
 		},
 		adjust_size: function() {
 			var aamain, newheight;
