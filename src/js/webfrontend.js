@@ -939,21 +939,26 @@ window.run_game = function(story64, options) {
 				} else {
 					chan = "main";
 				}
+				let url = this.transform_url(res.url);
+				let loop = !!res.options.match(/\bloop\b/);
 				if(chan in this.audio && !this.audio[chan].ended) { // Something is currently playing on this channel, we need to stop it
-					let duration = 500;
-					$(this.audio[chan]).animate({volume:0}, duration); // Fade out the existing audio
-					setTimeout(function(t, url, loop){ // Start the new audio once the fade is done
-						t.audio[chan].pause(); // Stop the old audio object completely
-						t.audio[chan].removeAttribute("src");
-						t.audio[chan].load();
-						t.audio[chan] = new Audio(url); // Start the new one
-						t.audio[chan].play();
-						t.audio[chan].loop = loop;
-					}, duration, this, this.transform_url(res.url), !!res.options.match(/\bloop\b/));
-				} else { // TODO clean this up a bit
-					this.audio[chan] = new Audio(this.transform_url(res.url));
+					console.log("Existing: " + this.audio[chan] + " " + this.audio[chan].src + " " + url);
+					if(!this.audio[chan].src.endsWith(url)) { // Don't replace a sound with the same sound
+						let duration = 500;
+						$(this.audio[chan]).animate({volume:0}, duration); // Fade out the existing audio
+						setTimeout(function(t, url, loop){ // Start the new audio once the fade is done
+							t.audio[chan].pause(); // Stop the old audio object completely
+							t.audio[chan].removeAttribute("src");
+							t.audio[chan].load();
+							t.audio[chan] = new Audio(url); // Start the new one
+							t.audio[chan].play();
+							t.audio[chan].loop = loop;
+						}, duration, this, url, loop);
+					}
+				} else {
+					this.audio[chan] = new Audio(url);
 					this.audio[chan].play();
-					this.audio[chan].loop = !!res.options.match(/\bloop\b/);
+					this.audio[chan].loop = loop;
 				}
 			} else { // Anything else is not recognized
 				this.print("[");
