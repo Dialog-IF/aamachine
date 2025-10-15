@@ -915,6 +915,7 @@ function vm_run(e, param) {
 		while(true) {
 			a = deref(a);
 			b = deref(b);
+			//console.log('Unifying ' + tohex(a, 2) + ' and ' + tohex(b, 2));
 			if((a & 0xe000) == 0x8000 && (b & 0xe000) == 0x8000) {
 				if(e.trl <= e.aux) throw AUXFULL;
 				if(a < b) {
