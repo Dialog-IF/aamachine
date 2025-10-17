@@ -2716,6 +2716,9 @@ Opcode semantics
 			}
 			INST = arg2
 		}
+		The 'find_in_wordmap' procedure reads from one of the wordmaps
+		(wordmaps[arg1]), looking up the word of interest (IDX) to see
+		if it's there.
 
 	CHECK_EQ_2		WORD/VBYTE WORD/VBYTE CODE
 
