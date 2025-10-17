@@ -662,6 +662,7 @@ CODE:
 		00xxxxxx			Close relative pointer
 						(+ 1..3f bytes)
 		01xxxxxx xxxxxxxx		Relative pointer (+/- 8 kB),
+						14-bit signed integer
 
 		1xxxxxxx xxxxxxxx xxxxxxxx	Absolute pointer (full 8 MB
 						range)
