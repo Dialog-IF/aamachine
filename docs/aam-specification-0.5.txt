@@ -662,7 +662,7 @@ CODE:
 		00xxxxxx			Close relative pointer
 						(+ 1..3f bytes)
 		01xxxxxx xxxxxxxx		Relative pointer (+/- 8 kB),
-						relative to end of operand
+
 		1xxxxxxx xxxxxxxx xxxxxxxx	Absolute pointer (full 8 MB
 						range)
 
@@ -676,7 +676,8 @@ CODE:
 
 	Decoding of a CODE operand can sometimes can be postponed until after
 	the execute stage, when it may be possible to decode straight into INST
-	or skip the operand altogether.
+	or skip the operand altogether. Both close and relative pointers are
+	decoded relative to INST encountering the CODE operand.
 
 	The instructions (semantics below):
 
