@@ -1078,14 +1078,26 @@ Opcode semantics
 		if(SIM < 0x8000) CHO = SIM
 		INST = CONT
 
+	Proceed from the continuation point (CONT).
+	When the simple cutting choice point (SIM) is set, proceed with that
+	as the current choice frame on the choice stack.
+	SIM (and by extension all choice frames) aren't expected to naturally
+	dip below 0x8000, as it would conflict with existing memory ranges.
+
 	JMP			CODE
 
 		INST = arg
+
+	Perform a straightforward jump. The JMPL_* variants act similiarly
+	to function calls, as they provide a continuation to resume from later.
 
 	JMP_MULTI		CODE
 
 		SIM = 0xffff
 		INST = arg
+
+	Perform a multi-jump chain starting at the CODE address provided.
+	SIM is invalidated as a cutting choice point.
 
 	JMPL_MULTI		CODE
 
@@ -1108,6 +1120,9 @@ Opcode semantics
 
 		if(SIM >= 0x8000) SIM = CHO
 		INST = arg
+
+	Perform a jump to the CODE address, and save the current choice frame
+	to SIM if there is no existing cutting choice point.
 
 	TAIL
 
