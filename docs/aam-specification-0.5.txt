@@ -120,7 +120,7 @@ Text:
 		7f    is reserved
 		80-ff are game-specific
 
-	Characters 80-ff are mapped to unicode glyphs by a game-specific
+	Characters 80-ff are mapped to Unicode codepoints by a game-specific
 	"character mapping table".
 
 	Characters from the CHARACTER SET may appear in input, dictionary
@@ -133,8 +133,8 @@ Text:
 	Huffman-inspired encoding.
 
 		* Characters in the ranges 20-7e and 80-9f (ASCII and 32 other
-		  glyphs as per the character mapping table) have a compact,
-		  variable-length encoding.
+		  codepoints as per the character mapping table) have a
+		  compact, variable-length encoding.
 
 		* Characters in the range 9f-ff and dictionary words are
 		  represented by a less efficient (but simpler) encoding.
