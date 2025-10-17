@@ -32,6 +32,8 @@ These are still early days, and everything is subject to change. When only the
 minor version number is incremented, efforts are made to keep all changes
 backwards-compatible.
 
+The 'a..b' notation represents the inclusive range of integers, [a, b].
+For inclusive ranges that represent characters, 'a-b' notation is used.
 
 Runtime data
 ============
