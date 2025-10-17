@@ -159,13 +159,13 @@ Game state:
 		LONG (32-bit)	INST	Instruction pointer
 		LONG		CONT	Continuation pointer
 
-		WORD		TOP	Main heap top
-		WORD		ENV	Env frame pointer
-		WORD		CHO	Choice frame pointer
+		WORD		TOP	Main heap top (allocates upwards)
+		WORD		ENV	Env frame pointer (grows downwards)
+		WORD		CHO	Choice frame pointer (grows downwards)
 		WORD		SIM	Simple cut or null
 
-		WORD		AUX	Aux stack pointer
-		WORD		TRL	Trail stack pointer
+		WORD		AUX	Aux stack pointer (grows upwards)
+		WORD		TRL	Trail stack pointer (grows downwards)
 
 		WORD		STA	Stoppable aux pointer
 		WORD		STC	Stoppable choice pointer
