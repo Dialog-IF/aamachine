@@ -521,7 +521,7 @@ MAPS:
 
 	BYTE[2]		Number of entries (sorted by index value)
 	{
-		WORD	Index value (dictionary word)
+		WORD	Index value (dictionary word or character)
 		WORD	Single object id + 0xe000, offset in chunk of payload,
 			or null (for wildcard words such as 'the')
 	}
