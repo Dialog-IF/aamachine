@@ -156,7 +156,7 @@ Game state:
 
 	Special-purpose registers:
 
-		LONG		INST	Instruction pointer
+		LONG (32-bit)	INST	Instruction pointer
 		LONG		CONT	Continuation pointer
 
 		WORD		TOP	Main heap top
