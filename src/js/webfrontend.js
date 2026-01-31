@@ -547,6 +547,9 @@ window.run_game = function(story64, options) {
 				io.currarray.push({t: "cd"});
 			}
 		},
+		clear_status: function() {
+			// TODO implement clear_status
+		},
 		leave_all: function() {
 			this.current = document.getElementById("aamain");
 			this.in_status = false;
@@ -587,6 +590,18 @@ window.run_game = function(story64, options) {
 				this.self_link_str += str.toLowerCase();
 			}
 			this.currarray.push({t: "t", s: str});
+		},
+		nbsp: function() {
+			this.ensure_par();
+			this.current.appendChild(document.createTextNode('\u00A0'));
+			this.after_text = true;
+			if(!this.in_status) {
+				this.transcript.print('\u00A0');
+			}
+			if(this.self_link_span) {
+				this.self_link_str += " "; // Don't put nbsps in links! That's why we don't just delegate to this.print(' ')
+			}
+			this.currarray.push({t: "t", s: '\u00A0'});
 		},
 		space: function() {
 			this.print(" ");

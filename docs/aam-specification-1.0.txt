@@ -2447,6 +2447,7 @@ Opcode semantics
 	GET_INPUT		DEST
 
 		if(SPC == auto || SPC == pendingspace) output_space()
+		elseif(SPC == nbsp) output_nbsp()
 		output_sync()
 		arg <- input_get_line()
 		SPC = line
@@ -2575,6 +2576,7 @@ Opcode semantics
 	GET_KEY			DEST
 
 		if(SPC == auto || SPC == pendingspace) output_space()
+		elseif(SPC == nbsp) output_nbsp()
 		output_sync()
 		arg <- input_get_key() // digits are numbers, others are chars
 

@@ -257,10 +257,11 @@ function prepare_story(file_array, io, seed, quit, toparea, inlinearea) {
 	e = {
 		SP_AUTO:	0,
 		SP_NOSPACE:	1,
-		SP_PENDING:	2,
-		SP_SPACE:	3,
-		SP_LINE:	4,
-		SP_PAR:		5,
+		SP_NBSP:	2,
+		SP_PENDING:	3,
+		SP_SPACE:	4,
+		SP_LINE:	5,
+		SP_PAR:		6,
 
 		head:		findch("HEAD", true),
 		code:		findch("CODE", true),
@@ -1959,21 +1960,25 @@ function vm_run(e, param) {
 					break;
 				case 0x60: // print_a_str_a string
 					if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) io.space();
+					else if(e.spc == e.SP_NBSP) io.nbsp();
 					io.print(decodestr(e, fstring()));
 					e.spc = e.SP_AUTO;
 					break;
 				case 0xe0: // print_n_str_a string
 					if(e.spc == e.SP_PENDING) io.space();
+					else if(e.spc == e.SP_NBSP) io.nbsp();
 					io.print(decodestr(e, fstring()));
 					e.spc = e.SP_AUTO;
 					break;
 				case 0x61: // print_a_str_n string
 					if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) io.space();
+					else if(e.spc == e.SP_NBSP) io.nbsp();
 					io.print(decodestr(e, fstring()));
 					e.spc = e.SP_NOSPACE;
 					break;
 				case 0xe1: // print_n_str_n string
 					if(e.spc == e.SP_PENDING) io.space();
+					else if(e.spc == e.SP_NBSP) io.nbsp();
 					io.print(decodestr(e, fstring()));
 					e.spc = e.SP_NOSPACE;
 					break;
@@ -2300,6 +2305,17 @@ function vm_run(e, param) {
 					case 0x11: // clear_div
 						io.clear_div();
 						break;
+					case 0x12: // clear_status
+						if(e.in_status) throw IOSTATE;
+						io.clear_status();
+						break;
+					case 0x13: // nbsp
+						if(!e.cwl) {
+							if(e.spc < e.SP_NBSP) {
+								e.spc = e.SP_NBSP;
+							}
+						}
+						break;
 					default:
 						throw 'Unimplemented ext0 ' + a1.toString(16) + ' at ' + (e.inst - 2).toString(16);
 					}
@@ -2326,10 +2342,12 @@ function vm_run(e, param) {
 					break;
 				case 0x73: // get_input dest
 					if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) io.space();
+					else if(e.spc == e.SP_NBSP) io.nbsp();
 					io.flush();
 					return status.get_input;
 				case 0xf3: // get_key dest
 					if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) io.space();
+					else if(e.spc == e.SP_NBSP) io.nbsp();
 					io.flush();
 					return status.get_key;
 				case 0x74: // vm_info byte dest

@@ -7954,6 +7954,8 @@ ext0_lsb
 	.byt	<ext0_clr_links	; 0f
 	.byt	<ext0_clr_old	; 10
 	.byt	<ext0_clr_div	; 11
+	.byt	<ext0_clr_status	; 12
+	.byt	<ext0_nbsp	; 13
 ext0_msb
 	.byt	>ext0_quit	; 00
 	.byt	>ext0_restart	; 01
@@ -7973,6 +7975,8 @@ ext0_msb
 	.byt	>ext0_clr_links	; 0f
 	.byt	>ext0_clr_old	; 10
 	.byt	>ext0_clr_div	; 11
+	.byt	<ext0_clr_status	; 12
+	.byt	<ext0_nbsp	; 13
 
 ext0_quit
 	jsr	io_mflush
@@ -8303,7 +8307,24 @@ ext0_scrpt_off
 ext0_clr_links
 ext0_clr_old
 ext0_clr_div
+ext0_clr_status ; This one could be implemented, but I don't know how
 	jmp	ldyfetchnext
+
+ext0_nbsp ; Copied from op_space; can't call it directly because ext0 clobbered the Y register so we have to jump to ldyfetchnext instead of fetchnext
+	.(
+	lda	rcwl
+	bne	skip
+
+	lda	#SPC_NO
+	adc	#0
+
+	cmp	rspc
+	bcc	skip
+
+	sta	rspc
+skip
+	jmp ldyfetchnext
+	.)
 
 ext0_trace_off
 	lda	#0

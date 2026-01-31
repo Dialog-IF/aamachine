@@ -58,6 +58,8 @@ const io = {
 	},
 	clear_div: function() {
 	},
+	clear_status: function() {
+	},
 	print: function(str) {
 		if(!this.hidden) {
 			for(let i = 0; i < str.length; i++) {
@@ -71,6 +73,11 @@ const io = {
 					this.pending_word += str[i];
 				}
 			}
+		}
+	},
+	nbsp: function() {
+		if(!this.hidden) {
+			this.pending_word += " ";
 		}
 	},
 	space: function() {
