@@ -942,7 +942,7 @@ window.run_game = function(story64, options) {
 				let url = this.transform_url(res.url);
 				let loop = !!res.options.match(/\bloop\b/);
 				if(chan in this.audio && !this.audio[chan].ended) { // Something is currently playing on this channel, we need to stop it
-					console.log("Existing: " + this.audio[chan] + " " + this.audio[chan].src + " " + url);
+					//console.log("Existing: " + this.audio[chan] + " " + this.audio[chan].src + " " + url);
 					if(!this.audio[chan].src.endsWith(url)) { // Don't replace a sound with the same sound
 						let duration = 500;
 						$(this.audio[chan]).animate({volume:0}, duration); // Fade out the existing audio
