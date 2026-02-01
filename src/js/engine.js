@@ -332,7 +332,8 @@ function prepare_story(file_array, io, seed, quit, toparea, inlinearea) {
 		}
 	};
 
-	if(e.head[0] > e.VER_MAJOR ||
+	if(
+		(e.head[0] > e.VER_MAJOR) ||
 		(e.head[0] == e.VER_MAJOR && e.head[1] > e.VER_MINOR)
 	) {
 		throw "Unsupported aastory file format version " + e.head[0] + "." + e.head[1] + "; this interpreter supports up to " + e.VER_MAJOR + "." + e.VER_MINOR;

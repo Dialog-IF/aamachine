@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
-This archive contains version 0.5 of the Å-machine specification, and version
-0.5.4 of the tools and official interpreters.
+This archive contains version 1.0 of the Å-machine specification, and version
+1.0.0 of the tools and official interpreters.
 
 The following interpreters are included:
 
@@ -118,9 +118,18 @@ src/6502, run "make" in that directory. This requires the xa65 assembler.
 
 Project website:
 
-	https://linusakesson.net/dialog/aamachine/
+	https://github.com/Dialog-IF/aamachine/
 
 Release notes:
+
+	1.0.0:
+	
+		First community-maintained release! Incrementing the major version
+		per Linus's wishes. 0.*.* remains his for future development.
+		
+		Specification: clear all status areas; nbsp
+		
+		Web interpreter: supports playing audio
 
 	0.5.4:
 
