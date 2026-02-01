@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: install dependencies
-      run: sudo apt install node
+    - uses: actions/setup-node@v6
     - name: make test
       run: make test
