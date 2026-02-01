@@ -448,6 +448,7 @@ window.run_game = function(story64, options) {
 		seen_index: 0,
 		seen_divs: [],
 		links_enabled: true,
+		audio: {},
 
 		flush: function() {
 		},
@@ -946,15 +947,43 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "lrl"});
 		},
 		embed_res: function(res) {
-			var img;
+			var img, chan;
 
-			if(this.can_embed_res(res)) {
+			if(this.res_is_image(res)) { // Images
 				this.ensure_par();
 				img = document.createElement("img");
 				img.src = this.transform_url(res.url);
 				img.setAttribute("alt", res.alt);
 				this.current.appendChild(img);
-			} else {
+			} else if(this.res_is_audio(res)) { // Audio
+				let m = res.options.match(/\bchannel (\w+)\b/);
+				if(m) {
+					chan = m[1];
+				} else {
+					chan = "main";
+				}
+				let url = this.transform_url(res.url);
+				let loop = !!res.options.match(/\bloop\b/);
+				if(chan in this.audio && !this.audio[chan].ended) { // Something is currently playing on this channel, we need to stop it
+					//console.log("Existing: " + this.audio[chan] + " " + this.audio[chan].src + " " + url);
+					if(!this.audio[chan].src.endsWith(url)) { // Don't replace a sound with the same sound
+						let duration = 500;
+						$(this.audio[chan]).animate({volume:0}, duration); // Fade out the existing audio
+						setTimeout(function(t, url, loop){ // Start the new audio once the fade is done
+							t.audio[chan].pause(); // Stop the old audio object completely
+							t.audio[chan].removeAttribute("src");
+							t.audio[chan].load();
+							t.audio[chan] = new Audio(url); // Start the new one
+							t.audio[chan].play();
+							t.audio[chan].loop = loop;
+						}, duration, this, url, loop);
+					}
+				} else {
+					this.audio[chan] = new Audio(url);
+					this.audio[chan].play();
+					this.audio[chan].loop = loop;
+				}
+			} else { // Anything else is not recognized
 				this.print("[");
 				this.print(res.alt);
 				this.print("]");
@@ -962,7 +991,13 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "er", r: res});
 		},
 		can_embed_res: function(res) {
+			return this.res_is_image(res) || this.res_is_audio(res);
+		},
+		res_is_image: function(res) {
 			return !!res.url.match(/\.(png|jpe?g)$/i);
+		},
+		res_is_audio: function(res) {
+			return !!res.url.match(/\.(ogg|mp3|wav)$/i);
 		},
 		adjust_size: function() {
 			var aamain, newheight;
