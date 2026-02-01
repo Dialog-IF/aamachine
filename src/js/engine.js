@@ -255,6 +255,9 @@ function prepare_story(file_array, io, seed, quit, toparea, inlinearea) {
 	}
 
 	e = {
+		VER_MAJOR:	1,
+		VER_MINOR:	0,
+		
 		SP_AUTO:	0,
 		SP_NOSPACE:	1,
 		SP_NBSP:	2,
@@ -329,11 +332,13 @@ function prepare_story(file_array, io, seed, quit, toparea, inlinearea) {
 		}
 	};
 
-	if(e.head[0] != 0 || e.head[1] > 5) {
-		throw "Unsupported aastory file format version (" + e.head[0] + "." + e.head[1] + ")";
+	if(e.head[0] > e.VER_MAJOR ||
+		(e.head[0] == e.VER_MAJOR && e.head[1] > e.VER_MINOR)
+	) {
+		throw "Unsupported aastory file format version " + e.head[0] + "." + e.head[1] + "; this interpreter supports up to " + e.VER_MAJOR + "." + e.VER_MINOR;
 	}
 	if(e.head[2] != 2) {
-		throw "Unsupported word size (" + e.head[2] + ")";
+		throw "Unsupported word size " + e.head[2] + "; this interpreter only supports 2";
 	}
 
 	e.heapdata = new Uint16Array(get16(e.head, 16));
