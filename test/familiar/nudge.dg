@@ -1,0 +1,58 @@
+(extension version)
+	(line)Puzzle prompts version 0.1 by Daniel Stelzer.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% PUZZLE POINTERS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+(interface ($<Child requires $>Parent))
+
+($Child depends on $Parent)
+	*($Child requires $Parent)
+($Child depends on $Parent)
+	*($Child requires $Intermediate)
+	($Intermediate depends on $Parent)
+
+($Puzzle is missing dependencies)
+	*($Puzzle depends on $Other)
+	~(solved $Other)
+
+@(solvable $Puzzle)
+	~($Puzzle is missing dependencies)
+
+(check $Obj is in room $Room)
+	{
+		($Obj is in room $Room)
+	(or)
+	%%	(div @error) { ERROR: (the $Obj) is not in any room! }
+		($Room = [])
+	}
+
+(understand command [nudge])
+(perform [nudge])
+	Currently, you’re equipped to handle:
+	(exhaust) {
+		*(puzzle $Puzzle)
+		~(solved $Puzzle)
+		(solvable $Puzzle)
+		(check $Puzzle is in room $Room)
+		(div @item) {
+			(bullet) (the $Puzzle)
+			(if) (current room $Room) (then)
+				in this room
+			(elseif) ($Room = []) (then)
+				%% Nothing - it’s not in any room
+			(elseif) ($Room is visited) (then)
+				in (the $Room)
+			(else)
+				in an unexplored room
+			(endif)
+		}
+	}
+
+(list solved puzzles)
+	(collect $Puzzle)
+		*(puzzle $Puzzle)
+		(solved $Puzzle)
+	(into $Solved)
+	(the-listing $Solved)
