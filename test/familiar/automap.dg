@@ -1,0 +1,288 @@
+(extension version)
+	(line)Automap version 0.5 by Daniel Stelzer, modified.
+
+%% First, we need to assign coordinates to all rooms
+%% There are two ways to do this
+
+%% One, do it like Inform does: (map $ at $) assigns those coordinates to a particular room, and then maps that connected component based on it
+%%(map $Room at $Coords)
+%%	(now) ($Room has coordinates $Coords)
+%%	(exhaust) (spread coordinates from [$Room])
+
+%% Two, do it more automatically: assign coordinates to some rooms at compile-time, and at runtime, build the map based on those rooms
+(automatically build the map)
+	(collect $Room)
+		*(room $Room)
+		($Room has coordinates $)
+	(into $Mapped)
+	(exhaust) (spread coordinates from $Mapped)
+
+%% Either way, it works very similarly to the BFS pathfinding algorithm (it’s basically a floodfill)
+(spread coordinates from $List)
+	(nonempty $List)
+	(collect $Next)
+		*($This is one of $List)
+		*(from $This go $Dir to $Way)
+		{
+			(room $Way)
+			($Next = $Way)
+		(or)
+			(door $Way)
+			(from $This through $Way to $Next)
+		}
+		~($Next has coordinates $)
+		($This has coordinates $ThisC)
+		($ThisC modified by $Dir becomes $NextC)
+		(now) ($Next has coordinates $NextC)
+	(into $NextGen)
+	(spread coordinates from $NextGen)
+(spread coordinates from [])
+
+%% Of course, to do that, we need to know what effect each direction has on a set of coordinates
+%% The convention we’re using here is that +X is east, +Y is south, +Z is up
+%% For X and Y this is necessary to have the map oriented the conventional way, but for Z it’s arbitrary, and you can change it without breaking anything (e.g. a rogue-style dungeon might want 1 to be the surface and go down from there)
+
+([$X $Y $Z] modified by #north becomes [$X $Y1 $Z])
+	($Y minus 1 into $Y1)
+([$X $Y $Z] modified by #south becomes [$X $Y1 $Z])
+	($Y plus 1 into $Y1)
+([$X $Y $Z] modified by #west becomes [$X1 $Y $Z])
+	($X minus 1 into $X1)
+([$X $Y $Z] modified by #east becomes [$X1 $Y $Z])
+	($X plus 1 into $X1)
+
+([$X $Y $Z] modified by #northeast becomes [$X1 $Y1 $Z])
+	($X plus 1 into $X1)
+	($Y minus 1 into $Y1)
+([$X $Y $Z] modified by #northwest becomes [$X1 $Y1 $Z])
+	($X minus 1 into $X1)
+	($Y minus 1 into $Y1)
+([$X $Y $Z] modified by #southeast becomes [$X1 $Y1 $Z])
+	($X plus 1 into $X1)
+	($Y plus 1 into $Y1)
+([$X $Y $Z] modified by #southwest becomes [$X1 $Y1 $Z])
+	($X minus 1 into $X1)
+	($Y plus 1 into $Y1)
+
+([$X $Y $Z] modified by #up becomes [$X $Y $Z1])
+	($Z plus 1 into $Z1)
+([$X $Y $Z] modified by #down becomes [$X $Y $Z1])
+	($Z minus 1 into $Z1)
+
+%% Two utility predicates that should be standard imo
+
+(minimum of [$Head] is $Head)
+(minimum of [$Head|$Tail] is $Min)
+	(minimum of $Tail is $Other)
+	(if) ($Head < $Other) (then)
+		($Min = $Head)
+	(else)
+		($Min = $Other)
+	(endif)
+(maximum of [$Head] is $Head)
+(maximum of [$Head|$Tail] is $Max)
+	(maximum of $Tail is $Other)
+	(if) ($Head > $Other) (then)
+		($Max = $Head)
+	(else)
+		($Max = $Other)
+	(endif)
+
+%% Now the map-drawing part! This is the main predicate you’ll want to call in your code
+%% Be sure to do this in a fixed-pitch font, or it’ll look Weird
+
+%% It wouldn’t be hard to write a wrapper around this to draw a map of all layers; use this code as a template to calculate the min and max Z-values, then draw a map of each of those layers
+%% It just hasn’t been done here since a 3D map can get out of hand very quickly
+
+(draw map of layer $Z)
+	(collect $Room)
+		*(room $Room at [$ $ $Z] is visited)
+	(into $Rooms)
+	
+	(collect $X)
+		*($Room is one of $Rooms)
+		($Room has coordinates [$X $ $])
+	(into $Xs)
+	(collect $Y)
+		*($Room is one of $Rooms)
+		($Room has coordinates [$ $Y $])
+	(into $Ys)
+	
+	(maximum of $Xs is $XMax)
+	(minimum of $Xs is $XMin)
+	(maximum of $Ys is $YMax)
+	(minimum of $Ys is $YMin)
+	
+	(draw map of layer $Z from $XMin to $XMax and $YMin to $YMax)
+
+(draw map of layer $Z from $XMin to $XMax and $Y to $YMax)
+	($Y > $YMax) %% Base case: no more recursion
+	(draw exits above $Y of $Z from $XMin to $XMax) %% Just draw final row of exits
+	(line)
+(draw map of layer $Z from $XMin to $XMax and $Y to $YMax)
+	(draw exits above $Y of $Z from $XMin to $XMax)
+	(line)
+	(draw row $Y of layer $Z from $XMin to $XMax)
+	(line)
+	($Y plus 1 into $YNext)
+	(draw map of layer $Z from $XMin to $XMax and $YNext to $YMax)
+
+(draw row $Y of layer $Z from $X to $XMax)
+	($X > $XMax) %% Base case
+	($X minus 1 into $XM1)
+	(if) (exit #east from [$XM1 $Y $Z]) (then)
+		-
+	(else)
+		(space 1)
+	(endif)
+(draw row $Y of layer $Z from $X to $XMax)
+	($X plus 1 into $XP1)
+	($X minus 1 into $XM1)
+	%% West exit
+	(if) (exit #west from [$X $Y $Z]) (or) (exit #east from [$XM1 $Y $Z]) (then)
+		-
+	(else)
+		(space 1)
+	(endif)
+	%% Room
+	(if) (room $Room at [$X $Y $Z] is visited) (then)
+		(collect words)
+			(the $Room)
+		(into $RoomName)
+		(append [navigate to] $RoomName $Command)
+		(link $Command) {
+			\( (no space) (room glyph $Room) (no space) \)
+		}
+	(else)
+		(space 3)
+	(endif)
+	(draw row $Y of layer $Z from $XP1 to $XMax)
+
+%% This is one you probably want to override in your own game: it controls what character is drawn in the middle of each room, by default an @ for the player and a space for anything else
+%% But look at the Labyrinthine Library of Xleksixnrewix for an example of a different way to do it, where enemies, traps, and rooms an enemy has passed through are all drawn differently
+
+(room glyph $Room)
+	(if) (current room $Room) (then)
+		\@
+	(else)
+		(space 1)
+	(endif)
+
+(final exits above $X $Y $Z) %% Cut-down version of the below for the very right edge
+	($Y minus 1 into $YM1)
+	($X minus 1 into $XM1)
+	(if) (exit #southeast from [$XM1 $YM1 $Z]) (then)
+		($NorthWest = 1)
+	(else)
+		($NorthWest = 0)
+	(endif)
+	(if) (exit #northeast from [$XM1 $Y $Z]) (then)
+		($NorthEast = 1)
+	(else)
+		($NorthEast = 0)
+	(endif)
+	(if) ($NorthWest = 1) (then)
+		(if) ($NorthEast = 1) (then)
+			X
+		(else)
+			\\
+		(endif)
+	(else)
+		(if) ($NorthEast = 1) (then)
+			/
+		(else)
+			(space 1)
+		(endif)
+	(endif)
+
+(draw exits above $Y of $Z from $X to $XMax)
+	($X > $XMax) %% Base case
+	(final exits above $X $Y $Z)
+(draw exits above $Y of $Z from $X to $XMax)
+	($X plus 1 into $XP1)
+	($X minus 1 into $XM1)
+	($Y minus 1 into $YM1)
+	%% Northwest exit
+	(if) (exit #northwest from [$X $Y $Z]) (or) (exit #southeast from [$XM1 $YM1 $Z]) (then)
+		($NorthWest = 1)
+	(else)
+		($NorthWest = 0)
+	(endif)
+	%% Northeast exit
+	(if) (exit #northeast from [$XM1 $Y $Z]) (or) (exit #southwest from [$X $YM1 $Z]) (then)
+		($NorthEast = 1)
+	(else)
+		($NorthEast = 0)
+	(endif)
+	(if) ($NorthWest = 1) (then)
+		(if) ($NorthEast = 1) (then)
+			X
+		(else)
+			\\
+		(endif)
+	(else)
+		(if) ($NorthEast = 1) (then)
+			/
+		(else)
+			(space 1)
+		(endif)
+	(endif)
+	%% Down exit (from the room one step north of this)
+	(if) (exit #down from [$X $YM1 $Z]) (then)
+		(no space) d (no space)
+	(else)
+		(space 1)
+	(endif)
+	%% North exit
+	(if) (exit #north from [$X $Y $Z]) (or) (exit #south from [$X $YM1 $Z]) (then)
+		\|
+	(else)
+		(space 1)
+	(endif)
+	%% Up exit
+	(if) (exit #up from [$X $Y $Z]) (then)
+		(no space) u (no space)
+	(else)
+		(space 1)
+	(endif)
+	
+	(draw exits above $Y of $Z from $XP1 to $XMax)
+
+%% These two predicates determine if rooms and exits should be drawn on the map
+%% Currently, rooms are shown if they’re visited, and exits are shown if they’re unblocked
+%% But by altering these, you could make all rooms be shown (visited or not), or make blocked exits show, and so on
+
+%% In this case, doors are shown regardless of blocking
+
+(room $Room at $Coords is visited)
+	*(room $Room)
+	($Room has coordinates $Coords)
+	($Room is visited)
+
+(exit $Dir from $Coords)
+	(room $Room at $Coords is visited)
+	(from $Room go $Dir to $Other)
+	{ (room $Other) (or) (door $Other) }
+
+%% New, for the status bar usage
+
+(map of layer $Z needs $Lines lines)
+	(collect $Room)
+		*(room $Room at [$ $ $Z] is visited)
+	(into $Rooms)
+	
+	(collect $Y)
+		*($Room is one of $Rooms)
+		($Room has coordinates [$ $Y $])
+	(into $Ys)
+	
+	(maximum of $Ys is $YMax)
+	(minimum of $Ys is $YMin)
+	
+	($YMax minus $YMin into $DY) %% How many lines of rooms do we have?
+	($DY plus 1 into $Tmp1) %% (Counting both endpoints)
+	($Tmp1 times 2 into $Tmp2) %% How many lines do we need for these rooms plus exits?
+	($Tmp2 plus 1 into $Lines)
+
+%% This SHOULD be either 3, 5, or 7, in this game
+%% If it’s not, then something’s gone wrong

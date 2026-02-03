@@ -1,3 +1,6 @@
 *.o
 table_*.h
 mkheader
+aambundle
+aamshow
+*.aastory

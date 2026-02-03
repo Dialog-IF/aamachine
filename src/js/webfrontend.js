@@ -34,6 +34,7 @@ var toggles = [
 	{id: "aacbs", text: "Smooth scrolling", init: false},
 	{id: "aacbn", text: "Night mode", init: false},
 	{id: "aacba", text: "Always re-focus", init: false},
+	{id: "aacbi", text: "Increase font size", init: false},
 ];
 
 var aaengine;
@@ -333,12 +334,23 @@ var aaremote = {
 	}
 };
 
-function prepare_styles(styles) {
+function prepare_styles(styles, style_data) {
 	var sty, i, j, html = "";
 
 	for(i = 0; i < styles.length; i++) {
-		html += ".aalook" + i + " {";
+		let name = "aa-" + (styles[i]["style-name"] || i);
+		style_data[i] = { name:name, attrs:{} };
+		
+		html += "." + name + " {";
 		for(j in styles[i]) {
+			if(j.startsWith("aria-")) { // Copy aria-* declarations to a special array, since we want to assign these to the HTML tag, not just leave them in the CSS
+				if(j == "aria-role") { // The HTML name is simply "role"
+					style_data[i].attrs["role"] = styles[i][j];
+				} else {
+					style_data[i].attrs[j] = styles[i][j];
+				}
+			}
+			// But we also copy *everything* across into the CSS, regardless of aria-* or style-name, because these might be meaningful in some future spec
 			html += j + ": " + styles[i][j] + ";";
 		}
 		html += "}\n";
@@ -436,6 +448,7 @@ window.run_game = function(story64, options) {
 		seen_index: 0,
 		seen_divs: [],
 		links_enabled: true,
+		audio: {},
 
 		flush: function() {
 		},
@@ -658,14 +671,18 @@ window.run_game = function(story64, options) {
 
 			this.scroll_anchor = this.current;
 			if(link) {
-				span = document.createElement("span");
+				span = document.createElement("h2"); // Using an H2 instead of a span makes it easier for screen readers to jump to it
 				$(span).addClass(io.links_enabled? "aalink" : "aahidelink");
+				$(span).addClass("aainputtext"); // For styling input differently, if desired; currently unused
 				span.href = "#0";
 				span.appendChild(document.createTextNode(str));
 				this.current.appendChild(span);
 				this.install_link(span, str);
 			} else {
-				this.current.appendChild(document.createTextNode(str));
+				span = document.createElement("h2");
+				$(span).addClass("aainputtext"); // For styling input differently, if desired; currently unused
+				span.appendChild(document.createTextNode(str));
+				this.current.appendChild(span);
 			}
 			this.transcript.print(str);
 			this.transcript.line();
@@ -676,61 +693,60 @@ window.run_game = function(story64, options) {
 		},
 		setstyle: function(s) {
 			var span;
-			if(!this.in_status) {
-				if(s & 2) {
-					this.ensure_par();
-					span = document.createElement("span");
-					span.className = "aaspanb";
-					this.current.appendChild(span);
-					this.current = span;
-					this.n_inner++;
-				}
-				if(s & 4) {
-					this.ensure_par();
-					span = document.createElement("span");
-					span.className = "aaspani";
-					this.current.appendChild(span);
-					this.current = span;
-					this.n_inner++;
-				}
-				if(s & 8) {
-					this.ensure_par();
-					span = document.createElement("span");
-					span.className = "aaspanf";
-					this.current.appendChild(span);
-					this.current = span;
-					this.n_inner++;
-				}
-			}
+      if(s & 2) {
+        this.ensure_par();
+        span = document.createElement("span");
+        span.className = "aaspanb";
+        span.setAttribute("role", "strong");
+        this.current.appendChild(span);
+        this.current = span;
+        this.n_inner++;
+      }
+      if(s & 4) {
+        this.ensure_par();
+        span = document.createElement("span");
+        span.className = "aaspani";
+        span.setAttribute("role", "emphasis");
+        this.current.appendChild(span);
+        this.current = span;
+        this.n_inner++;
+      }
+      if(s & 8) {
+        this.ensure_par();
+        span = document.createElement("span");
+        span.className = "aaspanf";
+        span.setAttribute("role", "code");
+        this.current.appendChild(span);
+        this.current = span;
+        this.n_inner++;
+      }
 			this.currarray.push({t: "ss", s: s});
 		},
 		resetstyle: function(s) {
 			var span;
-			if(!this.in_status) {
-				if(s & 2) {
-					this.ensure_par();
-					span = document.createElement("span");
-					span.className = "aaspanunb";
-					this.current.appendChild(span);
-					this.current = span;
-					this.n_inner++;
-				}
-				if(s & 4) {
-					this.ensure_par();
-					span = document.createElement("span");
-					span.className = "aaspanuni";
-					this.current.appendChild(span);
-					this.current = span;
-					this.n_inner++;
-				}
-				if(s & 8) {
-					this.ensure_par();
-					span = document.createElement("span");
-					span.className = "aaspanunf";
-					this.current.appendChild(span);
-					this.current = span;
-					this.n_inner++;
-				}
+			if(s & 2) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspanunb";
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
+			}
+			if(s & 4) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspanuni";
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
+			}
+			if(s & 8) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspanunf";
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
 			}
 			this.currarray.push({t: "rs", s: s});
 		},
@@ -749,7 +765,10 @@ window.run_game = function(story64, options) {
 
 			this.leave_inner();
 			div = document.createElement("div");
-			div.className = "aalook" + id;
+			div.className = this.style_data[id].name;
+			for(let attr in this.style_data[id].attrs) {
+				div.setAttribute(attr, this.style_data[id].attrs[attr]);
+			}
 			this.current.appendChild(div);
 			this.current = div;
 			if(!this.in_status) {
@@ -781,20 +800,19 @@ window.run_game = function(story64, options) {
 		},
 		enter_span: function(id) {
 			var span;
-			if(this.in_status != 1) {
-				this.raw_unstyle();
-				this.ensure_par();
-				span = document.createElement("span");
-				span.className = "aalook" + id;
-				this.current.appendChild(span);
-				this.current = span;
-			}
+      this.raw_unstyle();
+      this.ensure_par();
+      span = document.createElement("span");
+      span.className = this.style_data[id].name;
+      for(let attr in this.style_data[id].attrs) {
+        span.setAttribute(attr, this.style_data[id].attrs[attr]);
+      }
+      this.current.appendChild(span);
+      this.current = span;
 			this.currarray.push({t: "es", i: id});
 		},
 		leave_span: function() {
-			if(this.in_status != 1) {
-				this.current = this.current.parentNode;
-			}
+			this.current = this.current.parentNode;
 			this.currarray.push({t: "ls"});
 		},
 		enter_status: function(area, id) {
@@ -806,14 +824,20 @@ window.run_game = function(story64, options) {
 				if(area == 0) {
 					div = document.getElementById("aastatus");
 					$(div).empty();
-					div.className = "aalook" + id;
+					div.className = this.style_data[id].name;
+					for(let attr in this.style_data[id].attrs) {
+						div.setAttribute(attr, this.style_data[id].attrs[attr]);
+					}
 					this.current = div;
 					this.in_status = 1;
 					this.statusarray = [{t: "est", i: id}];
 					this.currarray = this.statusarray;
 				} else {
 					div = document.createElement("div");
-					div.className = "aalook" + id;
+					div.className = this.style_data[id].name;
+					for(let attr in this.style_data[id].attrs) {
+						div.setAttribute(attr, this.style_data[id].attrs[attr]);
+					}
 					this.current.appendChild(div);
 					this.current = div;
 					this.in_status = 2;
@@ -884,7 +908,7 @@ window.run_game = function(story64, options) {
 		enter_link: function(str) {
 			var span;
 			this.ensure_par();
-			span = document.createElement("span");
+			span = document.createElement("a"); // Using an A instead of a span makes it clear that this is a link, and makes it easier for screen readers to jump to them
 			$(span).addClass(io.links_enabled? "aalink" : "aahidelink");
 			span.href = "#0";
 			this.current.appendChild(span);
@@ -899,7 +923,7 @@ window.run_game = function(story64, options) {
 		enter_self_link: function() {
 			var span;
 			this.ensure_par();
-			span = document.createElement("span");
+			span = document.createElement("a"); // As above
 			$(span).addClass(io.links_enabled? "aalink" : "aahidelink");
 			span.href = "#0";
 			this.current.appendChild(span);
@@ -938,15 +962,43 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "lrl"});
 		},
 		embed_res: function(res) {
-			var img;
+			var img, chan;
 
-			if(this.can_embed_res(res)) {
+			if(this.res_is_image(res)) { // Images
 				this.ensure_par();
 				img = document.createElement("img");
 				img.src = this.transform_url(res.url);
 				img.setAttribute("alt", res.alt);
 				this.current.appendChild(img);
-			} else {
+			} else if(this.res_is_audio(res)) { // Audio
+				let m = res.options.match(/\bchannel (\w+)\b/);
+				if(m) {
+					chan = m[1];
+				} else {
+					chan = "main";
+				}
+				let url = this.transform_url(res.url);
+				let loop = !!res.options.match(/\bloop\b/);
+				if(chan in this.audio && !this.audio[chan].ended) { // Something is currently playing on this channel, we need to stop it
+					//console.log("Existing: " + this.audio[chan] + " " + this.audio[chan].src + " " + url);
+					if(!this.audio[chan].src.endsWith(url)) { // Don't replace a sound with the same sound
+						let duration = 500;
+						$(this.audio[chan]).animate({volume:0}, duration); // Fade out the existing audio
+						setTimeout(function(t, url, loop){ // Start the new audio once the fade is done
+							t.audio[chan].pause(); // Stop the old audio object completely
+							t.audio[chan].removeAttribute("src");
+							t.audio[chan].load();
+							t.audio[chan] = new Audio(url); // Start the new one
+							t.audio[chan].play();
+							t.audio[chan].loop = loop;
+						}, duration, this, url, loop);
+					}
+				} else {
+					this.audio[chan] = new Audio(url);
+					this.audio[chan].play();
+					this.audio[chan].loop = loop;
+				}
+			} else { // Anything else is not recognized
 				this.print("[");
 				this.print(res.alt);
 				this.print("]");
@@ -954,7 +1006,13 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "er", r: res});
 		},
 		can_embed_res: function(res) {
+			return this.res_is_image(res) || this.res_is_audio(res);
+		},
+		res_is_image: function(res) {
 			return !!res.url.match(/\.(png|jpe?g)$/i);
+		},
+		res_is_audio: function(res) {
+			return !!res.url.match(/\.(ogg|mp3|wav)$/i);
 		},
 		adjust_size: function() {
 			var aamain, newheight;
@@ -1126,59 +1184,59 @@ window.run_game = function(story64, options) {
 			for(i = 0; i < arr.length; i++) {
 				e = arr[i];
 				t = e.t;
-				if(t == "t") {
+				if(t == "t") { // Print
 					this.print(e.s);
-				} else if(t == "l") {
+				} else if(t == "l") { // Line
 					this.line();
-				} else if(t == "p") {
+				} else if(t == "p") { // Paragraph break
 					this.par();
-				} else if(t == "sn") {
+				} else if(t == "sn") { // Space [N]
 					this.space_n(e.n);
-				} else if(t == "ed") {
+				} else if(t == "ed") { // Enter div
 					this.enter_div(e.i);
-				} else if(t == "ld") {
+				} else if(t == "ld") { // Leave div
 					this.leave_div(e.i);
-				} else if(t == "es") {
+				} else if(t == "es") { // Enter span
 					this.enter_span(e.i);
-				} else if(t == "ls") {
+				} else if(t == "ls") { // Leave span
 					this.leave_span();
-				} else if(t == "la") {
+				} else if(t == "la") { // Leave all
 					this.leave_all();
-				} else if(t == "i") {
+				} else if(t == "i") { // Input, link
 					this.print_input(e.s, true);
-				} else if(t == "di") {
+				} else if(t == "di") { // Input, don't link ("dead input")
 					this.print_input(e.s, false);
-				} else if(t == "ss") {
+				} else if(t == "ss") { // Set style
 					this.setstyle(e.s);
-				} else if(t == "rs") {
+				} else if(t == "rs") { // Reset style
 					this.resetstyle(e.s);
-				} else if(t == "us") {
+				} else if(t == "us") { // Unstyle
 					this.unstyle();
-				} else if(t == "el") {
+				} else if(t == "el") { // Enter link
 					this.enter_link(e.s);
-				} else if(t == "ll") {
+				} else if(t == "ll") { // Leave link
 					this.leave_link();
-				} else if(t == "esl") {
+				} else if(t == "esl") { // Enter self-link
 					this.enter_self_link();
-				} else if(t == "lsl") {
+				} else if(t == "lsl") { // Leave self-link
 					this.leave_self_link();
-				} else if(t == "erl") {
+				} else if(t == "erl") { // Enter resource-link
 					this.enter_link_res(e.r);
-				} else if(t == "lrl") {
+				} else if(t == "lrl") { // Leave resource-link
 					this.leave_link_res();
-				} else if(t == "er") {
+				} else if(t == "er") { // Embed resource
 					this.embed_res(e.r);
-				} else if(t == "pb") {
+				} else if(t == "pb") { // Progress bar
 					this.progressbar(e.p, e.tot);
-				} else if(t == "cd") {
+				} else if(t == "cd") { // Clear div
 					this.clear_div();
-				} else if(t == "est") {
+				} else if(t == "est") { // Enter status
 					this.enter_status(0, e.i);
-				} else if(t == "eis") {
+				} else if(t == "eis") { // Enter inline status
 					this.enter_status(1, e.i);
-				} else if(t == "lis") {
+				} else if(t == "lis") { // Leave inline status
 					this.leave_status();
-				} else if(t == "edl" || t == "ldl") {
+				} else if(t == "edl" || t == "ldl") { // Enter dead link, leave dead link
 				} else {
 					console.log(e);
 				}
@@ -1286,6 +1344,11 @@ window.run_game = function(story64, options) {
 			ta.style.backgroundColor = "#ddd";
 			ta.style.color = "#222";
 		}
+		if(document.getElementById("aacbi").checked) {
+			$("body").addClass("enlarge");
+		} else {
+			$("body").removeClass("enlarge");
+		}
 		io.maybe_focus();
 	}
 
@@ -1304,6 +1367,10 @@ window.run_game = function(story64, options) {
 	}
 
 	$("#aacbn").on("change", function() {
+		update_night();
+	});
+	
+	$("#aacbi").on("change", function() {
 		update_night();
 	});
 
@@ -1417,7 +1484,8 @@ window.run_game = function(story64, options) {
 	aaengine.prepare_story(storybytes, io, undefined, false, true, true);
 	io.styles = aaengine.get_styles();
 	io.storage_key = aaengine.get_story_key();
-	document.getElementsByTagName("head")[0].appendChild(prepare_styles(io.styles));
+	io.style_data = [];
+	document.getElementsByTagName("head")[0].appendChild(prepare_styles(io.styles, io.style_data));
 
 	metadata = aaengine.get_metadata();
 	var div = document.getElementById("aaaboutmeta");

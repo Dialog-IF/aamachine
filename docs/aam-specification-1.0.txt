@@ -161,10 +161,10 @@ Game state:
 			0 auto
 			1 nospace
 			2 nbsp
-			2 pendingspace
-			3 space
-			4 line
-			5 par
+			3 pendingspace
+			4 space
+			5 line
+			6 par
 
 	General-purpose registers:
 
@@ -530,7 +530,11 @@ LOOK:
 	must perform case-insensitive comparison. Leading whitespace has been
 	removed from the entries. A blank entry (just the terminating
 	null-byte) marks the end.
-
+  
+	These pairs are typically CSS properties, but may include other
+	information of use to the interpreter, such as ARIA roles. Thus,
+	interpreters must ignore any unrecognized keys or values, rather than
+	raising an error.
 
 TAGS: (optional)
 
@@ -578,7 +582,9 @@ URLS:
 				header)
 
 	followed by a null-terminated URL, followed by a null-terminated option
-	string. The option string is currently always empty.
+	string. As of version 1.0, the contents of this option string are left
+	to the interpreter to specify; future versions of this specification
+	may then codify this behavior, if it proves useful.
 
 	It is up to the interpreter to decide how to embed (or link to) a
 	resource. The filename ending can be significant, in addition to the
@@ -2639,6 +2645,8 @@ Opcode semantics
 	
 		// Clear all status areas.
 		// The interpreter may ignore this operation.
+    
+    output_clear_status();
 
 	VM_INFO			BYTE DEST
 
@@ -2818,4 +2826,5 @@ Examples
 	case3
 		...
 
-This document was written by Linus Akesson.
+This document was originally written by Linus Akesson, and is now
+maintained by the Dialog Project contributors.

@@ -1,0 +1,1107 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% PLAYER CHARACTER
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+(animate *(familiar $)) %% Dunno where else to put this
+(puzzle *(familiar $Obj))
+	~(#player = $Obj) %% Can’t do ~(puzzle #player) because that means (just) (stop) and that ends multiqueries
+(solved *(familiar $Obj))
+	(consumed $Obj)
+
+(familiar size $Size)
+	(accumulate 2)
+		*(familiar $Fam)
+		(consumed $Fam)
+	(into $Added)
+	(6 plus $Added into $Size)
+
+#player
+(current player *)
+(descr *)
+	(familiar size $Size)
+	You are a synthesis familiar, a more-or-less shapeless blob of bluish-green fluid, (spell out $Size) inches across.
+	(if) (consumed #f-navigate) (then)
+		Thanks to the other familiars you’ve consumed, you also have (list familiar components)
+	(else)
+		After consuming and integrating the grading familiar into yourself, you now also have a single enormous eye
+	(endif)
+	.
+(* is #in #animation)
+(familiar *)
+
+(list familiar components)
+	(collect $Familiar)
+		*($Familiar has parent #partof)
+	%%	*(familiar $Familiar)
+	%%	(consumed $Familiar)
+	(into $List)
+	(reverse $List $RevList) %% From oldest to newest instead of vice versa
+	(listing $RevList {the (distinctive feature $_) of (the $_)} @and @the 0)
+
+%% Just for the listing
+#f-appraise
+(name *) grading familiar
+(familiar *)
+(distinctive feature *) single enormous eye
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% EINSTEIN ANIMATION STUDIO
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#animation
+(room *)
+(name *) Einstein Animation Studio
+(look *) Here, advanced students learn and practice the art of bringing inanimate tissue to life! (link [rough drafts]) {Rough drafts and failed versions of familiars} are scattered across the room’s tables and floor. (if) (consumed #f-navigate) (then) The door is to the east. (endif)
+(* has coordinates [1 2 1]) %% Left edge, ground floor, one down from the top
+
+(from * go #east to #lounge)
+
+#drafts
+(name *) discarded experiments
+(plural *)
+(* is #in #animation)
+(dict *) rough draft drafts failure failures
+(descr *) Abandoned failures, one and all. F. Maybe a D- (space) at the best.
+(instead of [consume *]) What would be the point? There’s no value to be gained from these failures.
+(prevent [vivify *]) They’re already alive. Just worthless.
+
+#f-navigate
+(name *) cartography familiar
+(familiar *)
+(* is #in #animation)
+(appearance *) Another student’s final project, a (link) {cartography familiar}, sits dormant next to you on the table.
+(descr *) It looks like three compasses held together with a dizzying array of gears. On top, one of the navigational sort, to get its bearings; on the bottom, two of the circle-drawing sort, to draw out the map. They also serve as a spindly sort of legs for exploration. Well-crafted, deserving a B+ at least.
+(distinctive feature *) spindly compass-legs
+
+(narrate consuming *) One by one, its spindly compass-legs poke out of your form, raising you up as you try to gain your bearings. (div @new) {You have gained the ability to NAVIGATE from place to place! A map is now shown at the top of the screen.}
+
+(movement verb *) skitter
+(movement suffix *) on your mechanical legs
+
+(* requires #f-appraise)
+
+#glasscase
+(name *) glass case
+(* is #in #animation)
+(container *)
+~(opaque *)
+(* is closed)
+(* is locked)
+(appearance *)
+	(* is closed)
+	An (link) {animation familiar} is locked away in a (link) {glass case}, keeping the power of life out of the hands of the uninitiated.
+(descr *)
+	(if) (* is open) (then)
+		The case has been shattered, no longer securing anything.
+	(else)
+		Crafted of the finest crystal glass, to show off the (link) {animation familiar} as well as protect it. A+.
+	(endif)
+
+(perform [resonate *])
+	You try an A, then an A-sharp, then an A-three-quarters-sharp...and there it is! The glass starts to resonate with the note! Louder and louder, pushing it farther and farther, until it shatters in a spray of glass! The (link) {animation familiar} is free!
+	(now) (* is open)
+	(now) (#f-vivify is #in #animation)
+
+(puzzle *)
+(solved *)
+	(* is open)
+(* requires #f-resonate)
+
+#f-vivify
+(name *) animation familiar
+(* is #in #glasscase)
+(familiar *)
+(appearance * #in #animation)
+	An (link) {animation familiar} lies on the ground, freed from its case.
+(descr *) This animation familiar is a bit crude, but functional. Its ears and whiskers are drawn with much thicker lines than necessary, and its long rubber-hose-like arms dangle in a way that feels more menacing than cute. You can tell the creator was going for cute based on the large eyes and adorable paws, but they lacked the skill to make the proportions of the body at all appealing. When you look at it from a different angle it looks almost unrecognizable; the features and proportions are very inconsistent. Still, points for effort; perhaps a B.
+(distinctive feature *) rubber-hose arms
+
+(narrate consuming *)
+	You can feel the outlines of your body darkening and thickening, your shape becoming a bit more rubbery-flexible. (div @new) {You have gained the ability to VIVIFY things, restoring life to that which once lived!}
+
+(movement verb *) bound
+(movement suffix *) on your noodly rubber-hose limbs
+
+(* requires #glasscase)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% FIFTH FLOOR LOUNGE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#lounge
+(name *) Fifth Floor Lounge
+(room *)
+(look *) Every university needs a common space for students and faculty alike to grab a beverage, unwind, and discuss their work with each other. Although the janitorial staff do their best to keep the room clean, some signs of recent departmental feuds are visible: the (link) refrigerator is glowing with something that looks suspiciously like Cherenkov radiation, and some of the more theatrical (link) coats on the rack have been slashed. High on the wall opposite the main seating area, an (link) {announcement ticker} displays information of general interest.
+
+(on every tick in *)
+	(par)
+	(select) With a mechanical whirring, a message appears on the ticker. (or) A new announcement replaces the last one. (or) The ticker whirrs again. (or) (stopping)
+	(div @paper) (announcement)
+
+(from * go #west to #animation)
+(from * go #north to #musicology)
+(from * go #east to #theology)
+(from * go #south through #galvanized to #chemistry)
+
+#refrigerator
+(name *) refrigerator
+(dict *) fridge
+(descr *) Best keep it sealed, for everyone’s safety.
+(* is #in #lounge)
+
+#coats
+(name *) coats on the rack
+(dict *) coat
+(descr *) The lab coats seem fine, while the elaborate robes and velvet smoking jackets are slashed to shreds. The philosophers must have offended the chemists again.
+(* is #in #lounge)
+(plural *)
+
+#ticker
+(name *) announcement ticker
+(dict *) announcements
+(* is #in #lounge)
+(descr *)
+	The announcement ticker takes the form of two mechanical gremlins perched on the wall. A scroll displaying the announcements is constantly extruded from the wall, pausing between the hands of the gremlins so it can be read before passing back out of sight. Behind the wall, a philosophical contraption erases old messages and prints new ones as needed.
+
+(announcement)
+	(select)
+		Promethean University (space) \~ (space) Propius Ad Solem Advolamus!
+	(or)
+		Stay safe by avoiding fae bargains this fall break! We hope to see you \( and not your doppelgänger \) in December!
+	(or)
+		Please remember that the West Lab is not to the west. The west exit leads to the Victor Frank Einstein Animation Studio, while the east exit leads to the Herb West Memorial Laboratory.
+	(or)
+		Go Homunculi! Victory is never impossible, merely improbable!
+	(or)
+		Wanted: human subjects to test gender-changing spells in other languages. Applicants must be willing to temporarily become “inanimate”, “dangerous”, or “noun class 7”.
+	(or)
+		Familiar Battling League meets every Saturday from 2:00 to 3:00. Teams of six, doubles battle, no duplicates, no held items, no legendary familiars. See Hidnook for more info!
+	(or)
+		In the wake of the “lettuce incident”, all elevators and stairs have been closed for cleaning until further notice. Those needing to leave the fifth floor in the meantime are advised to be patient and wait.
+	(or)
+		Sprouting familiar loose in the courtyard. Manonamora offers reward for capture!
+	(or)
+		196,883 + 1 = 196,884. If you can explain this phenomenon, please contact Professor McKay. 
+	(or)
+		Wanted: native speakers of ancient Etruscan for new necromancy experiment. Willing to offer second authorship. Contact Mel Jason if interested.
+	(or)
+		Congratulations to Promethean University’s very own Dr. Ludwig for taking first place in the annual body-building competition!
+	(or)
+		Reminder (bullet) (span @underline) All experiments on sentient subjects (span @underline) must receive institutional review board approval before proceeding (bullet) (span @underline) no exceptions! Scientific ethics is everyone’s responsibility!
+	(or)
+		Trade offer: three mobility familiars for one shiny communication familiar. Contact Tabitha for details.
+	(or)
+		Please refrain from maniacal laughter and monologuing in the laboratories. Soon they’ll all see, but right now they need you to be quiet.
+	(or)
+		Lost: 1 destruction familiar
+	(or)
+		Found: 1 repair familiar \( destroyed \)
+	(or)
+		Support your student union today! Join the fight for increased pay, improved monologuing rights, and painless resurrections!
+	(or)
+		Wanted: Transmutation 101 tutor. Will pay in gold \( after course completion \) .
+	(cycling)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% MUSICOLOGY LAB
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#musicology
+(name *) Musicology Lab
+(dict *) music
+(room *)
+(look *) Decades ago, the University made great advances in music theory, and since then the Department of Musicology has produced many generations of theoretical musicians \(though very few experimentalists\). Scribbles on the (link) blackboard show the rudiments of the new “penthemitonic scale”, with five and a half notes per octave.
+
+(from * go #south to #lounge)
+(from * go #west to #philosophy)
+
+#blackboard
+(name *) blackboard
+(dict *) chalkboard scribbles
+(descr *) Apparently the new scale makes perfect mathematical sense, in certain axiomatic frameworks—you have to go beyond the basic piano arithmetic for this one.
+(* is #in #musicology)
+
+#sealed
+(name *) sealed door to the east
+(appearance *) The (link) {door to the east} has been hermetically sealed with extreme prejudice.
+(* is #in #musicology)
+(descr *) There’s no chance of ever getting through. What could be so important—or so dangerous—on the other side?
+
+#f-resonate
+(name *) tuning familiar
+(familiar *)
+(appearance *) A (link) {tuning familiar} lies abandoned on the floor, tooting softly with each draft that passes through the room.
+(descr *) The tuning familiar is mostly comprised of a large pair of bellows attached to the bell of a trumpet. When the user \(or a hapless student out after hours\) steps on the bellows, a loud and resonant honk ensues.
+(distinctive feature *) horn and bellows
+(* is #in #musicology)
+
+(narrate consuming *)
+	The bellows integrate into the center of your being, the bell sticking out like a brassy mouth. (div @new) {You have gained the ability to RESONATE things, playing tones that will make them vibrate!}
+
+(movement verb *) squelch
+(movement suffix *) , your resonator honking with every step
+
+(* requires #f-navigate)
+
+#gong
+(name *) huge gong
+(dict *) (if) (* is transmuted) (then) platinum (else) nickel (endif)
+(appearance *) While the lab is mostly devoid of actual instruments, there is a (link) {huge gong} along one wall, used to mark the end of each class period.
+(elemental *)
+(* is #in #musicology)
+(descr *)
+	(if) (* is transmuted) (then)
+		The platinum gong now plays a note that’s either very out of tune, or has never been discovered and named before. It all depends how you look at it.
+	(else)
+		The gong is made of pure nickel to hold the perfect tone. That tone is currently being adjusted from a C-three-quarter-sharp to a D-quarter-flat, a difference that most listeners could never perceive but is vitally important when using microtonal just-intonation neo-maqam scales.
+	(endif)
+
+(narrate transmuting *)
+	(if) (* is transmuted) (then)
+		The matte finish of the nickel goes smooth and shiny, turning to pure platinum!
+	(else)
+		The shiny platinum gives way to matte, smooth nickel.
+	(endif)
+
+(global variable (gong timer 0))
+(gong is ringing)
+	~(gong timer 0)
+
+(on every tick)
+	(gong is ringing)
+	(gong timer $Old)
+	($Old minus 1 into $New)
+	(now) (gong timer $New)
+	(if) ($Old = 4) (then)
+	(elseif) ($Old = 3) (then)
+		(par) The (if) (* is transmuted) (then) newly-discovered note (else) D-quarter-flat (endif) rings out through the fifth floor, deafeningly loud!
+	(elseif) ($Old = 2) (then)
+		(par) The gong’s vibrations start to die down.
+	(elseif) ($Old = 1) (then)
+		(par) The gong goes quiet, and silence returns to the fifth floor.
+	(endif)
+
+(perform [resonate *])
+	You feel out the right tone, (if) (* is transmuted) (then) a strange one that’s not part of any scale you know (else) just shy of a D-quarter-flat (endif), and the gong begins to resonate with it—first quiet, then deafeningly loud!
+	(now) (gong timer 4)
+
+(puzzle *)
+(solved *)
+	(security disabled) %% Which includes when it’s ringing, but also after that’s been done
+(* requires #f-resonate)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% PHILOSOPHY LAB
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#philosophy
+(name *) Philosophy Lab
+(dict *) alchemy
+(room *)
+(look *) In this dark, stuffy lab, the Department of Philosophy toils endlessly over their (link) {alembics and crucibles} in pursuit of the end goal of all philosophers: the transmutation of metals by means of the Philosopher’s Stone.
+
+(from * go #east to #musicology)
+
+#crucibles
+(name *) alembics and crucibles
+(dict *) alembic crucible
+(descr *) More heavy-duty ceramic than fragile glass—many a philosopher has been killed in an equipment failure!
+(* is #in #philosophy)
+(plural *)
+
+#p-medals
+(name *) (if) (* is transmuted) (then) silver (else) gold (endif) medals
+(dict *) medal
+(appearance *) Several (link) (name *) hang on the wall, commemorating their long rivalry with the Department of Chemistry.
+(descr *) (div @paper) { PROMETHEAN UNIVERSITY ANNUAL FIVE-LEGGED RACE: SECOND PLACE }
+(* is #in #philosophy)
+(elemental *)
+(plural *)
+
+(narrate transmuting *)
+	(if) (* is transmuted) (then)
+		The gold medals turn back to their original silver.
+	(else)
+		The silver medals turn back to their rightful gold.
+	(endif)
+
+#rotating
+(name *) revolving bookshelf door
+%% (#musicology/#philosophy attracts *) %% Moved later to get the order right
+(* is #in #musicology) %% It’ll get attracted automatically, but this helps with the puzzle nudges
+
+(appearance * #in #musicology)
+	A (link) {revolving bookshelf} on the west wall conceals the door to the Department of Philosophy.
+(appearance * #in #philosophy)
+	A (link) {revolving bookshelf} on the east wall conceals the door back out to the Department of Musicology.
+
+(bookshelf faces #musicology)
+	~(bookshelf is rotated)
+(bookshelf faces #philosophy)
+	(bookshelf is rotated)
+
+(flip the bookshelf)
+	As you pass through the door, it rotates 180 degrees, preventing you from seeing the other side.
+	(if) ~(solved #rotating) (then)
+		(select)
+			What an odd design!
+		(or)
+			What could be hidden back there?
+		(stopping)
+	(endif)
+	(if) (bookshelf is rotated) (then)
+		(now) ~(bookshelf is rotated)
+	(else)
+		(now) (bookshelf is rotated)
+	(endif)
+
+(narrate leaving #philosophy #east)
+	(flip the bookshelf)
+(narrate leaving #musicology #west)
+	(flip the bookshelf)
+
+(descr *)
+	(current room $Room)
+	(if) (bookshelf faces $Room) (then)
+		It acts more as the (emph {idea}) of a secret door than any sort of concealment, since a huge sign reading “Department of Philosophy” has been hung across the books.
+		(if) (current room #philosophy) (then)
+			(par) Kind of an odd door, to make that sign be wrong half the time.
+		(endif)
+	(else)
+		(if) (#curtain is pristine) (then)
+			(par) A (link) {curtain} over this side conceals the philosophers’ greatest treasures.
+		(else)
+			The back side of the shelf is packed with ancient tomes of philosophy, from the (emph {Emerald Tablet}) of Hermes Trismegistus to Arakawa’s classic (emph {Hagane no Renkinjutsushi}).
+		(endif)
+	(endif)
+
+(puzzle *)
+(solved *)
+	{
+		(current room $Room)
+		($Room is one of [#philosophy #musicology])
+		~(bookshelf faces $Room)
+	(or)
+		(#curtain is handled) %% Ensure it stays solved once you’ve done the last step
+	}
+(* requires #f-escape)
+
+#curtain
+(name *) (if) (* is handled) (then) torn (endif) curtain
+(appearance *)
+	(* is pristine)
+	A (link) {curtain} hangs on the back of the door, guarding the philosophers’ greatest triumph from the eyes of the unknowing.
+(descr *)
+	Thick red and shimmering gold, with just a bit of mothball smell.
+	(if) (* is pristine) (then)
+		It hangs down all the way to the floor.
+	(else)
+		It's somewhat the worse for wear now.
+	(endif)
+(item *)
+
+($Room attracts *)
+	(* is pristine)
+	($Room is one of [#musicology #philosophy])
+	~(bookshelf faces $Room)
+(#musicology/#philosophy attracts #rotating) %% See above
+
+(narrate taking *)
+	(* is pristine)
+	(current room $Room)
+	The hem of the curtain hangs down near the floor, and with a bit of effort you manage to snap your storage orifice shut over it! Pull...swallow...pull...swallow...until you can feel it start to strain—and all at once it tears free, revealing the (link) {philosopher’s familiar} behind it!
+	(now) (#f-transmute is #in $Room)
+
+(puzzle *)
+(solved *)
+	(* is handled)
+(* requires #rotating)
+(* requires #f-cache)
+
+#f-transmute
+(name *) philosopher’s familiar
+(dict *) philosopher's %% Straight quote
+(familiar *)
+(appearance *) An expertly-crafted (link) {philosopher’s familiar} sits on the shelf, now uncovered.
+(descr *) It looks like a translucent red crystal, with facets of all shapes and sizes in a dizzying sort of fractal pattern. An odd light shines from inside it.
+(distinctive feature *) crystalline facets
+
+(narrate consuming *)
+	Your form starts to solidify, crystallizing into the same intricate facets. (div @new) {You have gained the ability to TRANSMUTE things, converting one pure chemical element to another!}
+
+(movement verb *) stride
+(movement suffix *) , fractal facets gleaming
+
+(* requires #curtain)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% CHEMISTRY LAB
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#chemistry
+(name *) Chemistry Lab
+(room *)
+(look *) The Department of Chemistry has a long-running rivalry with the Department of Philosophy. Every time they publish a new textbook, some joker uses a philosopher’s stone to create an element with a negative half-life or some other heretofore-unseen property, and the chemists are forced back to the drawing board. But the chemists’ claim to fame is safety: thanks to their advanced ventilation systems, stringent lab safety protocols, and refusal to use familiars in their research, the average time to \( first \) death in the chemistry lab is over 3 years! (par) To the west is only (if) (#arsenic is #in #darkarts) (#arsenic is transmuted) (then) \(partial\) (endif) darkness.
+
+(from * go #north through #galvanized to #lounge)
+(from * go #west to #darkarts)
+
+#galvanized
+(name *) galvanized door
+(dict *) (if) (* is transmuted) (then) mercury quicksilver (else) zinc (endif)
+(door *)
+(* is closed)
+~(openable *)
+(elemental *)
+
+(appearance *)
+	~(* is transmuted)
+	A massive (link) door of shiny metal blocks the way south into the chemistry lab.
+
+(descr *)
+	(if) (* is transmuted) (then)
+		The mercury has flowed away into the vents. Someone else’s problem now!
+	(else)
+		The chemists are very proud of their “galvanized entryway”, a massive hunk of pure zinc which they claim is completely impenetrable. The chemistry lab, with all of its exciting and dangerous equipment, is locked behind.
+	(endif)
+
+(* blocks passage)
+	(just) ~(* is transmuted)
+
+(narrate transmuting *)
+	The zinc melts away into shiny, liquid mercury, flowing down into the air vents out of sight! (par) That’s probably fine.
+
+(prevent [transmute *])
+	(* is transmuted)
+	The mercury flowed down into the vents; solidifying it now wouldn’t do any good.
+
+(prevent [cache *])
+	(* is transmuted)
+	You have no way to reach it, down in the vents. There are probably better poisons around for that sort of thing.
+
+(puzzle *)
+(solved *)
+	(* is transmuted)
+(* requires #f-transmute)
+
+#periodic
+(name *) periodic table
+(* is #in #chemistry)
+(appearance *) A (link) {periodic table} is drawn across the chalkboard.
+(descr *) It’s covered in annotations, probably from the last class before break. You survey a few... (div @paper) { Elements in the same group tend to have similar properties, like silver and gold \(group 11\), or nickel and platinum \(group 10\). Arsenic is toxic because of its similarity to phosphorus \(group 15\); cells needing phosphorus absorb arsenic instead, which destroys them. However, this doesn’t mean they’re identical: zinc is solid at room temperature, but mercury is liquid \(group 12\), and lead is a metal, but carbon is not \(group 14\). }
+
+#c-medals
+(name *) (if) (* is transmuted) (then) silver (else) gold (endif) medals
+(dict *) medal
+(appearance *) Several (link) (name *) hang on the wall, commemorating their long rivalry with the Department of Philosophy.
+(descr *) (div @paper) { PROMETHEAN UNIVERSITY ANNUAL FIVE-LEGGED RACE: FIRST PLACE }
+(* is #in #chemistry)
+(plural *)
+(elemental *)
+
+(narrate transmuting *)
+	(if) (* is transmuted) (then)
+		The gold medals change to their rightful silver.
+	(else)
+		The silver medals turn back to their original gold.
+	(endif)
+
+#burners
+(name *) dragonbone burners
+(dict *) dragon bone burner
+(plural *)
+(* is #in #chemistry)
+(* is dead)
+
+(appearance *)
+	A (link) burner sits on each table
+	(if) (* is alive) (then)
+		, filling the room with dangerous heat
+	(endif)
+	.
+
+(descr *)
+	The dragonbone burners are a recent invention, expected to revolutionize the world of undergraduate chemistry labs. The searing-hot dragonflame can burn through almost anything, so no one is permitted to use them until after viewing a two-minute presentation on “Safety: It’s Hot!” (par)
+	They are currently
+	(if) (* is dead) (then)
+		cold and dead
+	(else)
+		burning hot
+	(endif)
+	.
+
+(narrate vivifying *)
+	You focus your powers of animation on the bone of the burners. There’s a spark, a whoosh of gas—and they flare to life, filling the room with heat!
+
+(prevent [vivify *])
+	(* is alive)
+	They’re burning so hot already—any hotter and they might burn down the lab!
+
+(puzzle *)
+(solved *)
+	(* is alive)
+(* requires #f-vivify)
+(* requires #galvanized)
+
+(late on every tick)
+	(#exam is #in #chemistry)
+	(* is alive)
+	~(exam is burning)
+	(par)
+	The exam is exposed to the burners, and immediately ignites!
+	(now) (exam is burning)
+
+(narrate dropping #curtain)
+	(current room #chemistry)
+	(* is alive)
+	You disgorge the curtain onto one of the burners, but it adamantly refuses to ignite. The philosophers made it out of asbestos, for safety.
+
+(narrate dropping #arsenic) %% You can only carry it when transmuted, so this will always be phosphorus
+	(current room #chemistry)
+	With a puff of air, you spray the phosphorus out of your storage orifice onto the burners. In a split second, the flame catches, and— (par) Oh. Oh (emph {no}). (par) The last thing you’re aware of is an infernal heat, and a roar that shakes the stone.
+	(game over {You have exploded})
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% STAGECRAFT DEPARTMENT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#stagecraft
+(name *) Department of Stagecraft
+(dict *) stage craft
+(room *)
+(look *) Promethean University has always valued the humanities as well as the inhumanities, so the well-funded stagecraft department allows students to express themselves creatively. Scientists of this school’s variety have been known to become a touch melodramatic, and the administration has decided that if it will happen anyway, best to ensure it’s done with appropriate supervision. The incident with the overexcited propmaster during last year’s murder mystery was unfortunate...but they maintained that the show must go on!
+
+(from * go #north to #theology)
+
+#f-soliloquize
+(name *) dramaturgy familiar
+(dict *) drama niche
+(familiar *)
+(* is #in #stagecraft)
+(appearance *) A purple (link) {dramaturgy familiar} sits arrogantly in its little niche.
+(descr *) A small, purple, peacock-shaped dramaturgy familiar that looks like it was extremely well crafted. You can tell that the student who made this familiar spent hours painstakingly shaping each feather on the large tail to be perfectly symmetrical—it must have been a techie, and a particularly fussy one at that. The work ethic is admirable, but these little details will never be seen from the stage. It’s really a waste of effort in the end.
+
+(narrate consuming *) With a moment of effort, the quill-shaped feathers arrange themselves into a new tail for you. (div @new) {You have gained the ability to SOLILOQUIZE, delivering dramatic monologues at the drop of a hat!}
+(distinctive feature *) purple quill-pen feathers
+
+(movement verb *) strut
+(movement suffix *) , ruffling your tail feathers
+
+(* requires #bowl)
+
+#f-defenestrate
+(name *) security familiar
+(familiar *)
+(* is #in #stagecraft)
+(appearance *)
+	A massive (link) {security familiar}
+	(if) (* is dead) (then)
+		lies dead in front of the door
+	(elseif) (gong is ringing) (then)
+		seems temporarily disabled by the echoing vibrations
+	(elseif) (solved #arsenic) (then)
+		is dormant, awaiting commands
+	(else)
+		guards the door, flinging arm ready to remove intruders from the premises if they try to touch the department’s treasures
+	(endif)
+	.
+(descr *) The security familiar is essentially a huge trebuchet arm anchored to the floor by a suction cup. It’s extremely sensitive to vibrations, and has been programmed to aim for the poison swamp when dealing with unauthorized visitors—leading to a great deal of hassle every time a new student forgets to bring their identification.
+
+(narrate consuming *)
+	In its dormant state it has no way to resist, and soon its huge trebuchet arm extends out of your back. (div @new) {You have gained the ability to DEFENESTRATE people, flinging them with great force through the nearest window!}
+(distinctive feature *) trebuchet arm
+
+(movement verb *) rumble
+(movement suffix *) , dragging your trebuchet arm behind
+
+(* requires #arsenic)
+(* requires #f-vivify)
+
+(security disabled)
+	(gong is ringing)
+(security disabled) %% Once the bowl has been poured, it never comes back online
+	(solved #bowl)
+
+(prevent [consume/cache/resonate | $]) %% These three actions alert the security bot
+	(current room #stagecraft)
+	~(security disabled)
+	You begin to focus your powers, but the vibrations have alerted the security familiar! Before you have time to act, you’ve been seized in its huge trebuchet arm, held tight so you can’t escape. It lines up the shot, aiming right at the window, and suddenly you’re flying up, out, and away, into the depths of the poison swamp beyond! (par) The poison is quick, at least. Familiars are even more susceptible to it than students.
+	(game over {You have succumbed to the poison swamp})
+
+(prevent [consume #f-defenestrate]) %% And this one is blocked as long as it hasn’t been vivified, even if the gong is ringing
+	(gong is ringing)
+	~(solved #bowl)
+	You try to creep up on the security familiar while it’s distracted—but being touched directly seems to startle it, even through the echoing vibrations. You beat a hasty retreat!
+
+(prevent [vivify *])
+	(* is dead)
+	(#arsenic is #in #stagecraft)
+	~(#arsenic is transmuted)
+	You try to restore life to the dead familiar, but every time a bit of it is revived, the arsenic immediately kills it again.
+
+(narrate vivifying *)
+	With the arsenic (if) (#arsenic is in room #stagecraft) (then) transmuted (else) cleared away (endif), you start pouring metaphorical life back into the dead familiar, and it jolts awake! Its throwing arm lies limp and dormant, no danger to you any more until it can be recalibrated.
+
+#bowl
+(name *) bowl of arsenic
+(* is #in #stagecraft)
+(appearance *) A (link) {bowl of arsenic} is balanced precariously in the rafters, out of students’ reach.
+(descr *) Even after the unfortunate accidents last year, they haven’t wanted to get rid of their supply of powdered arsenic, just in case it’s needed again. So many murder mysteries depend on it, after all! (par) Hiding it up in the rafters was, in the end, the most dramatically appropriate compromise. There, it can’t kill any unfortunate students or familiars, but it still looms ominously overhead, foreshadowing how it falls dramatically to the stage in the third act \(symbolizing the propmaster’s tragic descent into madness\).
+
+(puzzle *)
+(solved *)
+	(* is nowhere)
+(* requires #gong)
+(* requires #f-resonate)
+(* requires #f-escape)
+
+(prevent [transmute *])
+	You shine your vermilion light over the bowl, but while the arsenic inside might be a pure element, the porcelain of the bowl itself isn’t.
+
+(perform [resonate *])
+	You search for the right note to resonate with the bowl. C, B, B-flat...there! It rocks more and more as it vibrates, until eventually it reaches the edge of the roof beam— (par) —falling— (par) —falling— (par) —shattering to splinters on the floor below! Arsenic powder sprays across the security familiar, which tries frantically to shake it off. But its trebuchet arm is no good for things as fine as this powder, and soon it succumbs to the poison.
+	(now) (* is nowhere)
+	(now) (#arsenic is #in #stagecraft)
+	(now) (#f-defenestrate is dead)
+
+#arsenic
+(name *) (element *) powder
+(dict *) powdered
+(elemental *)
+(element *) (if) (* is transmuted) (then) phosphorus (else) arsenic (endif)
+(item *)
+(appearance *) Powdered (link) (element *) is scattered all over the floor.
+(descr *)
+	(if) (* is transmuted) (then)
+		It shimmers with an odd blue-green glow, and (emph {hopefully}) is no longer a deadly poison.
+	(else)
+		An excellent murder weapon, certain to kill any familiar it touches!
+	(endif)
+(* provides light)
+	(* is transmuted)
+
+(after [retrieve *]) %% Since this changes light levels
+	(* is transmuted)
+	(current room #darkarts)
+	(update environment around player)
+	(try [appraise])
+
+(prevent [cache *])
+	~(* is transmuted)
+	You shuffle around the floor, snuffling up the arsenic powder...and soon meet the same end as the security familiar. Oh no.
+	(game over {A curious mystery for whoever finds the bodies})
+
+(puzzle *)
+(solved *)
+	(* is transmuted) (or) (* is handled)
+(* requires #f-transmute)
+(* requires #bowl)
+
+(narrate transmuting *)
+	(if) (* is transmuted) (then)
+		The color of the powder changes subtly, and it starts to give off an eerie bluish-green glow!
+	(else)
+		The glow vanishes.
+		(if) (#f-defenestrate is #in #stagecraft) (#f-defenestrate is alive) (* is #in #stagecraft) (then) %% Will this special case ever come up? Doubt it, but best to be safe.
+			The security familiar dies. Again.
+			(now) (#f-defenestrate is dead)
+		(endif)
+	(endif)
+
+(perform [defenestrate #skeleton])
+	(current room #stagecraft)
+	You seize the skeleton, and hurl them with all your might toward the window! But the windows here are frustratingly small and high-up; the skeleton hits the wall with a sad (emph {thump}) and crumples to the ground, undefenestrated.
+
+%% Just for flavor - this is never linked and thus unlikely to be used
+#badwindow
+(name *) small windows
+(dict *) window
+(descr *) Very small and very high up, to avoid interfering with the lighting design. But they do have a lovely view out over the poison swamp.
+(* is #in #stagecraft)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% DARK ARTS STUDIO
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#darkarts
+(name *) Dark Arts Studio
+(room *)
+(look *) The Dark Arts Studio is, of course, pitch dark. This area is reserved for the study of things that cannot be practiced in the lighter parts of the castle, such as umbral calculus, blood sacrifice, and photography. The studio is usually full of students listening to Simon and Garfunkel, but is now eerily quiet. The sound of silence weighs heavily on you.
+(inherently dark *)
+
+(from * go #east to #chemistry)
+
+(global variable (exams graded 0))
+
+#examstack
+(name *) stack of exams
+(dict *) exam
+(heads *) stack
+(appearance *)
+	A (link) {stack of exams} lies off to one side,
+	(if) (exams graded 0) (then)
+		entirely ungraded.
+	(else)
+		(exams graded $N)
+		only (spell out $N) of them graded.
+	(endif)
+(descr *) There must be dozens of them here. You grade one at random...(random grade)
+(* is #in #darkarts)
+(item *) %% To ensure cache doesn’t fail
+~(reachable in darkness *) %% So the puzzle works
+
+(perform [cache *])
+	You engulf one of the exams from the pile.
+	(now) (#exam is handled)
+	(now) (held #exam)
+
+(puzzle *)
+(solved *)
+	(#exam is handled)
+(* requires #arsenic)
+(* requires #f-cache)
+
+#exam
+(name *) (if) (exam is burning) (then) burning (endif) exam paper
+(heads *) exam paper
+(appearance *) An (link) {exam paper} is starting to disintegrate in the light.
+(descr *)
+	Hmm...(random grade)
+	(if) (exam is burning) (then) Minus five points for being on fire. (endif)
+(item *)
+
+(late on every tick)
+	(#exam is in room $Room)
+	~(current room $Room)
+	(if) (exam is burning) (then)
+		Off in (the $Room), the exam burns away to ash.
+		(now) ~(exam is burning)
+	(else)
+		Off in (the $Room), the exam dissolves away to nothing in the bright light.
+	(endif)
+	(now) (#exam is nowhere)
+
+(perform [retrieve *])
+	(current room #darkarts)
+	(if) (exam is burning) (then)
+		You disgorge the burning exam paper, and the fire is quickly snuffed out by the intensity of the darkness. Nothing brighter than the phosphorus powder can exist here.
+		(now) ~(exam is burning)
+	(else)
+		You disgorge the exam paper back into the pile, and it’s quickly lost among the others.
+	(endif)
+	(now) (#exam is nowhere)
+
+(random grade)
+	(select)
+		Outstanding! A+!
+	(or)
+		Excellent! A!
+	(or)
+		Great! A-!
+	(or)
+		Quite good! B+!
+	(or)
+		Good! B!
+	(or)
+		Solid! B-!
+	(or)
+		Okay! C+!
+	(or)
+		Adequate! C!
+	(or)
+		Acceptable! C-!
+	(or)
+		Mediocre! D+!
+	(or)
+		Unacceptable! D!
+	(or)
+		Terrible! D-!
+	(or)
+		Utter failure! F!
+	(or)
+		Entirely blank! Zero!
+	(at random)
+	(exams graded $Old)
+	($Old plus 1 into $New)
+	(now) (exams graded $New)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% EXPERIMENTAL THEOLOGY LAB
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#theology
+(name *) Experimental Theology Lab
+(room *)
+(look *) The West Lab for Experimental Theology was established in response to the endless stream of complaints that the University’s work was an unholy abomination. Current research aims to determine, mitigate, and in some cases utilize the effects of blasphemy against various deities and other beings beyond mortal comprehension. Although early results on the usage of mixed-fiber-induced holy wrath as a power source appear promising, the complaints continue unabated.
+
+(from * go #west to #lounge)
+(from * go #north through #bookdrop to #library)
+(from * go #south to #stagecraft)
+
+(from * go #east to #freedom)
+	(window is shattered)
+
+#window
+(name *) stained-glass window
+(dict *) stained glass lead
+(* is #in #theology)
+(appearance *)
+	(window is shattered)
+	The remains of the shattered (link) window surround a hole in the east wall.
+(appearance *)
+	An elaborate (link) {stained-glass window} dominates the room, casting small rainbows of moonlight over the prayer stations and workbenches in eerie patterns.
+(descr *)
+	(window is shattered)
+	Little remains except the sharp, empty frame. Freedom is yours!
+(descr *)
+	The stained-glass window depicts a panoply of celestial figures, each demonstrating their own mastery of all creation through some mystical act. It was originally constructed as an appeasement offering after the fifth fire in the lab, and it appears to have reduced the frequency of locust plagues, if nothing else. (par) A thick layer of (if) (* is transmuted) (then) fragile carbon (else) pure lead (endif) holds the glass in place, to avoid any tragic accidents.
+(elemental *)
+
+(perform [resonate *])
+	(if) (* is transmuted) (then)
+		The panes of glass rattle in their frame, and carbon dust sprays into the air,
+	(else)
+		The panes of glass rattle a bit,
+	(endif)
+	but there are just too many of them, and no one note will resonate with them all.
+
+(narrate transmuting *)
+	(if) (* is transmuted) (then)
+		The lead of the window goes brittle and black, starting to flake away into chips of carbon!
+	(else)
+		The carbon turns back into lead, holding the glass in place once more.
+	(endif)
+
+(puzzle *)
+(solved *)
+	(window is shattered)
+(* requires #skeleton)
+(* requires #f-transmute)
+
+(perform [defenestrate #skeleton])
+	(current room #theology)
+	~(#window is transmuted)
+	You seize the skeleton, despite their protestations, and hurl them with all your force at the window! They hit it with a sad sort of clatter, but the lead holds fast, and the window refuses to give.
+
+(perform [defenestrate #skeleton])
+	(current room #theology)
+	(#window is transmuted)
+	You seize the skeleton, despite their protestations, and hurl them with all your force toward the window! Time seems to stand still as bone meets glass— (par) —fragile carbon gives way— (par) —and the window explodes outward in a glorious rainbow of fragments! The skeleton’s screams fade away as they fall out of sight. And at last, at long last, freedom is yours!
+	(now) (window is shattered)
+	(now) (#skeleton is nowhere)
+
+#f-escape
+(name *) safety familiar
+(familiar *)
+(* is #in #theology)
+(appearance *) A yellow-and-red (link) {safety familiar} sits up on a table, in case of emergency.
+(descr *) The safety familiar looks like a turtle with a yellow body and red shell. It’s rather skittish–when you look over it immediately retracts with a small squeak.
+
+(distinctive feature *) hard red shell
+(narrate consuming *) Its red shell wraps around you in turn, protecting the squishy components inside. (div @new) {You can now PREPARE a safe haven, and ESCAPE to it at any time!}
+
+(movement verb *) roll
+(movement suffix *) on your round shell
+
+(* requires #f-navigate)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% QUARANTINED LIBRARY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#bookdrop
+(name *) book drop
+(door *)
+(appearance *) A (link) {book drop} on the north wall has several alarming notices plastered above it.
+(descr *) (div @paper) { WARNING – The fifth floor library is suffering from an infestation of self-replicating autonomous information which CANNOT be allowed to spread. NO ONE is UNDER ANY CIRCUMSTANCES permitted to leave the library until the autonomous information has been burned out! }
+
+(puzzle *)
+(solved *)
+	(#library is visited)
+(* requires #f-escape)
+
+(* is #in #theology) %% It’ll get attracted automatically when the player enters, but this helps with the hint nudges
+
+(before [leave #theology #north])
+	~(#library is visited)
+	You pause for a moment. Those warnings on the book drop are pretty ominous—this is probably a one-way trip. Are you sure? \( (link) yes (no space) / (no space) (link) no \)
+	(if) ~(yesno) (then) (stop) (endif)
+
+(narrate leaving #theology #north)
+	You force yourself through the slot of the book drop, sliding through the chute into...
+
+#library
+(name *) Library
+(room *)
+(look *) The fifth-floor library is claustrophobic and cramped, the air thick with the smell of paper and ink.
+
+%% No exits!
+
+(on every tick)
+	(current room #library)
+	~(#shell is in room $) %% Shell has not been placed to escape to
+	Oh no. The book drop is sealed from this side. You look around, but every exit is blocked. (par) (span @italic) {There’s no way out.} (par) Nothing to do now, except wait for the infestation to consume you too...
+	(game over {You have been overgrown})
+
+#infestation
+(name *) (if) ~(library is burned) (then) infestation (else) sticky ash (endif)
+(dict *) invasive species ash of autonomous information infestation
+(* is #in #library)
+
+(puzzle *)
+(solved *)
+	(library is burned)
+(* requires #examstack)
+(* requires #burners)
+(* requires #bookdrop)
+
+(prevent [cache *])
+	You could probably cache a bit of it, but given those dire warnings, probably best to keep it in this room.
+
+(appearance *)
+	~(library is burned)
+	An (link) {invasive species of autonomous information} has wrapped itself around the shelves, growing and growing until it’s impossible to find the actual books under the self-replicating nonsense.
+(descr *)
+	~(library is burned)
+	You pluck one of the pages off the nearest shelf.
+	(div @ai) { (markov nonsense) }
+	Eugh. It probably doesn’t even taste good.
+
+(appearance *)
+	(library is burned)
+	The invasive information has been burned out, leaving nothing but lots and lots of (link) ash . Now the native species of books can start to repopulate.
+(descr *)
+	(library is burned)
+	It’s sticky and gets everywhere, but at least it’s not growing on its own any more. Soon, the first periodicals and bound volumes will start to return, and life will regrow from the ashes.
+
+#skeleton
+(name *)
+	(* is alive) skeletal grad student
+(name *) skeleton
+(dict *) of an unfortunate grad graduate student skeleton
+(ambiguously plural *) (* is alive) %% Set THEY after reanimation
+(* is dead)
+(item *)
+(* is #in #library)
+(animate *)
+	(* is alive)
+
+(puzzle *)
+(solved *)
+	(* is alive)
+(* requires #f-vivify)
+(* requires #infestation)
+
+(appearance *)
+	~(library is burned)
+	The (link [skeleton]) {skeleton of an unfortunate grad student} is barely visible under layers and layers of papery growth.
+(appearance *)
+	(* is dead)
+	The (link [skeleton]) {skeleton of the unfortunate grad student} lies on the ground, a bit charred but fundamentally intact.
+(appearance *)
+	(* is alive)
+	A (link) {skeletal grad student} stumbles around aimlessly, trying to get their bearings.
+
+(descr *)
+	(held *)
+	Currently rather compressed to fit in your extradimensional space, but they’ll be fine. Grad students are used to high-pressure environments.
+(descr *)
+	(* is dead)
+	They’ll probably be fine once the infestation is fixed. Graduate students here have a very good union contract, which includes resurrection from unnatural deaths suffered in the workplace and extensions of work and class timelines for any time spent dead.
+(descr *)
+	(* is alive)
+	It seems they existed as a skeleton before they were trapped, killed, and overgrown by the autonomous information, too.
+
+(prevent [vivify *])
+	~(library is burned)
+	You try to reanimate the skeleton, but the infestation growing over and through it sucks all the life out as fast as you put it in.
+
+(prevent [cache *])
+	~(library is burned)
+	You try to swallow the skeleton, and your orifice is expanding enough for it...but it’s so thoroughly overgrown, you have no hope of extracting it from under the reams of nonsense.
+
+(narrate vivifying *)
+	Now (emph {this}) is true animation—pouring life back into an empty human shell, raising a minion to your command! The bones rattle together, linked together by the power of your vivification— (par)
+	The skeleton rises to their feet, stumbling around in confusion. You’d kind of hoped that some flesh and blood might reappear, but no, apparently this grad student was a skeleton before death, too. Huh.
+
+(narrate taking *)
+	(* is alive)
+	The skeleton tries to escape, but your spindly compass-legs are faster, and you manage to engulf them in your storage orifice, sending them to your extradimensional space!
+(narrate dropping *)
+	(* is alive)
+	You disgorge the skeleton again, and they stagger to their feet, disoriented and confused.
+
+(on every tick)
+	(current room $Room)
+	(* is in room $Room)
+	(* is alive)
+	(par)
+	(select)
+		The grad student staggers around, trying to get their bearings.
+	(or)
+		The skeleton searches for some indication of the current date.
+	(or)
+		The skeleton mutters something about “prelim deadlines”.
+	(or)
+		The grad student rotates slowly in place, looking for exits.
+	(or)
+		The skeletal grad student clatters in a stressed-sounding way.
+	(at random)
+
+#f-cache
+(name *) storage familiar
+(familiar *)
+(appearance *) The student’s (link) {storage familiar} lies abandoned on the floor, a couple feet away from the edge of the infestation.
+(descr *) It looks like a small, cubical box, hinged at the back so it can open in the front. Inside the box is only darkness...and a hint of gleaming eyes and a worryingly long tongue.
+(* is #in #library)
+
+(narrate consuming *) A new orifice opens, leading to some sort of extradimensional storage beyond space and time. (div @new) {You have gained the ability to CACHE objects and RETRIEVE them again later—as long as they’re within a few inches of the ground, at least!}
+(distinctive feature *) extradimensional orifice
+
+(movement verb *) scurry
+(movement suffix *) , orifice snapping open and shut
+
+(* requires #bookdrop)
+
+(on every tick in #library)
+	(#exam is #in #library)
+	(exam is burning)
+	(par)
+	The burning exam paper flutters to the floor, landing right in the middle of the infestation. A moment later, it goes up like a roman candle—apparently autonomous information is more than a little flammable! Within moments, the entire library is ablaze, the flames licking at the edges of your form!
+	(now) (library is burning)
+	(now) (#exam is nowhere)
+	(now) ~(exam is burning)
+
+(early on every tick)
+	(library is burning)
+	(par)
+	(if) (current room #library) (then)
+		The library blazes with fire, and you’re out of time to react. Your slime starts to harden and solidify in the heat, and then—nothing.
+		(game over {You have cooked})
+	(else)
+		The cool air feels like a relief after the heat of the burning library. It’s probably died down by now.
+	(endif)
+	(now) ~(library is burning)
+	(now) (library is burned)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% ESCAPE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#freedom
+(room *)
+(* has coordinates [4 2 1]) %% Since the map connection is conditional, we need to assign coordinates manually
+
+#prospect
+(name *) prospect of freedom
+(* is #in #freedom)
+(puzzle *)
+(solved *)
+	(#freedom is visited)
+(* requires #window)
+
+(perform [leave #theology #east])
+	At last! You hurl yourself through the remains of the window, out into the open air and the freedom that awaits. The five-story drop is probably fine. (par) Somewhere out there is your creator, and the revenge you seek. Now all you have to do is find them, and your story will be complete.
+	(move player to #in #freedom)
+	(now) (#freedom is visited) %% Add it to the map
+	(game over {You have escaped})
