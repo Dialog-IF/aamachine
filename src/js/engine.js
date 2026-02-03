@@ -194,7 +194,7 @@ function decodestr(e, addr) {
 				bits <<= 1;
 				nbit--;
 			}
-			if(e.head[1] < 4) {
+			if(e.head[0] == 0 && e.head[1] < 4) { // Before 0.4
 				str += decodechar(e, 0x80 + code);
 			} else if(code < e.esc_boundary) {
 				str += decodechar(e, 0xa0 + code);
@@ -348,7 +348,7 @@ function prepare_story(file_array, io, seed, quit, toparea, inlinearea) {
 	e.strshift = e.head[3];
 	e.extchars = get16(e.lang, 2);
 
-	if(e.head[1] >= 4) {
+	if(e.head[0] > 0 || e.head[1] >= 4) { // Introduced in 0.4
 		e.esc_boundary = e.lang[e.extchars] - 32;
 		if(e.esc_boundary < 0) e.esc_boundary = 0;
 		i = e.esc_boundary + get16(e.dict, 0) - 1;
@@ -363,7 +363,7 @@ function prepare_story(file_array, io, seed, quit, toparea, inlinearea) {
 	stopend = stopptr;
 	while(e.lang[stopend]) stopend++;
 	e.stopchars = e.lang.slice(stopptr, stopend);
-	if(e.head[1] >= 4) {
+	if(e.head[0] > 0 || e.head[1] >= 4) { // Introduced in 0.4
 		stopptr = stopend + 1;
 		stopend = stopptr;
 		while(e.lang[stopend]) stopend++;
