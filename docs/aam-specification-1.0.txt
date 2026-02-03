@@ -3,18 +3,16 @@ including the two file formats (story and saved game) and the bytecode
 semantics. Be warned that the description is technically comprehensive and
 rather condensed.
 
+Note that 1.0 is not any more official or stable than its predecessor, 0.5!
+The major version change marks where the community forked the project and
+took over development and maintenance.
+
 Changes in v1.0:
+
+	New opcodes:
 	
-	Some adjustments in wording, but no major differences. The version
-	number has changed per Linus's request, as this is the first version
-	released and maintained by the community. This leaves the 0.* branch
-	for his own work.
-	
-	Opcodes 67 (ENTER_STATUS), 6b (SET_STYLE), and eb (RESET_STYLE) are
-	now deprecated. There are better alternatives, and the opcodes may be
-	removed and repurposed in later versions of the specification. In
-	particular, opcode 6f should always be used for ENTER_STATUS instead
-	of 67.
+		NBSP
+		CLEAR_STATUS
 
 These are still early days, and everything is subject to change. When only the
 minor version number is incremented, efforts are made to keep all changes
@@ -162,10 +160,11 @@ Game state:
 		Values for SPC:
 			0 auto
 			1 nospace
-			2 pendingspace
-			3 space
-			4 line
-			5 par
+			2 nbsp
+			3 pendingspace
+			4 space
+			5 line
+			6 par
 
 	General-purpose registers:
 
@@ -531,12 +530,11 @@ LOOK:
 	must perform case-insensitive comparison. Leading whitespace has been
 	removed from the entries. A blank entry (just the terminating
 	null-byte) marks the end.
-	
+  
 	These pairs are typically CSS properties, but may include other
 	information of use to the interpreter, such as ARIA roles. Thus,
 	interpreters must ignore any unrecognized keys or values, rather than
 	raising an error.
-
 
 TAGS: (optional)
 
@@ -816,7 +814,7 @@ CODE:
 	66	ENTER_DIV		INDEX
 	e6	LEAVE_DIV
 
-	67	ENTER_STATUS		0 INDEX			[deprecated 1.0]
+	67	ENTER_STATUS		0 INDEX
 	e7	LEAVE_STATUS
 
 	68	ENTER_LINK_RES		VALUE			[spec 0.2]
@@ -828,8 +826,8 @@ CODE:
 	6a	ENTER_SELF_LINK					[spec 0.4]
 	ea	LEAVE_SELF_LINK					[spec 0.4]
 
-	6b	SET_STYLE		BYTE			[deprecated 1.0]
-	eb	RESET_STYLE		BYTE			[deprecated 1.0]
+	6b	SET_STYLE		BYTE
+	eb	RESET_STYLE		BYTE
 
 	6c	EMBED_RES		VALUE			[spec 0.2]
 	ec	CAN_EMBED_RES		VALUE DEST		[spec 0.2]
@@ -864,6 +862,8 @@ CODE:
 		0f	CLEAR_LINKS				[spec 0.4]
 		10	CLEAR_OLD				[spec 0.5]
 		11	CLEAR_DIV				[spec 0.5]
+		12	CLEAR_STATUS			[spec 1.0]
+		13	NBSP					[spec 1.0]
 
 	72	SAVE			CODE	
 	f2	SAVE_UNDO		CODE
@@ -932,6 +932,7 @@ Output model
 
 		output_string(string)
 		output_char(charcode)
+		output_nbsp()
 		output_space()
 		output_space_n(number)
 		output_newline()
@@ -971,6 +972,7 @@ Output model
 		output_clear_links() // transform old links into static text
 		output_clear_div() // clear current div
 		output_clear_old() // clear old text
+		output_clear_status() // hide all status areas
 		output_leave_all()
 		output_sync()
 		bool output_script_on() // returns true to indicate success
@@ -2036,24 +2038,28 @@ Opcode semantics
 	PRINT_A_STR_A		STRING
 
 		if(SPC == auto || SPC == pendingspace) output_space()
+		elseif(SPC == nbsp) output_nbsp()
 		output_string(arg)
 		SPC = auto
 
 	PRINT_N_STR_A		STRING
 
 		if(SPC == pendingspace) output_space()
+		elseif(SPC == nbsp) output_nbsp()
 		output_string(arg)
 		SPC = auto
 
 	PRINT_A_STR_N		STRING
 
 		if(SPC == auto || SPC == pendingspace) output_space()
+		elseif(SPC == nbsp) output_nbsp()
 		output_string(arg)
 		SPC = nospace
 
 	PRINT_N_STR_N		STRING
 
 		if(SPC == pendingspace) output_space()
+		elseif(SPC == nbsp) output_nbsp()
 		output_string(arg)
 		SPC = nospace
 
@@ -2062,6 +2068,14 @@ Opcode semantics
 		if(CWL == 0) {
 			if(SPC < nospace) {
 				SPC = nospace
+			}
+		}
+	
+	NBSP
+	
+		if(CWL == 0) {
+			if(SPC < nbsp) {
+				SPC = nbsp
 			}
 		}
 
@@ -2439,6 +2453,7 @@ Opcode semantics
 	GET_INPUT		DEST
 
 		if(SPC == auto || SPC == pendingspace) output_space()
+		elseif(SPC == nbsp) output_nbsp()
 		output_sync()
 		arg <- input_get_line()
 		SPC = line
@@ -2567,6 +2582,7 @@ Opcode semantics
 	GET_KEY			DEST
 
 		if(SPC == auto || SPC == pendingspace) output_space()
+		elseif(SPC == nbsp) output_nbsp()
 		output_sync()
 		arg <- input_get_key() // digits are numbers, others are chars
 
@@ -2624,6 +2640,13 @@ Opcode semantics
 		// The interpreter may ignore this operation.
 
 		output_clear_div();
+	
+	CLEAR_STATUS
+	
+		// Clear all status areas.
+		// The interpreter may ignore this operation.
+    
+    output_clear_status();
 
 	VM_INFO			BYTE DEST
 
@@ -2803,4 +2826,5 @@ Examples
 	case3
 		...
 
-This document was originally written by Linus Akesson.
+This document was originally written by Linus Akesson, and is now
+maintained by the Dialog Project contributors.
