@@ -123,6 +123,7 @@ void write6502(uint16_t address, uint8_t value) {
 	uint16_t size;
 	uint8_t header[12];
 	FILE *f;
+	size_t sz; // Unused
 
 	cycles++;
 
@@ -255,7 +256,7 @@ void write6502(uint16_t address, uint8_t value) {
 				} else {
 					fseek(f, 0, SEEK_SET);
 					intaddr = core[0x0250] | (core[0x0251] << 8);
-					fread(core + intaddr, 1, 0x10000 - intaddr, f);
+					sz = fread(core + intaddr, 1, 0x10000 - intaddr, f); // return value not used
 					core[0x0256] = 1;
 				}
 			} else {
@@ -273,7 +274,7 @@ void write6502(uint16_t address, uint8_t value) {
 
 void usage(char *prgname) {
 	fprintf(stderr, "Aa-machine tools " VERSION "\n");
-	fprintf(stderr, "Copyright 2019-2022 Linus Akesson.\n");
+	fprintf(stderr, "Copyright 2019-2026 Linus Akesson and the Dialog Project contributors.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Usage: %s [options] frontend.bin externalrom.aastory\n", prgname);
 	fprintf(stderr, "\n");
@@ -354,7 +355,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "%s: %s\n", argv[0], strerror(errno));
 		exit(1);
 	}
-	fread(core + 0x0300, 1, sizeof(core) - 0x0300, f);
+	sz = fread(core + 0x0300, 1, sizeof(core) - 0x0300, f); // return value not used
 	fclose(f);
 
 	f = fopen(argv[1], "rb");
