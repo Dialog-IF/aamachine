@@ -1,0 +1,4 @@
+When you update the version number, make sure to update:
+ - The defines at the top of src/Makefile and src/6502/Makefile
+ - The constants in src/js/engine.js
+ - The "about" blurb in src/js/webfrontend.js

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Linus Åkesson
+// Copyright 2019-2026 Linus Åkesson and the Dialog Project contributors
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -208,8 +208,8 @@ function createdoc() {
 	cont = document.createElement("a");
 	cont.setAttribute("id", "aaaboutlink");
 	cont.setAttribute("target", "_blank");
-	cont.setAttribute("href", "https://linusakesson.net/dialog/aamachine/");
-	cont.innerHTML = "&Aring;-machine web interpreter v0.5.4";
+	cont.setAttribute("href", "https://github.com/Dialog-IF/aamachine/");
+	cont.innerHTML = "&Aring;-machine web interpreter v1.0.0";
 	line = document.createElement("div");
 	line.setAttribute("class", "aaaboutline");
 	line.appendChild(cont);
@@ -504,12 +504,12 @@ window.run_game = function(story64, options) {
 			});
 			array = this.mainarray;
 			for(i = 0; i < array.length; i++) {
-				if(array[i].t == "el" || array[i].t == "esl" || array[i].t == "erl") {
-					array[i].t = "edl";
-				} else if(array[i].t == "ll" || array[i].t == "lsl" || array[i].t == "lrl") {
-					array[i].t = "ldl";
-				} else if(array[i].t == "i") {
-					array[i].t = "di";
+				if(array[i].t == "el" || array[i].t == "esl" || array[i].t == "erl") { // enter link / enter self link / enter resource link
+					array[i].t = "edl"; // enter dead link
+				} else if(array[i].t == "ll" || array[i].t == "lsl" || array[i].t == "lrl") { // leave link / leave self link / leave resource link
+					array[i].t = "ldl"; // leave dead link
+				} else if(array[i].t == "i") { // input
+					array[i].t = "di"; // dead input
 				}
 			}
 		},
@@ -561,7 +561,21 @@ window.run_game = function(story64, options) {
 			}
 		},
 		clear_status: function() {
-			// TODO implement clear_status
+			if(!this.in_status) {
+				// Remove top status from document
+				var div = document.getElementById("aastatus");
+				$(div).empty();
+				div.className = null;
+				// Remove top status from autosave
+				this.statusarray = null;
+				// Remove inline status from document if present
+				if(this.old_inline) {
+					$(this.old_inline).detach();
+					this.old_inline = null;
+				}
+				// Remove inline status from autosave
+				io.currarray.push({t: "cs"});
+			}
 		},
 		leave_all: function() {
 			this.current = document.getElementById("aamain");
@@ -1230,6 +1244,8 @@ window.run_game = function(story64, options) {
 					this.progressbar(e.p, e.tot);
 				} else if(t == "cd") { // Clear div
 					this.clear_div();
+				} else if(t == "cs") { // Clear status
+					this.clear_status();
 				} else if(t == "est") { // Enter status
 					this.enter_status(0, e.i);
 				} else if(t == "eis") { // Enter inline status

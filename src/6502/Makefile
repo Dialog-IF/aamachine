@@ -1,7 +1,10 @@
-VERSION=\"0.5.4\"
+VERSION=\"1.0.0\"
 CFLAGS=-Wall -O2 -DVERSION=$(VERSION)
 
 all:			aambox6502 aambox_frontend.bin c64_crunched.bin c64_drivecode.bin c64_loader.prg
+
+clean:
+			rm -rf aambox6502 cruncher labels mkfont
 
 aambox6502:		aambox6502.c fake6502.c
 
@@ -25,3 +28,5 @@ decruncher.bin:		decruncher.s
 
 c64_crunched.bin:	c64_frontend.bin decruncher.bin cruncher
 			./cruncher $< decruncher.bin >$@
+
+.PHONY: all clean
