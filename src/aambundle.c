@@ -113,7 +113,7 @@ void trim_chunks(int align_writ) {
 
 void usage(char *prgname) {
 	fprintf(stderr, "Aa-machine tools " VERSION "\n");
-	fprintf(stderr, "Copyright 2019-2022 Linus Akesson.\n");
+	fprintf(stderr, "Copyright 2019-2026 Linus Akesson and the Dialog Project contributors.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Usage: %s [options] filename.aastory\n", prgname);
 	fprintf(stderr, "\n");
@@ -231,8 +231,8 @@ int main(int argc, char **argv) {
 
 	fclose(f);
 
-	if(story[20] != 0 || story[21] > 5) {
-		fprintf(stderr, "Unsupported story file version %d.%d\n", story[20], story[21]);
+	if(story[20] > VER_MAJOR || (story[20] == VER_MAJOR && story[21] > VER_MINOR)) {
+		fprintf(stderr, "Unsupported story file version: %d.%d is more than %d.%d\n", story[20], story[21], VER_MAJOR, VER_MINOR);
 		exit(1);
 	}
 

@@ -9605,17 +9605,18 @@ loop1
 	lda	#$ff
 	sta	escbnd
 
-	; check major version
+	; check major version, branch to highversion if >=1
 	ldy	#1
 	lda	(hdbase),y
 	cmp	#1
-	bcc	done
-	; check minor version
+	bcs	highversion
+	; check minor version, branch to done if <4
 	ldy	#1+1
 	lda	(hdbase),y
 	cmp	#4
 	bcc	done
 
+highversion
 	ldy	nosbpos
 	inc	nosbpos
 nosaloop

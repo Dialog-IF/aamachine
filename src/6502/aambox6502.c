@@ -257,6 +257,7 @@ void write6502(uint16_t address, uint8_t value) {
 					fseek(f, 0, SEEK_SET);
 					intaddr = core[0x0250] | (core[0x0251] << 8);
 					sz = fread(core + intaddr, 1, 0x10000 - intaddr, f); // return value not used
+					(void)sz;
 					core[0x0256] = 1;
 				}
 			} else {

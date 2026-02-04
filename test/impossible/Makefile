@@ -24,7 +24,7 @@ impossible.js.out: impossible.aastory
 test.6502: impossible.6502.out
 	$(DIFF) impossible.6502.out impossible.6502.gold
 
-impossible.6502.out: impossible.aastory $(AAMBOX)
+impossible.6502.out: impossible.aastory $(AAMBOX) $(FRONTEND)
 	$(AAMBOX) -s 1234 $(FRONTEND) impossible.aastory <impossible.in >impossible.6502.out
 
 clean:

@@ -24,7 +24,7 @@ gosling.js.out: gosling.aastory
 test.6502: gosling.6502.out
 	$(DIFF) gosling.6502.out gosling.6502.gold
 
-gosling.6502.out: gosling.aastory $(AAMBOX)
+gosling.6502.out: gosling.aastory $(AAMBOX) $(FRONTEND)
 	$(AAMBOX) -s 1234 $(FRONTEND) gosling.aastory <gosling.in >gosling.6502.out
 
 clean:
