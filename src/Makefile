@@ -1,5 +1,6 @@
+VERSION=\"1.0.0\"
 CC		= gcc
-CFLAGS		+= -Wall -O3 -DVERSION=\"0.5.4\"
+CFLAGS		+= -Wall -O3 -DVERSION=$(VERSION)
 MINGW32		= i686-w64-mingw32-gcc
 
 all:			aamshow aambundle
