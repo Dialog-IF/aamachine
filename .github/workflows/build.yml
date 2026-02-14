@@ -24,7 +24,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: install dependencies
-      run: sudo apt install gcc-mingw-w64
+      run: sudo apt install gcc-mingw-w64 xa65
+    - name: make (blobs)
+      run: make --directory=./src/6502 aambox_frontend.bin c64_crunched.bin c64_drivecode.bin c64_loader.prg
     - name: make (linux)
       run: make --directory=./src aamshow aambundle
     - name: make (windows)
