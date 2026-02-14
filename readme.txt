@@ -81,7 +81,7 @@ Directory structure:
 	readme.txt	This file.
 	license.txt	License and disclaimer.
 	src		Source code for the Å-machine tools and interpreters.
-	prebuilt	Binaries for Linux (i386, x86_64) and Windows.
+	prebuilt	Binaries for Linux and Windows.
 	docs		The Å-machine specification.
 	example		An example story in .aastory format, with interpreters.
 
