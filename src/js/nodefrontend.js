@@ -108,6 +108,15 @@ const io = {
 			this.vspace_n(1);
 		}
 	},
+	measure_dims: function(which) {
+		if(which == 0) { // Width
+			return 80;
+		} else if(which == 1) { // Height
+			return 0;
+		} else {
+			return 0;
+		}
+	},
 	setstyle: function(s) {
 	},
 	resetstyle: function(s) {

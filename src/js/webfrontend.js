@@ -669,6 +669,15 @@ window.run_game = function(story64, options) {
 			}
 			this.currarray.push({t: "l"});
 		},
+		measure_dims: function(which) {
+			if(which == 0) { // Width
+				return 0; // TODO
+			} else if(which == 1) { // Height
+				return 0; // TODO
+			} else {
+				return 0;
+			}
+		},
 		par: function() {
 			this.raw_unstyle();
 			if(this.in_par) {
@@ -707,33 +716,33 @@ window.run_game = function(story64, options) {
 		},
 		setstyle: function(s) {
 			var span;
-      if(s & 2) {
-        this.ensure_par();
-        span = document.createElement("span");
-        span.className = "aaspanb";
-        span.setAttribute("role", "strong");
-        this.current.appendChild(span);
-        this.current = span;
-        this.n_inner++;
-      }
-      if(s & 4) {
-        this.ensure_par();
-        span = document.createElement("span");
-        span.className = "aaspani";
-        span.setAttribute("role", "emphasis");
-        this.current.appendChild(span);
-        this.current = span;
-        this.n_inner++;
-      }
-      if(s & 8) {
-        this.ensure_par();
-        span = document.createElement("span");
-        span.className = "aaspanf";
-        span.setAttribute("role", "code");
-        this.current.appendChild(span);
-        this.current = span;
-        this.n_inner++;
-      }
+			if(s & 2) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspanb";
+				span.setAttribute("role", "strong");
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
+			}
+			if(s & 4) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspani";
+				span.setAttribute("role", "emphasis");
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
+			}
+			if(s & 8) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspanf";
+				span.setAttribute("role", "code");
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
+			}
 			this.currarray.push({t: "ss", s: s});
 		},
 		resetstyle: function(s) {
@@ -814,15 +823,15 @@ window.run_game = function(story64, options) {
 		},
 		enter_span: function(id) {
 			var span;
-      this.raw_unstyle();
-      this.ensure_par();
-      span = document.createElement("span");
-      span.className = this.style_data[id].name;
-      for(let attr in this.style_data[id].attrs) {
-        span.setAttribute(attr, this.style_data[id].attrs[attr]);
-      }
-      this.current.appendChild(span);
-      this.current = span;
+			this.raw_unstyle();
+			this.ensure_par();
+			span = document.createElement("span");
+			span.className = this.style_data[id].name;
+			for(let attr in this.style_data[id].attrs) {
+				span.setAttribute(attr, this.style_data[id].attrs[attr]);
+			}
+			this.current.appendChild(span);
+			this.current = span;
 			this.currarray.push({t: "es", i: id});
 		},
 		leave_span: function() {

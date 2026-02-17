@@ -881,6 +881,8 @@ CODE:
 		00	peak heap
 		01	peak aux
 		02	peak longterm
+		20	current div width
+		21	current div height
 
 		These return raw 0/1 values and default to 0:
 		40	interpreter supports undo
@@ -2656,6 +2658,9 @@ Opcode semantics
 
 		if(arg1 & 0x40) {
 			arg2 <- vm_terp_feature(arg1 & 0x3f)
+		} else if(arg1 & 0x20) {
+			local variable val = vm_output_state(arg1 & 0x1f)
+			arg2 <- box_int(val)
 		} else {
 			local variable count = 0
 			if(arg1 == 0) {

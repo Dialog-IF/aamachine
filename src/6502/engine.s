@@ -7851,7 +7851,7 @@ cloop
 	cmp	physize
 	lda	phydata+1
 	sbc	physize+1
-	bcs	cdone
+	bcs	cdone2
 
 	lda	#$3f
 	ldy	#0
@@ -7875,6 +7875,8 @@ noinc
 
 	inc	phydata+1
 	jmp	cloop
+cdone2
+	jmp cdone
 notheap
 	cmp	#$01
 	bne	notaux
@@ -7889,7 +7891,7 @@ notheap
 	jmp	usedcount
 notaux
 	cmp	#$02
-	bne	cdone
+	bne notltheap
 
 	lda	ramsz+1
 	sec
@@ -7914,6 +7916,36 @@ notaux
 	adc	rambase+1
 	tay
 	jmp	usedcount
+notltheap
+	cmp #$20
+	bne notwidth
+	; Current div width
+	lda stflag
+	beq mainwidth
+	; In status bar
+	lda stfullw
+	sta result+1
+	jmp cdone
+mainwidth
+	; Not in status bar
+	lda screenw
+	sta result+1
+	jmp cdone
+notwidth
+	cmp #$21
+	bne	cdone
+	; Current div height
+	lda stflag
+	beq mainheight
+	; In status bar
+	lda stsizey
+	sta result+1
+	jmp cdone
+mainheight
+	; Not in status bar
+	lda #0
+	sta result+1
+	jmp cdone
 defnull
 #if HAVE_QUIT
 	cmp	#$43
