@@ -7875,7 +7875,7 @@ noinc
 
 	inc	phydata+1
 	jmp	cloop
-cdone2
+cdone2 ; Needed to keep branch within range
 	jmp cdone
 notheap
 	cmp	#$01

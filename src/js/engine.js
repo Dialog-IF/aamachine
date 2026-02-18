@@ -2378,7 +2378,7 @@ function vm_run(e, param) {
 					case 0x20: // div width
 						v = 0x4000 | io.measure_dims(0);
 						break;
-					case 0x20: // div height
+					case 0x21: // div height
 						v = 0x4000 | io.measure_dims(1);
 						break;
 					case 0x40: // interpreter supports undo
