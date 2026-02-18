@@ -1,5 +1,5 @@
-#define AAVM_FORMAT_MAJOR 0
-#define AAVM_FORMAT_MINOR 5
+#define AAVM_FORMAT_MAJOR 1
+#define AAVM_FORMAT_MINOR 0
 
 #define AA_NOP			0x00
 #define AA_FAIL			0x01
@@ -159,8 +159,7 @@
 #define AAEXT0_CLEAR_OLD	0x10
 #define AAEXT0_CLEAR_DIV	0x11
 #define AAEXT0_CLEAR_STATUS	0x12
-#define AAEXT0_NBSP		0x13
-#define AAEXT0_N		0x14
+#define AAEXT0_N		0x13
 
 #define OVAR_PARENT		0
 #define OVAR_CHILD		1
