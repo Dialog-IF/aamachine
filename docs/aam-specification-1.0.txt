@@ -13,6 +13,10 @@ Changes in v1.0:
 	
 		NBSP
 		CLEAR_STATUS
+	
+	Removed some previously-deprecated opcodes
+	
+	Expanded key-value options for resources to include ARIA roles
 
 These are still early days, and everything is subject to change. When only the
 minor version number is incremented, efforts are made to keep all changes
@@ -720,7 +724,7 @@ CODE:
 	14	AUX_PUSH_VAL		VALUE
 	94	AUX_PUSH_RAW		0			[spec 0.5]
 	15/95	AUX_PUSH_RAW		WORD/VBYTE
-	16	AUX_POP_VAL		DEST			[deprecated]
+	16	AUX_POP_VAL 	DEST		[pre-1.0 only]
 	17	AUX_POP_LIST		DEST
 	18	AUX_POP_LIST_CHK	VALUE
 	19	AUX_POP_LIST_MATCH	VALUE
@@ -814,7 +818,7 @@ CODE:
 	66	ENTER_DIV		INDEX
 	e6	LEAVE_DIV
 
-	67	ENTER_STATUS		0 INDEX
+	67	ENTER_STATUS		0 INDEX		[pre-1.0 only]
 	e7	LEAVE_STATUS
 
 	68	ENTER_LINK_RES		VALUE			[spec 0.2]
@@ -865,7 +869,7 @@ CODE:
 		12	CLEAR_STATUS			[spec 1.0]
 		13	NBSP					[spec 1.0]
 
-	72	SAVE			CODE	
+	72	SAVE			CODE
 	f2	SAVE_UNDO		CODE
 
 	73	GET_INPUT		DEST
@@ -1344,9 +1348,9 @@ Opcode semantics
 
 	AUX_POP_VAL		DEST
 
-		Note: This instruction is deprecated. No version of the dialog
-		compiler generates it. The pop_serialized subroutine is
-		nevertheless used by AUX_POP_LIST.
+		Note: This instruction was removed in version 1.0.
+		No version of the dialog compiler generates it. The pop_serialized
+		subroutine is nevertheless used by AUX_POP_LIST.
 
 		arg <- pop_serialized()
 
