@@ -669,6 +669,17 @@ window.run_game = function(story64, options) {
 			}
 			this.currarray.push({t: "l"});
 		},
+		measure_dims: function(which) {
+			let unit = $('<span class="aaunit" style="display:none;">0</span>').appendTo(this.current); // Get the size of a `0`
+			let result = 0;
+			if(which == 0 && $(unit).width() != 0) { // Width
+				result = Math.round($(this.current).width() / $(unit).width());
+			} else if(which == 1 && $(unit).height() != 0) { // Height
+				result = Math.round($(this.current).height() / $(unit).height());
+			}
+			unit.remove();
+			return result;
+		},
 		par: function() {
 			this.raw_unstyle();
 			if(this.in_par) {
@@ -707,33 +718,33 @@ window.run_game = function(story64, options) {
 		},
 		setstyle: function(s) {
 			var span;
-      if(s & 2) {
-        this.ensure_par();
-        span = document.createElement("span");
-        span.className = "aaspanb";
-        span.setAttribute("role", "strong");
-        this.current.appendChild(span);
-        this.current = span;
-        this.n_inner++;
-      }
-      if(s & 4) {
-        this.ensure_par();
-        span = document.createElement("span");
-        span.className = "aaspani";
-        span.setAttribute("role", "emphasis");
-        this.current.appendChild(span);
-        this.current = span;
-        this.n_inner++;
-      }
-      if(s & 8) {
-        this.ensure_par();
-        span = document.createElement("span");
-        span.className = "aaspanf";
-        span.setAttribute("role", "code");
-        this.current.appendChild(span);
-        this.current = span;
-        this.n_inner++;
-      }
+			if(s & 2) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspanb";
+				span.setAttribute("role", "strong");
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
+			}
+			if(s & 4) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspani";
+				span.setAttribute("role", "emphasis");
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
+			}
+			if(s & 8) {
+				this.ensure_par();
+				span = document.createElement("span");
+				span.className = "aaspanf";
+				span.setAttribute("role", "code");
+				this.current.appendChild(span);
+				this.current = span;
+				this.n_inner++;
+			}
 			this.currarray.push({t: "ss", s: s});
 		},
 		resetstyle: function(s) {
@@ -814,15 +825,15 @@ window.run_game = function(story64, options) {
 		},
 		enter_span: function(id) {
 			var span;
-      this.raw_unstyle();
-      this.ensure_par();
-      span = document.createElement("span");
-      span.className = this.style_data[id].name;
-      for(let attr in this.style_data[id].attrs) {
-        span.setAttribute(attr, this.style_data[id].attrs[attr]);
-      }
-      this.current.appendChild(span);
-      this.current = span;
+			this.raw_unstyle();
+			this.ensure_par();
+			span = document.createElement("span");
+			span.className = this.style_data[id].name;
+			for(let attr in this.style_data[id].attrs) {
+				span.setAttribute(attr, this.style_data[id].attrs[attr]);
+			}
+			this.current.appendChild(span);
+			this.current = span;
 			this.currarray.push({t: "es", i: id});
 		},
 		leave_span: function() {
