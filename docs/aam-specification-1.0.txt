@@ -17,6 +17,8 @@ Changes in v1.0:
 	Removed some previously-deprecated opcodes
 	
 	Expanded key-value options for resources to include ARIA roles
+	
+	Clarified behavior of unrecognized VM_INFO options
 
 These are still early days, and everything is subject to change. When only the
 minor version number is incremented, efforts are made to keep all changes
@@ -884,13 +886,18 @@ CODE:
 		20	current div width
 		21	current div height
 
-		These return raw 0/1 values and default to 0:
+		These return raw 0/1 values:
 		40	interpreter supports undo
 		41	interpreter supports save/restore
 		42	interpreter supports hyperlinks
 		43	interpreter supports quit
 		60	interpreter supports top status		[spec 0.5]
 		61	interpreter supports inline status	[spec 0.5]
+		
+		Unrecognized options should return zero: <number, 0> for selectors
+		in the range 00 to 3f, the raw value 0 for selectors in the range
+		40 to 7f. Selectors above 7f should raise an error; their behavior
+		is not yet defined.
 
 	78	SET_IDX			VALUE
 	79/f9	CHECK_EQ		WORD/VBYTE CODE
