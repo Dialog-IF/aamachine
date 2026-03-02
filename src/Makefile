@@ -5,7 +5,7 @@ CC		= gcc
 CFLAGS		+= -Wall -O3 -DVERSION=$(VERSION) -DVER_MAJOR=$(VER_MAJOR) -DVER_MINOR=$(VER_MINOR)
 MINGW32		= i686-w64-mingw32-gcc
 
-all:			aamshow aambundle aamrun
+all:			aamshow aambundle
 
 clean:
 			rm -f aamshow aambundle aamrun aamshow.exe aambundle.exe aamrun.exe *.o

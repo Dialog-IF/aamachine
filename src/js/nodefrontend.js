@@ -1,8 +1,17 @@
 (function(){"use strict";
 
+const VERSION = "1.0.0";
+
 const fs = require('fs');
 const readline = require('readline');
 const aaengine = require('./engine.js');
+var minimist;
+try {
+	minimist = require('minimist');
+} catch(e) {
+	minimist = require('./minimist.js'); // Include a local copy to reduce dependencies
+}
+var argv = minimist(process.argv.slice(2));
 
 var status;
 
@@ -12,6 +21,7 @@ const io = {
 	pending_spaces: 0,
 	pending_word: "",
 	xpos: 0,
+	width: 80,
 	vspace_n: function(n) {
 		n = Math.floor(n) + 1;
 		while(this.newlines < n) {
@@ -22,7 +32,7 @@ const io = {
 		this.pending_spaces = 0;
 	},
 	flush: function() {
-		if(this.xpos + this.pending_spaces + this.pending_word.length > 80) {
+		if(this.width > 0 && this.xpos + this.pending_spaces + this.pending_word.length > this.width) {
 			this.vspace_n(0);
 		}
 		while(this.pending_spaces) {
@@ -88,7 +98,9 @@ const io = {
 	space_n: function(n) {
 		if(!this.hidden) {
 			this.flush();
-			if(n > 80 - this.xpos) n = 80 - this.xpos;
+			if(this.width > 0 && n > this.width - this.xpos) {
+				n = this.width - this.xpos;
+			}
 			for(var i = 0; i < n; i++) {
 				process.stdout.write(" ");
 				this.xpos++;
@@ -176,8 +188,19 @@ const io = {
 	},
 	progressbar: function(p, total) {
 		if(!this.hidden) {
+			let full = 0;
+			if(this.width <= 0) {
+				full = 80 - 2; // End caps
+			} else {
+				full = this.width - 2;
+			}
+			let first = Math.round(full * (p / total));
+			let second = full - first;
 			this.enter_div(-1);
-			this.print(p + " (" + total + ")");
+			this.print("[");
+			for(let i=0; i<first; i++) this.print("=");
+			for(let i=0; i<second; i++) this.print(" ");
+			this.print("]");
 			this.leave_div(-1);
 		}
 	},
@@ -216,14 +239,49 @@ const rlif = readline.createInterface({
 	crlfDelay: Infinity});
 
 var filename, seed;
-if(process.argv[2] == "-s") {
-	seed = parseInt(process.argv[3]);
-	filename = process.argv[4];
-} else {
-	filename = process.argv[2];
+
+const usage = function() {
+	console.log("Usage: aamrun [OPTIONS] file.aastory");
+	console.log("    -s            Set random seed");
+	console.log("    -w            Set screen width (default 80)");
+	console.log("    -h, --help    Show this message");
+	console.log("    -v, -V        Show version and exit");
 }
 
-var storyfile = fs.readFileSync(filename);
+if(argv.v || argv.V) {
+	console.log("Å-machine Node frontend version " + VERSION);
+	process.exit(0);
+}
+if(argv._.length != 1) {
+	console.error("ERROR: Exactly one filename must be specified");
+	usage();
+	process.exit(1);
+}
+if(argv.h || argv.help) {
+	usage();
+	process.exit(0);
+}
+
+try {
+	if(argv.s) {
+		seed = parseInt(argv.s);
+	}
+	if(argv.w) {
+		io.width = parseInt(argv.w);
+	}
+} catch(e) {
+	console.error("ERROR: Unable to parse options: " + e);
+	process.exit(1);
+}
+
+filename = argv._[0];
+
+try {
+	var storyfile = fs.readFileSync(filename);
+} catch(e) {
+	console.error("ERROR: Unable to read file " + filename + ": " + e);
+	process.exit(1);
+}
 
 aaengine.prepare_story(storyfile, io, seed, true, false, false);
 io.styles = aaengine.get_styles();
