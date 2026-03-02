@@ -2375,6 +2375,12 @@ function vm_run(e, param) {
 							if(e.ramdata[i] != 0x3f3f) v++;
 						}
 						break;
+					case 0x20: // div width
+						v = 0x4000 | io.measure_dims(0);
+						break;
+					case 0x21: // div height
+						v = 0x4000 | io.measure_dims(1);
+						break;
 					case 0x40: // interpreter supports undo
 						v = 1;
 						break;
@@ -2394,9 +2400,13 @@ function vm_run(e, param) {
 						v = e.haveinline? 1 : 0;
 						break;
 					default:
-						if(a1 < 0x40) {
+						if(a1 > 0x7f) {
 							throw 'Unimplemented vminfo ' + a1.toString(16) + ' at ' + (e.inst - 2).toString(16);
 						}
+						if(a1 < 0x40) { // 00 to 3f return tagged numeric values, so the default is <number,0> instead of just 0
+							v = 0x4000;
+						} // 40 to 7f return raw 0 or 1, so the default of 0 is fine
+						console.log('Unrecognized vminfo ' + a1.toString(16) + '; returning default ' + v.toString(16));
 					}
 					store(e.code[e.inst++], v);
 					break;
