@@ -673,9 +673,9 @@ window.run_game = function(story64, options) {
 			let unit = $('<span class="aaunit" style="display:none;">0</span>').appendTo(this.current); // Get the size of a `0`
 			let result = 0;
 			if(which == 0 && $(unit).width() != 0) { // Width
-				result = Math.round($(this.current).width() / $(unit).width());
+				result = Math.floor($(this.current).width() / $(unit).width());
 			} else if(which == 1 && $(unit).height() != 0) { // Height
-				result = Math.round($(this.current).height() / $(unit).height());
+				result = Math.floor($(this.current).height() / $(unit).height());
 			}
 			unit.remove();
 			return result;
