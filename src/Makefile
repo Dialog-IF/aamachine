@@ -5,16 +5,19 @@ CC		= gcc
 CFLAGS		+= -Wall -O3 -DVERSION=$(VERSION) -DVER_MAJOR=$(VER_MAJOR) -DVER_MINOR=$(VER_MINOR)
 MINGW32		= i686-w64-mingw32-gcc
 
-all:			aamshow aambundle
+all:			aamshow aambundle aamrun
 
 clean:
-			rm -f aamshow aambundle aamshow.exe aambundle.exe *.o
+			rm -f aamshow aambundle aamrun aamshow.exe aambundle.exe aamrun.exe *.o
 
 install:		aamshow aambundle
 			cp aamshow /usr/local/bin/
 			cp aambundle /usr/local/bin/
 
 .PHONY:			all clean install
+
+aamrun:		js/nodefrontend.js js/engine.js
+	pkg -t linux -o aamrun js/nodefrontend.js
 
 aamshow:		aamshow.c crc32.c aavm.c aavm.h crc32.h
 			${CC} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
