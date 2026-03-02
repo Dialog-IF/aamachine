@@ -10,9 +10,10 @@ all:			aamshow aambundle aamrun
 clean:
 			rm -f aamshow aambundle aamrun aamshow.exe aambundle.exe aamrun.exe *.o
 
-install:		aamshow aambundle
+install:		aamshow aambundle aamrun
 			cp aamshow /usr/local/bin/
 			cp aambundle /usr/local/bin/
+			cp aamrun /usr/local/bin
 
 .PHONY:			all clean install
 
@@ -32,6 +33,9 @@ aambundle:		aambundle.c bundle_web.c bundle_c64.c \
 				table_jquery.h \
 				table_play.h
 			${CC} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c
+
+aamrun.exe:		js/nodefrontend.js js/engine.js
+	pkg -t win -o aamrun.exe js/nodefrontend.js
 
 aamshow.exe:		aamshow.c crc32.c aavm.c aavm.h crc32.h
 			${MINGW32} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
