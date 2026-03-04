@@ -27,12 +27,14 @@
 var b64_enc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 var b64_dec = [];
 
+var wants_dark_mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; // https://stackoverflow.com/a/57795495/3233017
+
 var toggles = [
 	{id: "aacbf", text: "Fading text", init: true},
 	{id: "aacbl", text: "Hyperlinks", init: true},
 	{id: "aacbh", text: "Type on hover", init: false},
 	{id: "aacbs", text: "Smooth scrolling", init: false},
-	{id: "aacbn", text: "Night mode", init: false},
+	{id: "aacbn", text: "Night mode", init: wants_dark_mode},
 	{id: "aacba", text: "Always re-focus", init: false},
 	{id: "aacbi", text: "Increase font size", init: false},
 ];
@@ -1357,19 +1359,9 @@ window.run_game = function(story64, options) {
 	function update_night() {
 		var ta = document.getElementById("aascriptinner");
 		if(document.getElementById("aacbn").checked) {
-			$("body").css("background-color", "#000");
-			$("p").css("color", "#ccc");
-			io.aainput.style.color = "#ccc";
-			$("#aastatusborder").css("background-color", "#ccc");
-			ta.style.backgroundColor = "#222";
-			ta.style.color = "#ddd";
+			$("body").addClass("night");
 		} else {
-			$("body").css("background-color", "#eee");
-			$("p").css("color", "#000");
-			io.aainput.style.color = "#000";
-			$("#aastatusborder").css("background-color", "#000");
-			ta.style.backgroundColor = "#ddd";
-			ta.style.color = "#222";
+			$("body").removeClass("night");
 		}
 		if(document.getElementById("aacbi").checked) {
 			$("body").addClass("enlarge");
