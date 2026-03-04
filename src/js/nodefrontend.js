@@ -190,9 +190,9 @@ const io = {
 		if(!this.hidden) {
 			let full = 0;
 			if(this.width <= 0) {
-				full = 80 - 2; // End caps
+				full = 80 - 3; // End caps and safety margin
 			} else {
-				full = this.width - 2;
+				full = this.width - 3;
 			}
 			let first = Math.round(full * (p / total));
 			let second = full - first;
