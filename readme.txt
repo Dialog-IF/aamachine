@@ -127,9 +127,12 @@ Release notes:
 		First community-maintained release! Incrementing the major version
 		per Linus's wishes. 0.*.* remains his for future development.
 		
-		Specification: clear all status areas; nbsp
+		Specification: clear all status areas; nbsp.
 		
-		Web interpreter: supports playing audio
+		Web interpreter: supports playing audio.
+		
+		Distribution: aamrun executable allows running Å-machine programs
+		without installing Node.
 
 	0.5.4:
 
