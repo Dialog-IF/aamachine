@@ -2393,6 +2393,9 @@ function vm_run(e, param) {
 					case 0x43: // interpreter supports quit
 						v = e.havequit? 1 : 0;
 						break;
+					case 0x50: // currently transcripting
+						v = io.script_active()? 1 : 0;
+						break;
 					case 0x60: // interpreter supports top status area
 						v = e.havetop? 1 : 0;
 						break;
