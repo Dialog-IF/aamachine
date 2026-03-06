@@ -2409,7 +2409,7 @@ function vm_run(e, param) {
 						if(a1 < 0x40) { // 00 to 3f return tagged numeric values, so the default is <number,0> instead of just 0
 							v = 0x4000;
 						} // 40 to 7f return raw 0 or 1, so the default of 0 is fine
-						console.log('Unrecognized vminfo ' + a1.toString(16) + '; returning default ' + v.toString(16));
+						console.error('Unrecognized vminfo ' + a1.toString(16) + '; returning default ' + v.toString(16));
 					}
 					store(e.code[e.inst++], v);
 					break;
