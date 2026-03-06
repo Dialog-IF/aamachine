@@ -204,6 +204,9 @@ const io = {
 	},
 	script_off: function() {
 	},
+	script_active: function() {
+		return false;
+	},
 	save: function(filedata) {
 		fs.writeFileSync("saved-game.aasave", filedata);
 		return true;
