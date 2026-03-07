@@ -8,13 +8,17 @@ MINGW32		= i686-w64-mingw32-gcc
 all:			aamshow aambundle
 
 clean:
-			rm -f aamshow aambundle aamshow.exe aambundle.exe *.o
+			rm -f aamshow aambundle aamrun aamshow.exe aambundle.exe aamrun.exe *.o
 
-install:		aamshow aambundle
+install:		aamshow aambundle aamrun
 			cp aamshow /usr/local/bin/
 			cp aambundle /usr/local/bin/
+			cp aamrun /usr/local/bin
 
 .PHONY:			all clean install
+
+aamrun:		js/nodefrontend.js js/engine.js
+	pkg -t linux -o aamrun js/nodefrontend.js
 
 aamshow:		aamshow.c crc32.c aavm.c aavm.h crc32.h
 			${CC} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
@@ -29,6 +33,9 @@ aambundle:		aambundle.c bundle_web.c bundle_c64.c \
 				table_jquery.h \
 				table_play.h
 			${CC} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c
+
+aamrun.exe:		js/nodefrontend.js js/engine.js
+	pkg -t win -o aamrun.exe js/nodefrontend.js
 
 aamshow.exe:		aamshow.c crc32.c aavm.c aavm.h crc32.h
 			${MINGW32} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
