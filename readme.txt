@@ -129,7 +129,10 @@ Release notes:
 		
 		Specification: clear all status areas; nbsp; get div width/height
 		
-		Web interpreter: supports playing audio
+		Web interpreter: supports playing audio.
+		
+		Distribution: aamrun executable allows running Å-machine programs
+		without installing Node.
 
 	0.5.4:
 
