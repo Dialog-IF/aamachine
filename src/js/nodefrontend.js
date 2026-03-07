@@ -5,6 +5,7 @@ const readline = require('readline');
 const aaengine = require('./engine.js');
 
 var status;
+var io_tag_lines = false;
 
 const io = {
 	hidden: false,
@@ -16,6 +17,7 @@ const io = {
 		n = Math.floor(n) + 1;
 		while(this.newlines < n) {
 			process.stdout.write("\n");
+			if(io_tag_lines) process.stdout.write("  ");
 			this.newlines++;
 		}
 		this.xpos = 0;
