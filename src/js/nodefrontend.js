@@ -243,6 +243,18 @@ const io = {
 	}
 };
 
+const add_tag = function(){
+	if(!io_tag_lines) return;
+	process.stdout.write("\n");
+	if(status == aaengine.status.get_input) {
+		process.stdout.write("> ");
+	} else if(status == aaengine.status.get_key) {
+		process.stdout.write(") ");
+	} else {
+		process.stdout.write("  ");
+	}
+}
+
 const rlif = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout,
@@ -253,10 +265,11 @@ var filename, seed;
 
 const usage = function() {
 	console.log("Usage: aamrun [OPTIONS] file.aastory");
-	console.log("    -s            Set random seed");
-	console.log("    -w            Set screen width (default 80)");
-	console.log("    -h, --help    Show this message");
-	console.log("    -v, -V        Show version and exit");
+	console.log("    -s              Set random seed.");
+	console.log("    -w              Set screen width (default 80).");
+	console.log("    -h, --help      Show this message.");
+	console.log("    -v, -V          Show version and exit.");
+	console.log("    -T, --tag-lines Prepend output with \"  \", input with \"> \" or \") \".");
 }
 
 if(argv.v || argv.V) {
@@ -271,6 +284,9 @@ if(argv._.length != 1) {
 if(argv.h || argv.help) {
 	usage();
 	process.exit(0);
+}
+if(argv.T || argv["tag-lines"]) {
+	io_tag_lines = true;
 }
 
 try {
@@ -303,20 +319,27 @@ if(status == aaengine.status.quit) {
 	io.flush();
 	process.exit(0);
 }
+add_tag();
 
 rlif.on('line', (line) => {
 	if(status == aaengine.status.get_key) {
 		for(var i = 0; i < line.length && status == aaengine.status.get_key; i++) {
+			if(io_tag_lines) process.stdout.write("  ");
 			status = aaengine.vm_proceed_with_key(line.charCodeAt(i));
+			add_tag();
 		}
 		if(status == aaengine.status.get_key) {
+			if(io_tag_lines) process.stdout.write("  ");
 			status = aaengine.vm_proceed_with_key(aaengine.keys.KEY_RETURN);
+			add_tag();
 		}
 	} else if(status == aaengine.status.get_input) {
 		io.xpos = 0;
 		io.pending_spaces = 0;
 		io.newlines = 1;
+		if(io_tag_lines) process.stdout.write("  ");
 		status = aaengine.vm_proceed_with_input(line);
+		add_tag();
 	}
 	if(status == aaengine.status.quit) {
 		//console.log(aaengine.mem_info());
