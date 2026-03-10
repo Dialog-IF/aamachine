@@ -954,7 +954,7 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	if(chunk[0].data[0] != 0 || chunk[0].data[1] > 5) {
+	if(chunk[0].data[0] > AAVM_FORMAT_MAJOR || (chunk[0].data[0] == 1 && chunk[0].data[1] > AAVM_FORMAT_MINOR)) {
 		fprintf(stderr, "Error: Unsupported aastory file format version (%d.%d)\n",
 			chunk[0].data[0],
 			chunk[0].data[1]);
