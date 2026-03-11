@@ -915,7 +915,8 @@ window.run_game = function(story64, options) {
 				var old;
 				if(!io.links_enabled || io.viewing_script) {
 					return true;
-				} else if(status == aaengine.status.get_input) {
+				} else if(status == aaengine.status.get_input ||
+						  status == aaengine.status.get_key) {
 					if(document.getElementById("aacb-hovertype").checked) {
 						old = io.protected_inp;
 						if(old && old.length && old[old.length - 1] != " ") old += " ";

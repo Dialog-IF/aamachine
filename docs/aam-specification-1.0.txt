@@ -2605,6 +2605,16 @@ Opcode semantics
 		elseif(SPC == nbsp) output_nbsp()
 		output_sync()
 		arg <- input_get_key() // digits are numbers, others are chars
+		
+		If a link is clicked during a GET_KEY instruction, and the link
+		does not point to a single character or digit, the result is
+		undefined. It may be the first character of the link text, or
+		0d (RETURN), or a special sentinel value. It is not, however, an
+		error: it must return *some* value instead of crashing.
+		
+		(The web frontend currently returns the first character of the
+		link text, but this is an implementation detail, not required
+		by the specification.)
 
 	SCRIPT_ON
 
