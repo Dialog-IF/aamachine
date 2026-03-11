@@ -14,6 +14,12 @@ Changes in v1.0:
 		NBSP
 		CLEAR_STATUS
 	
+	New VM_INFO options:
+	
+		Div width
+		Div height
+		Currently transcripting
+	
 	Removed some previously-deprecated opcodes
 	
 	Expanded key-value options for resources to include ARIA roles
@@ -891,6 +897,7 @@ CODE:
 		41	interpreter supports save/restore
 		42	interpreter supports hyperlinks
 		43	interpreter supports quit
+		50	currently transcripting				[spec 1.0]
 		60	interpreter supports top status		[spec 0.5]
 		61	interpreter supports inline status	[spec 0.5]
 		

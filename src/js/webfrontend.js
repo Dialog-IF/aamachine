@@ -1073,6 +1073,9 @@ window.run_game = function(story64, options) {
 		},
 		script_off: function() {
 		},
+		script_active: function() {
+			return true;
+		},
 		save: function(filedata) {
 			var fname, now, dstr, tstr;
 			now = new Date();
