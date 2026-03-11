@@ -134,6 +134,9 @@ Release notes:
 		Web interpreter: supports enlarged text.
 		
 		Web interpreter: theming is more flexible.
+		
+		Distribution: aamrun executable allows running Å-machine programs
+		without installing Node.
 
 	0.5.4:
 
