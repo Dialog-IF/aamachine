@@ -288,12 +288,9 @@ if(argv.h || argv.help) {
 	usage();
 	process.exit(0);
 }
-<<<<<<< line-tagging
 if(argv.T || argv["tag-lines"]) {
 	io_tag_lines = true;
 }
-=======
->>>>>>> main
 
 try {
 	if(argv.s) {
