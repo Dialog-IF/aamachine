@@ -27,14 +27,16 @@
 var b64_enc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 var b64_dec = [];
 
+var wants_dark_mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; // https://stackoverflow.com/a/57795495/3233017
+
 var toggles = [
-	{id: "aacbf", text: "Fading text", init: true},
-	{id: "aacbl", text: "Hyperlinks", init: true},
-	{id: "aacbh", text: "Type on hover", init: false},
-	{id: "aacbs", text: "Smooth scrolling", init: false},
-	{id: "aacbn", text: "Night mode", init: false},
-	{id: "aacba", text: "Always re-focus", init: false},
-	{id: "aacbi", text: "Increase font size", init: false},
+	{id: "aacb-fade", text: "Fading text", init: true},
+	{id: "aacb-links", text: "Hyperlinks", init: true},
+	{id: "aacb-hovertype", text: "Type on hover", init: false},
+	{id: "aacb-smoothscroll", text: "Smooth scrolling", init: false},
+	{id: "aacb-dark", text: "Night mode", init: wants_dark_mode},
+	{id: "aacb-refocus", text: "Always re-focus", init: false},
+	{id: "aacb-large", text: "Increase font size", init: false},
 ];
 
 var aaengine;
@@ -371,7 +373,7 @@ function errormsg(str) {
 
 function scroll_to(anchor) {
 	setTimeout(function() {
-		var b =	document.getElementById("aacbs").checked? "smooth" : "auto";
+		var b =	document.getElementById("aacb-smoothscroll").checked? "smooth" : "auto";
 		anchor.scrollIntoView({behavior: b, block: "start"});
 	}, 1);
 }
@@ -459,7 +461,7 @@ window.run_game = function(story64, options) {
 			this.transcript.par();
 			this.scroll_anchor = null;
 			this.divs = [];
-			this.links_enabled = document.getElementById("aacbl").checked;
+			this.links_enabled = document.getElementById("aacb-links").checked;
 		},
 		clear_all: function() {
 			if(!this.in_status) {
@@ -497,7 +499,7 @@ window.run_game = function(story64, options) {
 				list.off('mouseover click');
 				list.removeClass(cl).addClass('aadeadlink');
 				// 1 is a workaround because Safari doesn't retrigger the animation.
-				if(1 || !document.getElementById("aacbf").checked || !io.links_enabled) {
+				if(1 || !document.getElementById("aacb-fade").checked || !io.links_enabled) {
 					list.css("animation-name", "none");
 					list.css("color", "inherit");
 				}
@@ -553,7 +555,7 @@ window.run_game = function(story64, options) {
 						return false;
 					});
 					io.scroll_anchor = btndiv;
-					if(!document.getElementById("aacbf").checked) {
+					if(!document.getElementById("aacb-fade").checked) {
 						btndiv.style["animation-name"] = "none";
 					}
 				}
@@ -594,10 +596,10 @@ window.run_game = function(story64, options) {
 				if(this.after_text) {
 					p.style["margin-top"] = "1em";
 				}
-				if(!document.getElementById("aacbf").checked) {
+				if(!document.getElementById("aacb-fade").checked) {
 					p.style["animation-name"] = "none";
 				}
-				if(document.getElementById("aacbn").checked) {
+				if(document.getElementById("aacb-dark").checked) {
 					p.style.color = "#ccc";
 				}
 				this.current.appendChild(p);
@@ -898,14 +900,14 @@ window.run_game = function(story64, options) {
 		install_link: function(span, str) {
 			$(span).on("mouseover", function() {
 				var old;
-				if(status == aaengine.status.get_input && io.links_enabled && document.getElementById("aacbh").checked) {
+				if(status == aaengine.status.get_input && io.links_enabled && document.getElementById("aacb-hovertype").checked) {
 					old = io.protected_inp;
 					if(old && old.length && old[old.length - 1] != " ") old += " ";
 					$(io.aainput).val(old + str);
 				}
 			});
 			$(span).on("mouseout", function() {
-				if(status == aaengine.status.get_input && io.links_enabled && document.getElementById("aacbh").checked) {
+				if(status == aaengine.status.get_input && io.links_enabled && document.getElementById("aacb-hovertype").checked) {
 					$(io.aainput).val(io.protected_inp);
 				}
 			});
@@ -914,7 +916,7 @@ window.run_game = function(story64, options) {
 				if(!io.links_enabled || io.viewing_script) {
 					return true;
 				} else if(status == aaengine.status.get_input) {
-					if(document.getElementById("aacbh").checked) {
+					if(document.getElementById("aacb-hovertype").checked) {
 						old = io.protected_inp;
 						if(old && old.length && old[old.length - 1] != " ") old += " ";
 					} else {
@@ -1072,6 +1074,9 @@ window.run_game = function(story64, options) {
 			return false;
 		},
 		script_off: function() {
+		},
+		script_active: function() {
+			return true;
 		},
 		save: function(filedata) {
 			var fname, now, dstr, tstr;
@@ -1354,24 +1359,13 @@ window.run_game = function(story64, options) {
 		}
 	});
 
-	function update_night() {
-		var ta = document.getElementById("aascriptinner");
-		if(document.getElementById("aacbn").checked) {
-			$("body").css("background-color", "#000");
-			$("p").css("color", "#ccc");
-			io.aainput.style.color = "#ccc";
-			$("#aastatusborder").css("background-color", "#ccc");
-			ta.style.backgroundColor = "#222";
-			ta.style.color = "#ddd";
+	function update_globalstyle() {
+		if(document.getElementById("aacb-dark").checked) {
+			$("body").addClass("night");
 		} else {
-			$("body").css("background-color", "#eee");
-			$("p").css("color", "#000");
-			io.aainput.style.color = "#000";
-			$("#aastatusborder").css("background-color", "#000");
-			ta.style.backgroundColor = "#ddd";
-			ta.style.color = "#222";
+			$("body").removeClass("night");
 		}
-		if(document.getElementById("aacbi").checked) {
+		if(document.getElementById("aacb-large").checked) {
 			$("body").addClass("enlarge");
 		} else {
 			$("body").removeClass("enlarge");
@@ -1382,7 +1376,7 @@ window.run_game = function(story64, options) {
 	function update_hyperlinks() {
 		var en;
 
-		en = document.getElementById("aacbl").checked;
+		en = document.getElementById("aacb-links").checked;
 		if(en != io.links_enabled) {
 			io.links_enabled = en;
 			if(en) {
@@ -1393,24 +1387,24 @@ window.run_game = function(story64, options) {
 		}
 	}
 
-	$("#aacbn").on("change", function() {
-		update_night();
+	$("#aacb-dark").on("change", function() {
+		update_globalstyle();
 	});
 	
-	$("#aacbi").on("change", function() {
-		update_night();
+	$("#aacb-large").on("change", function() {
+		update_globalstyle();
 	});
 
-	$("#aacbf").on("change", function() {
+	$("#aacb-fade").on("change", function() {
 		io.maybe_focus();
 	});
 
-	$("#aacbl").on("change", function() {
+	$("#aacb-links").on("change", function() {
 		update_hyperlinks();
 	});
 
-	$("#aacba").on("change", function() {
-		io.always_refocus = document.getElementById("aacba").checked;
+	$("#aacb-refocus").on("change", function() {
+		io.always_refocus = document.getElementById("aacb-refocus").checked;
 		io.maybe_focus();
 	});
 
@@ -1505,7 +1499,7 @@ window.run_game = function(story64, options) {
 		io.adjust_size();
 	});
 
-	update_night();
+	update_globalstyle();
 
 	aaengine = window.aaengine;
 	aaengine.prepare_story(storybytes, io, undefined, false, true, true);
@@ -1587,7 +1581,7 @@ window.run_game = function(story64, options) {
 		if(e != 0) console.log(e);
 		status = aaengine.async_restart();
 	}
-	update_night();
+	update_globalstyle();
 	update_hyperlinks();
 	io.scroll_anchor = null;
 	io.activate_input();

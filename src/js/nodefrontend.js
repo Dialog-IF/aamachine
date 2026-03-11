@@ -229,6 +229,9 @@ const io = {
 	},
 	script_off: function() {
 	},
+	script_active: function() {
+		return false;
+	},
 	save: function(filedata) {
 		fs.writeFileSync("saved-game.aasave", filedata);
 		return true;
@@ -285,9 +288,12 @@ if(argv.h || argv.help) {
 	usage();
 	process.exit(0);
 }
+<<<<<<< line-tagging
 if(argv.T || argv["tag-lines"]) {
 	io_tag_lines = true;
 }
+=======
+>>>>>>> main
 
 try {
 	if(argv.s) {

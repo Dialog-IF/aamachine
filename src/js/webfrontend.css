@@ -1,9 +1,40 @@
+/* If using Google web fonts, import them here, before anything else */
+
+/* Original:
 html {
+	--black: #000000;
+	--white: #eeeeee;
+	--darkgray: #222222;
+	--medgray: #888888;
+	--lightgray: #cccccc;
+	--offwhite: #dddddd;
+	--progtop: #d3d3d3;
+	--progbot: #c4c4c4;
+	--link: #875;
+	--alink: #aa8;
+}
+*/
+
+html {
+	--black: #000000; /* Used for overall background in night mode and text in day mode */
+	--white: #eeeeee; /* Used for overall background in day mode and menu options when hovered */
+	--darkgray: #222222; /* Used for transcript text/background depending on mode */
+	--medgray: #888888; /* Used for the menu lines, "close" button on the transcript, and "about" background */
+	--lightgray: #cccccc; /* Used for text in night mode, menu background, progress bar outline */
+	--offwhite: #dddddd; /* Used for menu lines and "close" button hover, transcript text/background */
+	--progtop: #d3d3d3; /* Top half of the progress bar */
+	--progbot: #c4c4c4; /* Bottom half of the progress bar */
+	--link: #875; /* Links */
+	--alink: #aa8; /* Hovered links */
 }
 
 body {
-	background-color: #eeeeee;
-	color: #000000;
+	background-color: var(--white);
+	color: var(--black);
+}
+
+body.night {
+	background-color: var(--black);
 }
 
 body.enlarge {
@@ -31,9 +62,13 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 
 #aastatusborder {
 	height: .1em;
-	background-color: #000;
+	background-color: var(--black);
 	opacity: 0;
 	animation-fill-mode: both;
+}
+
+.night #aastatusborder {
+	background-color: var(--lightgray);
 }
 
 #aastatus {
@@ -50,14 +85,14 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 }
 
 .aaprogress {
-	background-color: #c4c4c4;
+	background-color: var(--progbot);
 	height: .31em;
-	border-top: .19em solid #d3d3d3;
+	border-top: .19em solid var(--progtop);
 }
 
 .aaouterprogress {
 	border-radius: .3em;
-	border: .1em solid #ccc;
+	border: .1em solid var(--lightgray);
 	margin-top: .2em;
 	text-align: left;
 	overflow: hidden;
@@ -76,14 +111,14 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	margin-top: .3em;
 	width: 1.0em;
 	height: .125em;
-	border-top: .375em double #888;
-	border-bottom: .125em solid #888;
+	border-top: .375em double var(--medgray);
+	border-bottom: .125em solid var(--medgray);
 	cursor: pointer;
 	float: right;
 }
 
 #aamenulines:hover {
-	border-color: #ddd;
+	border-color: var(--offwhite);
 }
 
 .aacb {
@@ -104,7 +139,7 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 }
 
 #aamenulist {
-	background-color: #cccccc;
+	background-color: var(--lightgray);
 	border: 2px solid #eee;
 	border-radius: .3em;
 	padding: .2em;
@@ -118,7 +153,7 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 }
 
 #aamenulist div:hover {
-	color: #eee;
+	color: var(--white);
 }
 
 #aaform {
@@ -146,6 +181,13 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	width: 100%;
 	border: 0px;
 	padding: .2em;
+	background-color: var(--offwhite);
+	color: var(--darkgray);
+}
+
+.night #aascriptinner {
+	background-color: var(--darkgray);
+	color: var(--offwhite);
 }
 
 #aascriptclose {
@@ -155,11 +197,11 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	text-align: center;
 	margin: auto;
 	padding: .1em;
-	background-color: #bbb;
+	background-color: var(--medgray);
 }
 
 #aascriptclose:hover {
-	background-color: #ddd;
+	background-color: var(--offwhite);
 }
 
 #aainput {
@@ -170,9 +212,13 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	font-size: 1em;
 	display: none;
 	background-color: transparent;
-	color: #000;
+	color: var(--black);
 	padding: 0;
 	height: 1.1em;
+}
+
+.night #aainput {
+	color: var(--lightgray);
 }
 
 @keyframes fadein {
@@ -190,8 +236,12 @@ p {
 	animation-duration: .9s;
 	animation-delay: .1s;
 	animation-fill-mode: both;
-	color: #000;
+	color: var(--black);
 	width: 100%;
+}
+
+.night p {
+	color: var(--lightgray);
 }
 
 #aastatus p {
@@ -205,25 +255,25 @@ a {
 }
 
 .aalink {
-	color: #875;
+	color: var(--link);
 	cursor: pointer;
 }
 
 .aalink:hover {
-	color: #aa8;
+	color: var(--alink);
 }
 
 .aailink {
-	color: #875;
+	color: var(--link);
 }
 
 .aailink:hover {
-	color: #aa8;
+	color: var(--alink);
 }
 
 @keyframes fadelink {
 	0% {
-		color: #875;
+		color: var(--link);
 	}
 	to {
 		color: inherit;
@@ -246,7 +296,7 @@ a {
 .aareveal {
 	margin-top: .8em;
 	margin-bottom: .8em;
-	color: #875;
+	color: var(--link);
 	animation-name: fadein;
 	animation-duration: .9s;
 	animation-delay: .1s;
@@ -256,7 +306,7 @@ a {
 }
 
 .aareveal:hover {
-	color: #aa8;
+	color: var(--alink);
 }
 
 #aaaboutouter {
@@ -276,7 +326,7 @@ a {
 }
 
 #aaaboutinner {
-	background-color: #bbb;
+	background-color: var(--medgray);
 	border: .1em solid black;
 	border-radius: .3em;
 	width: 20em;
