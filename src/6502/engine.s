@@ -3747,6 +3747,14 @@ skip2
 	jmp	ldyfetchnext
 	.)
 
+op_bstyle ; Currently does nothing except error if in a span
+	.(
+	lda	nspan
+	beq ldyfetchnext
+	lda	#7
+	jmp	error
+	.)
+
 op_en_lv_span
 	.(
 	bcs	leave
@@ -5702,6 +5710,8 @@ multi
 
 op_progress
 	.(
+	bcs op_bstyle ; $ed is a separate op from $6d
+	
 	jsr	fetchvalderef
 	jsr	fetchvalderef
 	sty	`pclsb
