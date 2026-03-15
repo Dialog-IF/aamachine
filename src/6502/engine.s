@@ -3750,8 +3750,10 @@ skip2
 op_bstyle ; Currently does nothing except error if in a span
 	.(
 	lda	nspan
-	beq err
-	jmp ldyfetchnext
+	ora	stflag
+	bne err
+	jsr fetchindex ; Don't leave the operand lying around
+	jmp fetchnext ; We didn't touch Y
 err
 	lda	#7
 	jmp	error
@@ -7980,7 +7982,7 @@ cdone
 	jmp	ldystorefetchnext
 	.)
 
-N_EXT0	= $12
+N_EXT0	= $14
 ext0_lsb
 	.byt	<ext0_quit	; 00
 	.byt	<ext0_restart	; 01
@@ -8021,8 +8023,8 @@ ext0_msb
 	.byt	>ext0_clr_links	; 0f
 	.byt	>ext0_clr_old	; 10
 	.byt	>ext0_clr_div	; 11
-	.byt	<ext0_clr_status	; 12
-	.byt	<ext0_nbsp	; 13
+	.byt	>ext0_clr_status	; 12
+	.byt	>ext0_nbsp	; 13
 
 ext0_quit
 	jsr	io_mflush
@@ -9651,11 +9653,10 @@ loop1
 	lda	#$ff
 	sta	escbnd
 
-	; check major version, branch to highversion if >=1
+	; check major version, branch to highversion if !=0
 	ldy	#1
 	lda	(hdbase),y
-	cmp	#1
-	bcs	highversion
+	bne	highversion
 	; check minor version, branch to done if <4
 	ldy	#1+1
 	lda	(hdbase),y
