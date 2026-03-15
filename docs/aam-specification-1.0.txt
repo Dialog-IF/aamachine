@@ -853,7 +853,7 @@ CODE:
 
 	6d	PROGRESS		VALUE VALUE
 
-	6e	SET_BODY		INDEX			[spec 1.0]
+	ed	SET_BODY		INDEX			[spec 1.0]
 
 	6e	ENTER_SPAN		INDEX			[spec 0.4]
 	ee	LEAVE_SPAN					[spec 0.4]
