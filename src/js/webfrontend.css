@@ -239,11 +239,11 @@ p {
 	width: 100%;
 }
 
-#aamainwrapper {
+#aamain {
 	color: var(--black);
 }
 
-.night #aamainwrapper {
+.night #aamain {
 	color: var(--lightgray);
 }
 

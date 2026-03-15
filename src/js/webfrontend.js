@@ -184,14 +184,9 @@ function createdoc() {
 	cont.innerHTML = "About";
 	list.appendChild(cont);
 
-	// Extra layer of wrapping for set_body reasons
 	inner = document.createElement("div");
-	inner.setAttribute("id", "aastatuswrapper");
+	inner.setAttribute("id", "aastatus");
 	outer.appendChild(inner);
-
-	line = document.createElement("div");
-	line.setAttribute("id", "aastatus");
-	inner.appendChild(line);
 
 	outer = document.createElement("div");
 	outer.setAttribute("id", "aastatusborder");
@@ -238,15 +233,10 @@ function createdoc() {
 	form.setAttribute("autocomplete", "off");
 	top.appendChild(form);
 
-	// Extra layer of wrapping for set_body reasons
-	let wrap = document.createElement("div");
-	wrap.setAttribute("id", "aamainwrapper");
-	form.appendChild(wrap);
-
 	main = document.createElement("div");
 	main.setAttribute("id", "aamain");
 	main.setAttribute("aria-live", "polite");
-	wrap.appendChild(main);
+	form.appendChild(main);
 
 	div = document.createElement("div");
 	div.setAttribute("id", "aascriptouter");
@@ -798,14 +788,13 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "us"});
 		},
 		set_body: function(id) {
-			$("#aamain").removeClass();
-			$("#aastatuswrapper").removeClass();
+			$("body").removeClass();
 			if(id !== null) { // Can be called with no id to reset
 				var cls = this.style_data[id].name;
-				$("#aamain").addClass(cls);
-				$("#aastatuswrapper").addClass(cls);
+				$("body").addClass(cls);
 				this.currarray.push({t: "sb", i: id});
 			}
+			update_globalstyle(); // Restore enlarge and night styles if applicable
 		},
 		enter_div: function(id) {
 			var div, sty;
