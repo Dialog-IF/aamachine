@@ -236,11 +236,14 @@ p {
 	animation-duration: .9s;
 	animation-delay: .1s;
 	animation-fill-mode: both;
-	color: var(--black);
 	width: 100%;
 }
 
-.night p {
+#aamain {
+	color: var(--black);
+}
+
+.night #aamain {
 	color: var(--lightgray);
 }
 

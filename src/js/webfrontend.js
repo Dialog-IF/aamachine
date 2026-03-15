@@ -341,6 +341,8 @@ function prepare_styles(styles, style_data) {
 
 	for(i = 0; i < styles.length; i++) {
 		let name = "aa-" + (styles[i]["style-name"] || i);
+		name = name.replace(/[^a-z0-9]/g, '_');
+		if(name in style_data) name = "aax-" + i; // Emergency fallback, guaranteed not to conflict
 		style_data[i] = { name:name, attrs:{} };
 		
 		html += "." + name + " {";
@@ -462,6 +464,7 @@ window.run_game = function(story64, options) {
 			this.scroll_anchor = null;
 			this.divs = [];
 			this.links_enabled = document.getElementById("aacb-links").checked;
+			this.set_body(null);
 		},
 		clear_all: function() {
 			if(!this.in_status) {
@@ -598,9 +601,6 @@ window.run_game = function(story64, options) {
 				}
 				if(!document.getElementById("aacb-fade").checked) {
 					p.style["animation-name"] = "none";
-				}
-				if(document.getElementById("aacb-dark").checked) {
-					p.style.color = "#ccc";
 				}
 				this.current.appendChild(p);
 				this.current = p;
@@ -786,6 +786,15 @@ window.run_game = function(story64, options) {
 		unstyle: function() {
 			this.raw_unstyle();
 			this.currarray.push({t: "us"});
+		},
+		set_body: function(id) {
+			$("body").removeClass();
+			if(id !== null) { // Can be called with no id to reset
+				var cls = this.style_data[id].name;
+				$("body").addClass(cls);
+				this.currarray.push({t: "sb", i: id});
+			}
+			update_globalstyle(); // Restore enlarge and night styles if applicable
 		},
 		enter_div: function(id) {
 			var div, sty;
@@ -1242,6 +1251,8 @@ window.run_game = function(story64, options) {
 					this.resetstyle(e.s);
 				} else if(t == "us") { // Unstyle
 					this.unstyle();
+				} else if(t == "sb") { // Set body
+					this.set_body(e.i);
 				} else if(t == "el") { // Enter link
 					this.enter_link(e.s);
 				} else if(t == "ll") { // Leave link
