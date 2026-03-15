@@ -206,6 +206,7 @@ var opcodes = {
     0x6c: 'embed-res',
     0xec: 'res-embeddable?',
     0x6d: 'progress',
+    0xed: 'set-body',
     0x6e: 'enter-span',
     0xee: 'leave-span',
     0x6f: 'enter-status',
@@ -2360,6 +2361,13 @@ function vm_run(e, param) {
 						}
 					}
 					break;
+				case 0xed: // set_body index
+					a1 = findex();
+					if(e.in_status || e.n_span) {
+						throw IOSTATE;
+					}
+					io.set_body(a1);
+					break;
 				case 0x6e: // enter_span index
 					a1 = findex();
 					if(!e.cwl) {
@@ -2384,7 +2392,7 @@ function vm_run(e, param) {
 							throw IOSTATE;
 						}
 						io.enter_status(a1, a2);
-						e.in_status = a2;
+						e.in_status = a1;
 						e.spc = e.SP_PAR;
 					}
 					break;

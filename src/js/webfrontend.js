@@ -341,6 +341,8 @@ function prepare_styles(styles, style_data) {
 
 	for(i = 0; i < styles.length; i++) {
 		let name = "aa-" + (styles[i]["style-name"] || i);
+		name = name.replace(/[^a-z0-9]/g, '_');
+		if(name in style_data) name = "aax-" + i; // Emergency fallback, guaranteed not to conflict
 		style_data[i] = { name:name, attrs:{} };
 		
 		html += "." + name + " {";
@@ -786,6 +788,12 @@ window.run_game = function(story64, options) {
 		unstyle: function() {
 			this.raw_unstyle();
 			this.currarray.push({t: "us"});
+		},
+		set_body: function(id) {
+			var cls = this.style_data[id].name;
+			$("aacontainer").removeClass();
+			$("aacontainer").addClass(cls);
+			this.currarray.push({t: "sb", i: id});
 		},
 		enter_div: function(id) {
 			var div, sty;
@@ -1242,6 +1250,8 @@ window.run_game = function(story64, options) {
 					this.resetstyle(e.s);
 				} else if(t == "us") { // Unstyle
 					this.unstyle();
+				} else if(t == "sb") { // Set body
+					this.set_body(e.i);
 				} else if(t == "el") { // Enter link
 					this.enter_link(e.s);
 				} else if(t == "ll") { // Leave link

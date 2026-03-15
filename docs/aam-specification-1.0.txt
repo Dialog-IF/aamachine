@@ -13,6 +13,7 @@ Changes in v1.0:
 	
 		NBSP
 		CLEAR_STATUS
+		SET_BODY
 	
 	New VM_INFO options:
 	
@@ -852,7 +853,9 @@ CODE:
 
 	6d	PROGRESS		VALUE VALUE
 
-	6e	ENTER_SPAN		VALUE			[spec 0.4]
+	6e	SET_BODY		INDEX			[spec 1.0]
+
+	6e	ENTER_SPAN		INDEX			[spec 0.4]
 	ee	LEAVE_SPAN					[spec 0.4]
 
 	6f	ENTER_STATUS		BYTE INDEX		[spec 0.5]
@@ -971,6 +974,8 @@ Output model
 
 		output_enterspan(style_class)
 		output_leavespan()
+
+		output_setbody(style_class)
 
 		output_enter_selflink()
 		output_leave_selflink()
@@ -2380,6 +2385,15 @@ Opcode semantics
 		if(CWL == 0) {
 			output_resetstyle(arg)
 		}
+
+	SET_BODY		INDEX
+
+		if(inStatus || nSpan > 0) runtime_error(7)
+		output_setbody(arg)
+		
+		output_setbody applies a style class to the main body of the
+		document, if possible. Whether this affects existing text is
+		left to the implementation.
 
 	UNSTYLE
 
