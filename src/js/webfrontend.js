@@ -32,11 +32,11 @@ var wants_dark_mode = window.matchMedia && window.matchMedia('(prefers-color-sch
 var toggles = [
 	{id: "aacb-fade", text: "Fading text", init: true},
 	{id: "aacb-links", text: "Hyperlinks", init: true},
-	{id: "aacb-hovertype", text: "Type on hover", init: false},
+	{id: "aacb-hovertype", text: "Link previews", init: true},
 	{id: "aacb-smoothscroll", text: "Smooth scrolling", init: false},
-	{id: "aacb-dark", text: "Night mode", init: wants_dark_mode},
+	{id: "aacb-dark", text: "Dark theme", init: wants_dark_mode},
 	{id: "aacb-refocus", text: "Always re-focus", init: false},
-	{id: "aacb-large", text: "Increase font size", init: false},
+	{id: "aacb-large", text: "Larger text", init: false},
 ];
 
 var aaengine;
