@@ -1,31 +1,54 @@
 /* If using Google web fonts, import them here, before anything else */
 
 html {
-	--black: #000000; /* Used for overall background in night mode and text in day mode */
-	--white: #eeeeee; /* Used for overall background in day mode and menu options when hovered */
-	--darkgray: #222222; /* Used for transcript text/background depending on mode */
-	--medgray: #888888; /* Used for the menu lines, "close" button on the transcript, and "about" background */
-	--lightgray: #cccccc; /* Used for text in night mode, menu background, progress bar outline */
-	--offwhite: #dddddd; /* Used for menu lines and "close" button hover, transcript text/background */
-	--progtop: #d3d3d3; /* Top half of the progress bar */
-	--progbot: #c4c4c4; /* Bottom half of the progress bar */
-	--link: #875; /* Links */
-	--alink: #aa8; /* Hovered links */
+	/* These six basic colors are used for most of the interface */
+	/* See below for how they're applied */
+	--black: #000000;
+	--white: #eeeeee;
+	--darkgray: #222222;
+	--medgray: #888888;
+	--lightgray: #cccccc;
+	--offwhite: #dddddd;
+	
+	--dark-bg: var(--black); /* Night mode background */
+	--dark-fg: var(--lightgray); /* Night mode text */
+	--light-bg: var(--white); /* Day mode background */
+	--light-fg: var(--black); /* Day mode text */
+	--ui: var(--medgray); /* UI elements like menu lines and buttons */
+	--ui-hover: var(--offwhite); /* UI elements when hovered */
+	--menu-bg: var(--lightgray); /* Menu backgrounds */
+	--menu-fg: var(--black); /* Menu text */
+	--menu-hover: var(--white); /* Menu text when hovered */
+	--panel-dark: var(--darkgray); /* Transcript panel bg/fg depending on mode */
+	--panel-light: var(--offwhite); /* Transcript panel fg/bg depending on mode */
+	
+	--progress-bg: var(--lightgray); /* Background of progress bar */
+	--progress-top: #d3d3d3; /* Top half of progress bar */
+	--progress-bottom: #c4c4c4; /* Bottom half of progress bar */
+	
+	--dark-link: #875; /* Night mode link */
+	--dark-link-hover: #aa8; /* Night mode link, hovered */
+	--light-link: #875; /* Day mode link */
+	--light-link-hover: #aa8; /* Day mode link, hovered */
 	
 	--statusfont: Geneva, sans-serif; /* Status bar and menus */
 	--bodyfont: Georgia, serif; /* Main body text */
 }
 
 body {
-	--bgcolor: var(--white);
-	--textcolor: var(--black);
+	--bgcolor: var(--light-bg);
+	--textcolor: var(--light-fg);
+	--link: var(--light-link);
+	--alink: var(--light-link-hover);
 	background-color: var(--bgcolor);
 	color: var(--textcolor);
 }
 
 body.night {
-	--bgcolor: var(--black);
-	--textcolor: var(--lightgray);
+	--bgcolor: var(--dark-bg);
+	--textcolor: var(--dark-fg);
+	--link: var(--dark-link);
+	--alink: var(--dark-link-hover);
 }
 
 body.enlarge {
@@ -75,14 +98,14 @@ h2 {
 }
 
 .aaprogress {
-	background-color: var(--progbot);
+	background-color: var(--progress-bottom);
 	height: .31em;
-	border-top: .19em solid var(--progtop);
+	border-top: .19em solid var(--progress-top);
 }
 
 .aaouterprogress {
 	border-radius: .3em;
-	border: .1em solid var(--lightgray);
+	border: .1em solid var(--progress-bg);
 	margin-top: .2em;
 	text-align: left;
 	overflow: hidden;
@@ -101,14 +124,14 @@ h2 {
 	margin-top: .3em;
 	width: 1.0em;
 	height: .125em;
-	border-top: .375em double var(--medgray);
-	border-bottom: .125em solid var(--medgray);
+	border-top: .375em double var(--ui);
+	border-bottom: .125em solid var(--ui);
 	cursor: pointer;
 	float: right;
 }
 
 #aamenulines:hover {
-	border-color: var(--offwhite);
+	border-color: var(--ui-hover);
 }
 
 .aacb {
@@ -129,8 +152,8 @@ h2 {
 }
 
 #aamenulist {
-	background-color: var(--lightgray);
-	color: var(--black);
+	background-color: var(--menu-bg);
+	color: var(--menu-fg);
 	border: 2px solid #eee;
 	border-radius: .3em;
 	padding: .2em;
@@ -144,7 +167,7 @@ h2 {
 }
 
 .aamenuoption:hover {
-	color: var(--white);
+	color: var(--menu-hover);
 }
 
 #aabody { /* A wrapper with no existence of its own */
@@ -176,13 +199,13 @@ h2 {
 	width: 100%;
 	border: 0px;
 	padding: .2em;
-	background-color: var(--offwhite);
-	color: var(--darkgray);
+	background-color: var(--panel-light);
+	color: var(--panel-dark);
 }
 
 .night #aascriptinner {
-	background-color: var(--darkgray);
-	color: var(--offwhite);
+	background-color: var(--panel-dark);
+	color: var(--panel-light);
 }
 
 #aascriptclose {
@@ -192,12 +215,12 @@ h2 {
 	text-align: center;
 	margin: auto;
 	padding: .1em;
-	/* Inherits color from #aascriptinner */
-	background-color: var(--medgray);
+	background-color: var(--ui);
+	color: var(--menu-fg);
 }
 
 #aascriptclose:hover {
-	background-color: var(--offwhite);
+	background-color: var(--ui-hover);
 }
 
 #aainput {
@@ -313,7 +336,7 @@ a {
 }
 
 #aaaboutinner, #aaerrorinner {
-	background-color: var(--medgray);
+	background-color: var(--ui);
 	border: .1em solid black;
 	border-radius: .3em;
 	width: 20em;
