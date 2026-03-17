@@ -22,6 +22,7 @@ html {
 	--panel-dark: var(--darkgray); /* Transcript panel bg/fg depending on mode */
 	--panel-light: var(--offwhite); /* Transcript panel fg/bg depending on mode */
 	
+	/* These ones have different (non-monochrome) colors coded in */
 	--progress-bg: var(--lightgray); /* Background of progress bar */
 	--progress-top: #d3d3d3; /* Top half of progress bar */
 	--progress-bottom: #c4c4c4; /* Bottom half of progress bar */
@@ -31,24 +32,24 @@ html {
 	--light-link: #875; /* Day mode link */
 	--light-link-hover: #aa8; /* Day mode link, hovered */
 	
-	--statusfont: Geneva, sans-serif; /* Status bar and menus */
-	--bodyfont: Georgia, serif; /* Main body text */
+	--font-status: Geneva, sans-serif; /* Status bar and menus */
+	--font-body: Georgia, serif; /* Main body text */
 }
 
 body {
-	--bgcolor: var(--light-bg);
-	--textcolor: var(--light-fg);
+	--bg: var(--light-bg);
+	--text: var(--light-fg);
 	--link: var(--light-link);
-	--alink: var(--light-link-hover);
-	background-color: var(--bgcolor);
-	color: var(--textcolor);
+	--link-hover: var(--light-link-hover);
+	background-color: var(--bg);
+	color: var(--text);
 }
 
 body.night {
-	--bgcolor: var(--dark-bg);
-	--textcolor: var(--dark-fg);
+	--bg: var(--dark-bg);
+	--text: var(--dark-fg);
 	--link: var(--dark-link);
-	--alink: var(--dark-link-hover);
+	--link-hover: var(--dark-link-hover);
 }
 
 body.enlarge {
@@ -79,7 +80,7 @@ h2 {
 
 #aastatusborder {
 	height: .1em;
-	background-color: var(--textcolor);
+	background-color: var(--text);
 	opacity: 0; /* Fades in over one second when a status bar is created */
 	animation-fill-mode: both;
 }
@@ -87,7 +88,7 @@ h2 {
 #aastatus {
 	padding-left: .3em;
 	padding-right: .3em;
-	font-family: var(--statusfont);
+	font-family: var(--font-status);
 	min-height: 1.2em;
 	overflow: hidden;
 	display: none;
@@ -180,7 +181,7 @@ h2 {
 
 #aamain {
 	overflow-y: auto;
-	font-family: var(--bodyfont);
+	font-family: var(--font-body);
 	height: 80%;
 	margin: .3em;
 	padding-right: 1.3em;
@@ -227,7 +228,7 @@ h2 {
 	width: 100%;
 	border: none;
 	outline: none;
-	font-family: var(--bodyfont);
+	font-family: var(--font-body);
 	font-size: 1em;
 	display: none;
 	background-color: transparent;
@@ -270,7 +271,7 @@ a {
 }
 
 .aalink:hover {
-	color: var(--alink);
+	color: var(--link-hover);
 }
 
 .aailink {
@@ -278,7 +279,7 @@ a {
 }
 
 .aailink:hover {
-	color: var(--alink);
+	color: var(--link-hover);
 }
 
 @keyframes fadelink {
@@ -316,7 +317,7 @@ a {
 }
 
 .aareveal:hover {
-	color: var(--alink);
+	color: var(--link-hover);
 }
 
 #aaaboutouter {
@@ -387,5 +388,5 @@ img {
 }
 
 .aaspanunf {
-	font-family: var(--bodyfont);
+	font-family: var(--font-body);
 }
