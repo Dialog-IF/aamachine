@@ -26,22 +26,31 @@ html {
 	--progbot: #c4c4c4; /* Bottom half of the progress bar */
 	--link: #875; /* Links */
 	--alink: #aa8; /* Hovered links */
+	
+	--statusfont: Geneva, sans-serif;
+	--bodyfont: Georgia, serif;
 }
 
 body {
-	background-color: var(--white);
-	color: var(--black);
+	--bgcolor: var(--white);
+	--textcolor: var(--black);
+	background-color: var(--bgcolor);
+	color: var(--textcolor);
 }
 
 body.night {
-	background-color: var(--black);
+	--bgcolor: var(--black);
+	--textcolor: var(--lightgray);
 }
 
 body.enlarge {
 	font-size: 2em;
 }
 
-h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-central/source/layout/style/res/html.css */
+/* This undoes the normal h2 styling from https://searchfox.org/mozilla-central/source/layout/style/res/html.css */
+/* We're using h2 elements for each past player input, so that screen readers can easily jump to them */
+/* But that means we don't want them to be styled like h2s, we want them to be styled like normal text */
+h2 {
 	display: inline;
 	font-size: 1em;
 	font-weight: normal;
@@ -62,19 +71,15 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 
 #aastatusborder {
 	height: .1em;
-	background-color: var(--black);
-	opacity: 0;
+	background-color: var(--textcolor);
+	opacity: 0; /* Fades in over one second when a status bar is created */
 	animation-fill-mode: both;
-}
-
-.night #aastatusborder {
-	background-color: var(--lightgray);
 }
 
 #aastatus {
 	padding-left: .3em;
 	padding-right: .3em;
-	font-family: Geneva, sans-serif;
+	font-family: var(--statusfont);
 	min-height: 1.2em;
 	overflow: hidden;
 	display: none;
@@ -132,14 +137,15 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	display: none;
 	position: relative;
 	top: .5em;
-	left: -18.6ch;
-	width: 19.7ch;
+	left: -18.6ch; /* I don't love these two being hardcoded */
+	width: 19.7ch; /* Maybe there's a better way to compute them */
 	overflow: hidden;
 	font-size: .8em;
 }
 
 #aamenulist {
 	background-color: var(--lightgray);
+	color: var(--black);
 	border: 2px solid #eee;
 	border-radius: .3em;
 	padding: .2em;
@@ -156,13 +162,17 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	color: var(--white);
 }
 
+#aabody { /* A wrapper with no existence of its own */
+	margin: 0;
+}
+
 #aaform {
 	margin: 0;
 }
 
 #aamain {
 	overflow-y: auto;
-	font-family: Georgia, serif;
+	font-family: var(--bodyfont);
 	height: 80%;
 	margin: .3em;
 	padding-right: 1.3em;
@@ -197,6 +207,7 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	text-align: center;
 	margin: auto;
 	padding: .1em;
+	/* Inherits color from #aascriptinner */
 	background-color: var(--medgray);
 }
 
@@ -208,17 +219,13 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	width: 100%;
 	border: none;
 	outline: none;
-	font-family: Georgia, serif;
+	font-family: var(--bodyfont);
 	font-size: 1em;
 	display: none;
 	background-color: transparent;
-	color: var(--black);
+	color: inherit; /* Necessary because some browsers have built-in CSS rules that apply to `form input` */
 	padding: 0;
 	height: 1.1em;
-}
-
-.night #aainput {
-	color: var(--lightgray);
 }
 
 @keyframes fadein {
@@ -236,12 +243,7 @@ p {
 	animation-duration: .9s;
 	animation-delay: .1s;
 	animation-fill-mode: both;
-	color: var(--black);
 	width: 100%;
-}
-
-.night p {
-	color: var(--lightgray);
 }
 
 #aastatus p {
@@ -377,5 +379,5 @@ img {
 }
 
 .aaspanunf {
-	font-family: Georgia, serif;
+	font-family: var(--bodyfont);
 }

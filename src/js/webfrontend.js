@@ -459,9 +459,6 @@ window.run_game = function(story64, options) {
 				if(!document.getElementById("aacb-fade").checked) {
 					p.style["animation-name"] = "none";
 				}
-				if(document.getElementById("aacb-dark").checked) {
-					p.style.color = "#ccc";
-				}
 				this.current.appendChild(p);
 				this.current = p;
 				this.in_par = true;
