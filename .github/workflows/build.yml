@@ -21,7 +21,7 @@ jobs:
     - name: make test
       run: make test
   
-  build:
+  build-linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -31,7 +31,9 @@ jobs:
     - name: install node packager
       run: sudo npm install -g @yao-pkg/pkg
     - name: make (aamrun)
-      run: make --directory=./src aamrun aamrun.exe
+      run: |
+        make --directory=./src aamrun.linux aamrun.exe
+        mv src/aamrun.linux src/aamrun
     - name: make (blobs)
       run: make --directory=./src/6502 aambox_frontend.bin c64_crunched.bin c64_drivecode.bin c64_loader.prg
     - name: make (linux)
@@ -68,7 +70,9 @@ jobs:
       run: |
         make --directory=./src aamrun.mac
         mv src/aamrun.mac src/aamrun
-    - name: make
+    - name: make (blobs)
+      run: make --directory=./src/6502 aambox_frontend.bin c64_crunched.bin c64_drivecode.bin c64_loader.prg
+    - name: make (mac)
       run: make --directory=./src aamshow aambundle
     - uses: actions/upload-artifact@v4
       with:

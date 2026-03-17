@@ -17,10 +17,10 @@ install:		aamshow aambundle aamrun
 
 .PHONY:			all clean install
 
-aamrun:		js/nodefrontend.js js/engine.js
-	pkg -t linux -o aamrun js/nodefrontend.js
+aamrun.linux:	js/nodefrontend.js js/engine.js
+	pkg -t linux -o aamrun.linux js/nodefrontend.js
 
-aamrun.mac:	js/nodefrontend.js js/engine.js
+aamrun.mac:		js/nodefrontend.js js/engine.js
 	pkg -t macos-arm64 -o aamrun.mac js/nodefrontend.js
 
 aamshow:		aamshow.c crc32.c aavm.c aavm.h crc32.h
