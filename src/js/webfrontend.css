@@ -325,7 +325,7 @@ a {
 	display: none;
 }
 
-#aaaboutinner {
+#aaaboutinner, #aaerrorinner {
 	background-color: var(--medgray);
 	border: .1em solid black;
 	border-radius: .3em;

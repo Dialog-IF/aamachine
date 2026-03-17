@@ -29,6 +29,7 @@ var b64_dec = [];
 
 var wants_dark_mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; // https://stackoverflow.com/a/57795495/3233017
 
+// These are turned into labelled checkboxes in the #aacheckboxes div
 var toggles = [
 	{id: "aacb-fade", text: "Fading text", init: true},
 	{id: "aacb-links", text: "Hyperlinks", init: true},
@@ -116,29 +117,12 @@ function downloaddata(fname, filedata, is_url) {
 }
 
 function createdoc() {
-	var top, outer, inner, btn, menu, list, line, cont, form, main, lbl, div, inp;
-
-/*	top = document.getElementById("aacontainer");
-
-	outer = document.createElement("div");
-	outer.setAttribute("id", "aaouterstatus");
-	top.appendChild(outer);
-
-	btn = document.createElement("div");
-	btn.setAttribute("id", "aamenubutton");
-	outer.appendChild(btn);
-
-	menu = document.createElement("div");
-	menu.setAttribute("id", "aamenulines");
-	btn.appendChild(menu);
-
-	menu = document.createElement("div");
-	menu.setAttribute("id", "aamenu");
-	btn.appendChild(menu);
-
-	list = document.createElement("div");
-	list.setAttribute("id", "aamenulist");
-	menu.appendChild(list);		*/
+	var list, lbl, div, inp;
+	
+	// This function used to build the entire HTML document on its own
+	// But now the document structure has been moved to the HTML file
+	// The only thing left here is building the checkbox list in the #aamenu
+	// Since these checkboxes are fundamentally JS objects, it works better to create them in JS than in HTML
 	
 	list = document.getElementById("aacheckboxes");
 	toggles.forEach(function(t) {
@@ -156,133 +140,6 @@ function createdoc() {
 		lbl.appendChild(div);
 		list.appendChild(lbl);
 	});
-
-/*
-	list.appendChild(document.createElement("hr"));
-
-	cont = document.createElement("div");
-	cont.setAttribute("id", "aaviewscript");
-	cont.innerHTML = "View transcript";
-	list.appendChild(cont);
-
-	cont = document.createElement("div");
-	cont.setAttribute("id", "aasavescript");
-	cont.innerHTML = "Save transcript";
-	list.appendChild(cont);
-
-	cont = document.createElement("div");
-	cont.setAttribute("id", "aarestart");
-	cont.innerHTML = "Restart game";
-	list.appendChild(cont);
-
-	cont = document.createElement("div");
-	cont.setAttribute("id", "aasavestory");
-	cont.innerHTML = "Download story file";
-	list.appendChild(cont);
-
-	list.appendChild(document.createElement("hr"));
-
-	cont = document.createElement("div");
-	cont.setAttribute("id", "aaaboutopen");
-	cont.innerHTML = "About";
-	list.appendChild(cont);
-
-	inner = document.createElement("div");
-	inner.setAttribute("id", "aastatus");
-	outer.appendChild(inner);
-
-	outer = document.createElement("div");
-	outer.setAttribute("id", "aastatusborder");
-	top.appendChild(outer);
-
-	outer = document.createElement("div");
-	outer.setAttribute("id", "aaaboutouter");
-	top.appendChild(outer);
-
-	inner = document.createElement("div");
-	inner.setAttribute("id", "aaaboutinner");
-	outer.appendChild(inner);
-
-	line = document.createElement("div");
-	line.setAttribute("class", "aaaboutline");
-	line.setAttribute("id", "aaaboutmeta");
-	inner.appendChild(line);
-
-	inner.appendChild(document.createElement("hr"));
-
-	cont = document.createElement("a");
-	cont.setAttribute("id", "aaaboutlink");
-	cont.setAttribute("target", "_blank");
-	cont.setAttribute("href", "https://github.com/Dialog-IF/aamachine/");
-	cont.innerHTML = "&Aring;-machine web interpreter v1.0.0";
-	line = document.createElement("div");
-	line.setAttribute("class", "aaaboutline");
-	line.appendChild(cont);
-	inner.appendChild(line);
-
-	inner.appendChild(document.createElement("hr"));
-
-	cont = document.createElement("div");
-	cont.setAttribute("class", "aailink");
-	cont.setAttribute("id", "aaaboutclose");
-	cont.innerHTML = "Close";
-	line = document.createElement("div");
-	line.setAttribute("class", "aaaboutline");
-	line.appendChild(cont);
-	inner.appendChild(line);
-
-	form = document.createElement("form");
-	form.setAttribute("id", "aaform");
-	form.setAttribute("autocomplete", "off");
-	top.appendChild(form);
-
-	main = document.createElement("div");
-	main.setAttribute("id", "aamain");
-	main.setAttribute("aria-live", "polite");
-	form.appendChild(main);
-
-	div = document.createElement("div");
-	div.setAttribute("id", "aascriptouter");
-	form.appendChild(div);
-
-	inner = document.createElement("textarea");
-	inner.setAttribute("id", "aascriptinner");
-	inner.readOnly = true;
-	div.appendChild(inner);
-
-	btn = document.createElement("div");
-	btn.setAttribute("id", "aascriptclose");
-	btn.innerHTML = "Close transcript";
-	div.appendChild(btn);
-
-	inp = document.createElement("input");
-	inp.setAttribute("id", "aainput");
-	inp.setAttribute("type", "text");
-	inp.setAttribute("value", "");
-	inp.setAttribute("autocomplete", "off");
-	inp.setAttribute("spellcheck", "false");
-	inp.setAttribute("autocorrect", "off");
-	inp.setAttribute("aria-live", "off");
-	main.appendChild(inp);
-
-	outer = document.createElement("div");
-	outer.setAttribute("id", "aaerrorouter");
-	top.appendChild(outer);
-
-	inner = document.createElement("div");
-	inner.setAttribute("id", "aaaboutinner");
-	outer.appendChild(inner);
-	cont = document.createElement("div");
-	cont.setAttribute("class", "aailink");
-	cont.setAttribute("id", "aaerrorclose");
-	cont.innerHTML = "Close";
-	line = document.createElement("div");
-	line.setAttribute("id", "aaerrorlog");
-	inner.appendChild(line);
-	line = document.createElement("div");
-	line.setAttribute("class", "aaaboutline");
-	line.appendChild(cont);
-	inner.appendChild(line);	*/
 }
 
 var aaremote = {
