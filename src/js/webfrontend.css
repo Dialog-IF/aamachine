@@ -1,47 +1,65 @@
 /* If using Google web fonts, import them here, before anything else */
 
-/* Original:
 html {
+	/* These six basic colors are used for most of the interface */
+	/* See below for how they're applied */
 	--black: #000000;
 	--white: #eeeeee;
 	--darkgray: #222222;
 	--medgray: #888888;
 	--lightgray: #cccccc;
 	--offwhite: #dddddd;
-	--progtop: #d3d3d3;
-	--progbot: #c4c4c4;
-	--link: #875;
-	--alink: #aa8;
-}
-*/
-
-html {
-	--black: #000000; /* Used for overall background in night mode and text in day mode */
-	--white: #eeeeee; /* Used for overall background in day mode and menu options when hovered */
-	--darkgray: #222222; /* Used for transcript text/background depending on mode */
-	--medgray: #888888; /* Used for the menu lines, "close" button on the transcript, and "about" background */
-	--lightgray: #cccccc; /* Used for text in night mode, menu background, progress bar outline */
-	--offwhite: #dddddd; /* Used for menu lines and "close" button hover, transcript text/background */
-	--progtop: #d3d3d3; /* Top half of the progress bar */
-	--progbot: #c4c4c4; /* Bottom half of the progress bar */
-	--link: #875; /* Links */
-	--alink: #aa8; /* Hovered links */
+	
+	--dark-bg: var(--black); /* Night mode background */
+	--dark-fg: var(--lightgray); /* Night mode text */
+	--light-bg: var(--white); /* Day mode background */
+	--light-fg: var(--black); /* Day mode text */
+	--ui: var(--medgray); /* UI elements like menu lines and buttons */
+	--ui-hover: var(--offwhite); /* UI elements when hovered */
+	--menu-bg: var(--lightgray); /* Menu backgrounds */
+	--menu-fg: var(--black); /* Menu text */
+	--menu-hover: var(--white); /* Menu text when hovered */
+	--panel-dark: var(--darkgray); /* Transcript panel bg/fg depending on mode */
+	--panel-light: var(--offwhite); /* Transcript panel fg/bg depending on mode */
+	
+	/* These ones have different (non-monochrome) colors coded in */
+	--progress-bg: var(--lightgray); /* Background of progress bar */
+	--progress-top: #d3d3d3; /* Top half of progress bar */
+	--progress-bottom: #c4c4c4; /* Bottom half of progress bar */
+	
+	--dark-link: #875; /* Night mode link */
+	--dark-link-hover: #aa8; /* Night mode link, hovered */
+	--light-link: #875; /* Day mode link */
+	--light-link-hover: #aa8; /* Day mode link, hovered */
+	
+	--font-status: Geneva, sans-serif; /* Status bar and menus */
+	--font-body: Georgia, serif; /* Main body text */
 }
 
 body {
-	background-color: var(--white);
-	color: var(--black);
+	--bg: var(--light-bg);
+	--text: var(--light-fg);
+	--link: var(--light-link);
+	--link-hover: var(--light-link-hover);
+	background-color: var(--bg);
+	color: var(--text);
 }
 
 body.night {
-	background-color: var(--black);
+	--bg: var(--dark-bg);
+	--text: var(--dark-fg);
+	--link: var(--dark-link);
+	--link-hover: var(--dark-link-hover);
 }
 
 body.enlarge {
 	font-size: 2em;
 }
 
-h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-central/source/layout/style/res/html.css */
+/* This undoes the normal h2 styling from https://searchfox.org/mozilla-central/source/layout/style/res/html.css */
+/* We're using h2 elements for each past player input, so that screen readers can easily jump to them */
+/* But that means we don't want them to be styled like h2s, we want them to be styled like normal text */
+h2 {
 	display: inline;
 	font-size: 1em;
 	font-weight: normal;
@@ -62,19 +80,15 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 
 #aastatusborder {
 	height: .1em;
-	background-color: var(--black);
-	opacity: 0;
+	background-color: var(--text);
+	opacity: 0; /* Fades in over one second when a status bar is created */
 	animation-fill-mode: both;
-}
-
-.night #aastatusborder {
-	background-color: var(--lightgray);
 }
 
 #aastatus {
 	padding-left: .3em;
 	padding-right: .3em;
-	font-family: Geneva, sans-serif;
+	font-family: var(--font-status);
 	min-height: 1.2em;
 	overflow: hidden;
 	display: none;
@@ -85,14 +99,14 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 }
 
 .aaprogress {
-	background-color: var(--progbot);
+	background-color: var(--progress-bottom);
 	height: .31em;
-	border-top: .19em solid var(--progtop);
+	border-top: .19em solid var(--progress-top);
 }
 
 .aaouterprogress {
 	border-radius: .3em;
-	border: .1em solid var(--lightgray);
+	border: .1em solid var(--progress-bg);
 	margin-top: .2em;
 	text-align: left;
 	overflow: hidden;
@@ -111,14 +125,14 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	margin-top: .3em;
 	width: 1.0em;
 	height: .125em;
-	border-top: .375em double var(--medgray);
-	border-bottom: .125em solid var(--medgray);
+	border-top: .375em double var(--ui);
+	border-bottom: .125em solid var(--ui);
 	cursor: pointer;
 	float: right;
 }
 
 #aamenulines:hover {
-	border-color: var(--offwhite);
+	border-color: var(--ui-hover);
 }
 
 .aacb {
@@ -132,28 +146,33 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	display: none;
 	position: relative;
 	top: .5em;
-	left: -18.6ch;
-	width: 19.7ch;
+	left: -18.6ch; /* I don't love these two being hardcoded */
+	width: 19.7ch; /* Maybe there's a better way to compute them */
 	overflow: hidden;
 	font-size: .8em;
 }
 
 #aamenulist {
-	background-color: var(--lightgray);
+	background-color: var(--menu-bg);
+	color: var(--menu-fg);
 	border: 2px solid #eee;
 	border-radius: .3em;
 	padding: .2em;
 	z-index: 1;
 }
 
-#aamenulist div {
+.aamenuoption {
 	margin: 1px;
 	overflow: hidden;
 	cursor: pointer;
 }
 
-#aamenulist div:hover {
-	color: var(--white);
+.aamenuoption:hover {
+	color: var(--menu-hover);
+}
+
+#aabody { /* A wrapper with no existence of its own */
+	margin: 0;
 }
 
 #aaform {
@@ -162,7 +181,7 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 
 #aamain {
 	overflow-y: auto;
-	font-family: Georgia, serif;
+	font-family: var(--font-body);
 	height: 80%;
 	margin: .3em;
 	padding-right: 1.3em;
@@ -181,13 +200,13 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	width: 100%;
 	border: 0px;
 	padding: .2em;
-	background-color: var(--offwhite);
-	color: var(--darkgray);
+	background-color: var(--panel-light);
+	color: var(--panel-dark);
 }
 
 .night #aascriptinner {
-	background-color: var(--darkgray);
-	color: var(--offwhite);
+	background-color: var(--panel-dark);
+	color: var(--panel-light);
 }
 
 #aascriptclose {
@@ -197,28 +216,25 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	text-align: center;
 	margin: auto;
 	padding: .1em;
-	background-color: var(--medgray);
+	background-color: var(--ui);
+	color: var(--menu-fg);
 }
 
 #aascriptclose:hover {
-	background-color: var(--offwhite);
+	background-color: var(--ui-hover);
 }
 
 #aainput {
 	width: 100%;
 	border: none;
 	outline: none;
-	font-family: Georgia, serif;
+	font-family: var(--font-body);
 	font-size: 1em;
 	display: none;
 	background-color: transparent;
-	color: var(--black);
+	color: inherit; /* Necessary because some browsers have built-in CSS rules that apply to `form input` */
 	padding: 0;
 	height: 1.1em;
-}
-
-.night #aainput {
-	color: var(--lightgray);
 }
 
 @keyframes fadein {
@@ -236,12 +252,7 @@ p {
 	animation-duration: .9s;
 	animation-delay: .1s;
 	animation-fill-mode: both;
-	color: var(--black);
 	width: 100%;
-}
-
-.night p {
-	color: var(--lightgray);
 }
 
 #aastatus p {
@@ -260,7 +271,7 @@ a {
 }
 
 .aalink:hover {
-	color: var(--alink);
+	color: var(--link-hover);
 }
 
 .aailink {
@@ -268,7 +279,7 @@ a {
 }
 
 .aailink:hover {
-	color: var(--alink);
+	color: var(--link-hover);
 }
 
 @keyframes fadelink {
@@ -306,7 +317,7 @@ a {
 }
 
 .aareveal:hover {
-	color: var(--alink);
+	color: var(--link-hover);
 }
 
 #aaaboutouter {
@@ -325,8 +336,8 @@ a {
 	display: none;
 }
 
-#aaaboutinner {
-	background-color: var(--medgray);
+#aaaboutinner, #aaerrorinner {
+	background-color: var(--ui);
 	border: .1em solid black;
 	border-radius: .3em;
 	width: 20em;
@@ -377,5 +388,5 @@ img {
 }
 
 .aaspanunf {
-	font-family: Georgia, serif;
+	font-family: var(--font-body);
 }
