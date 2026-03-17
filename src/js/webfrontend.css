@@ -146,13 +146,13 @@ h2 { /* This undoes the normal h2 styling from https://searchfox.org/mozilla-cen
 	z-index: 1;
 }
 
-#aamenulist div {
+.aamenuoption {
 	margin: 1px;
 	overflow: hidden;
 	cursor: pointer;
 }
 
-#aamenulist div:hover {
+.aamenuoption:hover {
 	color: var(--white);
 }
 

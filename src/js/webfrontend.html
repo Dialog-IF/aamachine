@@ -19,7 +19,59 @@
 		});
 	</script>
 </head>
-<body>
-	<div id="aacontainer"></div>
+<body> <!-- Where "night" and "enlarge" classes attach -->
+<div id="aabody"> <!-- Where (body style $) attaches -->
+	<div id="aacontainer"> <!-- Central (width-limited) column -->
+		<div id="aaouterstatus"> <!-- Top bar -->
+			<div id="aamenubutton"> <!-- Menu bottom (top right) -->
+				<div id="aamenulines"></div> <!-- Graphic -->
+				<div id="aamenu"> <!-- The menu itself -->
+					<div id="aamenulist"> <!-- List of options and links -->
+						<div id="aacheckboxes"></div> <!-- Filled in by JS -->
+						<hr /> <!-- Onclick for all of these is added by JS -->
+						<div id="aaviewscript" class="aamenuoption">View transcript</div>
+						<div id="aasavescript" class="aamenuoption">Save transcript</div>
+						<div id="aarestart" class="aamenuoption">Restart game</div>
+						<div id="aasavestory" class="aamenuoption">Download story file</div>
+						<hr />
+						<div id="aaaboutopen" class="aamenuoption">About</div>
+					</div>
+				</div>
+			</div>
+			<div id="aastatus"></div> <!-- Filled in by game -->
+		</div>
+		<div id="aastatusborder"></div> <!-- Bar between status and game -->
+		<div id="aaaboutouter"> <!-- "About" overlay -->
+			<div id="aaaboutinner">
+				<div id="aaaboutmeta" class="aaaboutline"></div> <!-- Filled in by JS -->
+				<hr />
+				<div class="aaaboutline">
+					<a id="aaaboutlink" target="_blank" href="https://github.com/Dialog-IF/aamachine/">&Aring;-machine web interpreter v1.0.0</a>
+				</div>
+				<hr />
+				<div class="aaaboutline">
+					<div id="aaaboutclose" class="aailink">Close</div>
+				</div>
+			</div>
+		</div>
+		<form id="aaform" autocomplete="off"> <!-- To handle keypresses etc -->
+			<div id="aamain" aria-live="polite"> <!-- Main body of the game -->
+				<input id="aainput" type="text" value="" autocomplete="off" spellcheck="false" autocorrect="off" aria-live="off" />
+			</div>
+			<div id="aascriptouter"> <!-- Transcript -->
+				<textarea id="aascriptinner" readonly></textarea>
+				<div id="aascriptclose">Close transcript</div>
+			</div>
+		</form>
+		<div id="aaerrorouter"> <!-- Error messages -->
+			<div id="aaaboutinner"> <!-- Pretty sure this is a mistake in the original JS: why are there two divs with the same ID? -->
+				<div id="aaerrorlog"></div>
+				<div id="aaaboutline">
+					<div id="aaerrorclose" class="aailink">Close</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
 </body>
 </html>

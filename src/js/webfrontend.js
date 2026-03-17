@@ -118,7 +118,7 @@ function downloaddata(fname, filedata, is_url) {
 function createdoc() {
 	var top, outer, inner, btn, menu, list, line, cont, form, main, lbl, div, inp;
 
-	top = document.getElementById("aacontainer");
+/*	top = document.getElementById("aacontainer");
 
 	outer = document.createElement("div");
 	outer.setAttribute("id", "aaouterstatus");
@@ -138,12 +138,14 @@ function createdoc() {
 
 	list = document.createElement("div");
 	list.setAttribute("id", "aamenulist");
-	menu.appendChild(list);
-
+	menu.appendChild(list);		*/
+	
+	list = document.getElementById("aacheckboxes");
 	toggles.forEach(function(t) {
 		lbl = document.createElement("label");
 		lbl.setAttribute("for", t.id);
 		div = document.createElement("div");
+		div.setAttribute("class", "aamenuoption");
 		inp = document.createElement("input");
 		inp.setAttribute("class", "aacb");
 		inp.setAttribute("id", t.id);
@@ -155,6 +157,7 @@ function createdoc() {
 		list.appendChild(lbl);
 	});
 
+/*
 	list.appendChild(document.createElement("hr"));
 
 	cont = document.createElement("div");
@@ -279,7 +282,7 @@ function createdoc() {
 	line = document.createElement("div");
 	line.setAttribute("class", "aaaboutline");
 	line.appendChild(cont);
-	inner.appendChild(line);
+	inner.appendChild(line);	*/
 }
 
 var aaremote = {
