@@ -31,7 +31,10 @@ jobs:
     - name: install node packager
       run: sudo npm install -g @yao-pkg/pkg
     - name: make (aamrun)
-      run: make --directory=./src aamrun aamrun.exe
+      run: |
+        make --directory=./src aamrun aamrun.mac aamrun.exe
+        mkdir -p macos-arm64
+        mv aamrun.mac macos-arm64/aamrun
     - name: make (blobs)
       run: make --directory=./src/6502 aambox_frontend.bin c64_crunched.bin c64_drivecode.bin c64_loader.prg
     - name: make (linux)
@@ -47,11 +50,33 @@ jobs:
           src/aamrun
     - uses: actions/upload-artifact@v4
       with:
+        name: macos-arm64-cross
+        path: |
+          src/macos-arm64/aamrun
+    - uses: actions/upload-artifact@v4
+      with:
         name: win32
         path: |
           src/aamshow.exe
           src/aambundle.exe
           src/aamrun.exe
+  
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install dependencies
+        run: |
+          brew update
+          brew install xa
+      - name: make
+        run: make --directory=./src aamshow aambundle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: |
+            src/aamshow
+            src/aambundle
   
   release:
     runs-on: ubuntu-latest
@@ -78,6 +103,8 @@ jobs:
           # Create the bundle and add the prebuild binaries in
           mkdir -p "$BUNDLE/prebuilt"
           mv artifacts/linux-x86_64 "$BUNDLE/prebuilt/"
+          mv artifacts/macos-arm64-cross/* artifacts/macos-arm64/
+          mv artifacts/macos-arm64 "$BUNDLE/prebuilt/"
           mv artifacts/win32 "$BUNDLE/prebuilt/"
           chmod +x "$BUNDLE"/prebuilt/*/*
           cp --recursive src "$BUNDLE/"

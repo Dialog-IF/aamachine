@@ -20,6 +20,9 @@ install:		aamshow aambundle aamrun
 aamrun:		js/nodefrontend.js js/engine.js
 	pkg -t linux -o aamrun js/nodefrontend.js
 
+aamrun.mac:	js/nodefrontend.js js/engine.js
+	pkg -t macos-arm64 -o aamrun.mac js/nodefrontend.js
+
 aamshow:		aamshow.c crc32.c aavm.c aavm.h crc32.h
 			${CC} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
 
