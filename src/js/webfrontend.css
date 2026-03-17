@@ -1,20 +1,5 @@
 /* If using Google web fonts, import them here, before anything else */
 
-/* Original:
-html {
-	--black: #000000;
-	--white: #eeeeee;
-	--darkgray: #222222;
-	--medgray: #888888;
-	--lightgray: #cccccc;
-	--offwhite: #dddddd;
-	--progtop: #d3d3d3;
-	--progbot: #c4c4c4;
-	--link: #875;
-	--alink: #aa8;
-}
-*/
-
 html {
 	--black: #000000; /* Used for overall background in night mode and text in day mode */
 	--white: #eeeeee; /* Used for overall background in day mode and menu options when hovered */
@@ -27,8 +12,8 @@ html {
 	--link: #875; /* Links */
 	--alink: #aa8; /* Hovered links */
 	
-	--statusfont: Geneva, sans-serif;
-	--bodyfont: Georgia, serif;
+	--statusfont: Geneva, sans-serif; /* Status bar and menus */
+	--bodyfont: Georgia, serif; /* Main body text */
 }
 
 body {
