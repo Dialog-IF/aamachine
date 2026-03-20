@@ -30,4 +30,4 @@ gosling.6502.out: gosling.aastory $(AAMBOX) $(FRONTEND)
 clean:
 	rm -f *.out
 
-.PHONY:		all test test.js test.6502 clean
+.PHONY: all test test.js test.6502 clean
