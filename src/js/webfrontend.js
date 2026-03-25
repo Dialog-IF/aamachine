@@ -210,7 +210,7 @@ var aaremote = {
 		}
 	},
 	update_ifcomp: function() {
-		var pending, endpos;
+		var now, dstr, tstr, pending, endpos;
 		if(!this.enabled || !this.any_input) return;
 		if(!this.up) { // Set session variables
 			now = new Date();
@@ -319,7 +319,7 @@ window.run_game = function(story64, options) {
 		}
 		toggles.push({ // Add new toggle to turn it off
 			id: 'aacb-remote',
-			text: 'Send data\nto server',
+			text: 'Send data to server',
 			init: aaremote.enabled
 		});
 	}
