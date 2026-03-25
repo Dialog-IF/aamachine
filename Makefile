@@ -1,3 +1,8 @@
+# Generate all binaries
+all:
+	make --directory=./src/6502 all
+	make --directory=./src all
+
 test:
 	## Ensure no compilation failures
 	make --directory=./src/6502 all clean
@@ -6,4 +11,4 @@ test:
 	make --directory=./test/gosling test clean
 	make --directory=./test/impossible test clean
 
-.PHONY: test
+.PHONY: test all
