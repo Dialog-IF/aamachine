@@ -1,55 +1,58 @@
 /* If using Google web fonts, import them here, before anything else */
 
 html {
-	/* These six basic colors are used for most of the interface */
+	/* These seven basic colors are used for most of the interface */
 	/* See below for how they're applied */
-	--black: #000000;
-	--white: #eeeeee;
-	--darkgray: #222222;
-	--medgray: #888888;
-	--lightgray: #cccccc;
-	--offwhite: #dddddd;
+	--theme-darkest: #000000;
+	--theme-dark: #222222;
+	--theme-medium: #888888;
+	--theme-light: #cccccc;
+	--theme-lightest: #eeeeee;
+	--accent-dark: #875;
+	--accent-light: #aa8;
 	
-	--dark-bg: var(--black); /* Night mode background */
-	--dark-fg: var(--lightgray); /* Night mode text */
-	--light-bg: var(--white); /* Day mode background */
-	--light-fg: var(--black); /* Day mode text */
-	--ui: var(--medgray); /* UI elements like menu lines and buttons */
-	--ui-hover: var(--offwhite); /* UI elements when hovered */
-	--menu-bg: var(--lightgray); /* Menu backgrounds */
-	--menu-fg: var(--black); /* Menu text */
-	--menu-hover: var(--white); /* Menu text when hovered */
-	--panel-dark: var(--darkgray); /* Transcript panel bg/fg depending on mode */
-	--panel-light: var(--offwhite); /* Transcript panel fg/bg depending on mode */
+	--night-page: var(--theme-darkest); /* Night mode outside gameport */
+	--night-bg: var(--theme-darkest); /* Night mode background */
+	--night-fg: var(--theme-light); /* Night mode text */
+	--day-page: var(--theme-lightest); /* Day mode outside gameport */
+	--day-bg: var(--theme-lightest); /* Day mode background */
+	--day-fg: var(--theme-darkest); /* Day mode text */
+	--ui: var(--theme-medium); /* UI elements like menu lines and buttons */
+	--ui-hover: var(--theme-light); /* UI elements when hovered */
+	--menu-bg: var(--theme-light); /* Menu backgrounds */
+	--menu-fg: var(--theme-darkest); /* Menu text */
+	--menu-hover: var(--theme-lightest); /* Menu text when hovered (for options) */
+	--panel-dark: var(--theme-dark); /* Transcript panel bg/fg depending on mode */
+	--panel-light: var(--theme-light); /* Transcript panel fg/bg depending on mode */
 	
-	/* These ones have different (non-monochrome) colors coded in */
-	--progress-bg: var(--lightgray); /* Background of progress bar */
-	--progress-top: #d3d3d3; /* Top half of progress bar */
-	--progress-bottom: #c4c4c4; /* Bottom half of progress bar */
+	--progress-bg: var(--theme-light); /* Background of progress bar */
+	--progress-top: var(--accent-light); /* Top half of progress bar */
+	--progress-bottom: var(--accent-dark); /* Bottom half of progress bar */
 	
-	--dark-link: #875; /* Night mode link */
-	--dark-link-hover: #aa8; /* Night mode link, hovered */
-	--light-link: #875; /* Day mode link */
-	--light-link-hover: #aa8; /* Day mode link, hovered */
+	--night-link: var(--accent-dark); /* Night mode link */
+	--night-link-hover: var(--accent-light); /* Night mode link, hovered */
+	--day-link: var(--accent-dark); /* Day mode link */
+	--day-link-hover: var(--accent-light); /* Day mode link, hovered */
 	
 	--font-status: Geneva, sans-serif; /* Status bar and menus */
 	--font-body: Georgia, serif; /* Main body text */
 }
 
 body {
-	--bg: var(--light-bg);
-	--text: var(--light-fg);
-	--link: var(--light-link);
-	--link-hover: var(--light-link-hover);
-	background-color: var(--bg);
+	--bg: var(--day-bg);
+	--text: var(--day-fg);
+	--link: var(--day-link);
+	--link-hover: var(--day-link-hover);
+	background-color: var(--day-page);
 	color: var(--text);
 }
 
 body.night {
-	--bg: var(--dark-bg);
-	--text: var(--dark-fg);
-	--link: var(--dark-link);
-	--link-hover: var(--dark-link-hover);
+	--bg: var(--night-bg);
+	--text: var(--night-fg);
+	--link: var(--night-link);
+	--link-hover: var(--night-link-hover);
+	background-color: var(--night-page);
 }
 
 body.enlarge {
@@ -70,6 +73,7 @@ h2 {
 	margin: auto;
 	position: relative;
 	line-height: 1.35em;
+	background-color: var(--bg);
 }
 
 #aaouterstatus {
@@ -155,7 +159,7 @@ h2 {
 #aamenulist {
 	background-color: var(--menu-bg);
 	color: var(--menu-fg);
-	border: 2px solid #eee;
+	border: 2px solid var(--menu-hover);
 	border-radius: .3em;
 	padding: .2em;
 	z-index: 1;
@@ -171,7 +175,7 @@ h2 {
 	color: var(--menu-hover);
 }
 
-#aabody { /* A wrapper with no existence of its own */
+#aabody { /* A wrapper with no existence of its own - only exists so that CSS rules can be nested correctly (inside `body` but outside `#aaform`) */
 	margin: 0;
 }
 
@@ -204,13 +208,13 @@ h2 {
 	color: var(--panel-dark);
 }
 
-.night #aascriptinner {
+.night #aascriptinner { /* Invert dark and light at night */
 	background-color: var(--panel-dark);
 	color: var(--panel-light);
 }
 
 #aascriptclose {
-	border: .1em solid black;
+	border: .1em solid var(--menu-fg);
 	border-radius: .3em;
 	width: 20ch;
 	text-align: center;
@@ -232,7 +236,7 @@ h2 {
 	font-size: 1em;
 	display: none;
 	background-color: transparent;
-	color: inherit; /* Necessary because some browsers have built-in CSS rules that apply to `form input` */
+	color: inherit; /* Necessary because some browsers have built-in CSS rules that apply to `form input`, and we want it to inherit from `body` */
 	padding: 0;
 	height: 1.1em;
 }
@@ -338,7 +342,7 @@ a {
 
 #aaaboutinner, #aaerrorinner {
 	background-color: var(--ui);
-	border: .1em solid black;
+	border: .1em solid var(--menu-fg);
 	border-radius: .3em;
 	width: 20em;
 	margin: auto;
