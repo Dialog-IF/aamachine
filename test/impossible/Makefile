@@ -30,4 +30,4 @@ impossible.6502.out: impossible.aastory $(AAMBOX) $(FRONTEND)
 clean:
 	rm -f *.out
 
-.PHONY:		all test test.js test.6502 clean
+.PHONY: all test test.js test.6502 clean
