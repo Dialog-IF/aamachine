@@ -648,13 +648,12 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "us"});
 		},
 		set_body: function(id) {
-			$("body").removeClass();
+			$("#aabody").removeClass();
 			if(id !== null) { // Can be called with no id to reset
 				var cls = this.style_data[id].name;
-				$("body").addClass(cls);
+				$("#aabody").addClass(cls);
 				this.currarray.push({t: "sb", i: id});
 			}
-			update_globalstyle(); // Restore enlarge and night styles if applicable
 		},
 		enter_div: function(id) {
 			var div, sty;
