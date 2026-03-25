@@ -129,6 +129,8 @@ Release notes:
 		
 		Specification: clear all status areas; nbsp; get div width/height.
 		
+		Specification: links now work for GET_KEY as well as GET_INPUT.
+		
 		Web interpreter: supports playing audio.
 		
 <<<<<<< line-tagging
