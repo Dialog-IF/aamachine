@@ -142,7 +142,12 @@ function createdoc() {
 	});
 }
 
+/*
+ * 'aa' format is the classic one used in older versions of the Å web interpreter, but I don't believe Linus ever released the server code for it, so it sees little use outside his own games.
+ * 'ifcomp' format is the one made by Dannii Willis for IFComp transcript recording, documented at https://github.com/curiousdannii/asyncglk/tree/master/tools/transcript-server .
+ */
 var aaremote = {
+	format: 'aa',
 	enabled: false,
 	up: false,
 	serverpath: "",
@@ -150,49 +155,102 @@ var aaremote = {
 	strpos: 0,
 	servpos: 0,
 	any_input: false,
+	input_timestamp: null,
+	input_value: null,
 	update: function() {
+		if(this.format == 'aa') {
+			this.update_aa();
+		} else if(this.format == 'ifcomp') {
+			this.update_ifcomp();
+		} else {
+			console.error('Unrecognized aaremote format "'+this.format+'"');
+			this.enabled = false;
+		}
+	},
+	update_aa: function() {
 		var fname, now, dstr, tstr, pending, endpos;
-
-		if(this.enabled && this.any_input) {
-			if(!this.up) {
-				now = new Date();
-				dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
-				tstr = ("0" + now.getHours()).slice(-2) + ("0" + now.getMinutes()).slice(-2);
-				if(!this.logtag) {
-					this.logtag = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-");
-				}
-				this.sessionid = this.logtag + "-" + dstr + "-" + tstr + "-" + Math.ceil(Math.random()*10000);
-				this.up = true;
+		if(!this.enabled || !this.any_input) return;
+		if(!this.up) { // Set session variables
+			now = new Date();
+			dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
+			tstr = ("0" + now.getHours()).slice(-2) + ("0" + now.getMinutes()).slice(-2);
+			if(!this.logtag) {
+				this.logtag = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-");
 			}
-			if(this.strpos < aatranscript.full.length) {
-				if(aatranscript.full.length - this.strpos > 50000) {
-					this.enabled = false;
-				} else {
-					pending = aatranscript.full.slice(this.strpos);
-					endpos = aatranscript.full.length;
-					$.ajax({
-						type: "POST",
-						url: this.serverpath,
+			this.sessionid = this.logtag + "-" + dstr + "-" + tstr + "-" + Math.ceil(Math.random()*10000);
+			this.up = true;
+		}
+		if(this.strpos < aatranscript.full.length) {
+			if(aatranscript.full.length - this.strpos > 50000) {
+				this.enabled = false;
+			} else {
+				pending = aatranscript.full.slice(this.strpos);
+				endpos = aatranscript.full.length;
+				$.ajax({
+					type: "POST",
+					url: this.serverpath,
+					data: {
 						data: {
-							data: {
-								session: this.sessionid,
-								text: pending,
-								pos: this.servpos
-							}
-						},
-						success: function(data) {
-							if(endpos > aaremote.strpos) {
-								aaremote.servpos = data;
-								aaremote.strpos = endpos;
-							}
-						},
-						error: function(c) {
-							aaremote.enabled = false;
+							session: this.sessionid,
+							text: pending,
+							pos: this.servpos
 						}
-					});
-				}
+					},
+					success: function(data) {
+						if(endpos > aaremote.strpos) {
+							aaremote.servpos = data;
+							aaremote.strpos = endpos;
+						}
+					},
+					error: function(c) {
+						aaremote.enabled = false;
+					}
+				});
 			}
 		}
+	},
+	update_ifcomp: function() {
+		var pending, endpos;
+		if(!this.enabled || !this.any_input) return;
+		if(!this.up) { // Set session variables
+			now = new Date();
+			dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
+			tstr = ("0" + now.getHours()).slice(-2) + ("0" + now.getMinutes()).slice(-2);
+			if(!this.logtag) {
+				this.logtag = aaengine.get_metadata().title; // No sanitizing needed
+			}
+			this.sessionid = dstr + "-" + tstr + "-" + Math.ceil(Math.random()*10000); // Tag not included in session ID
+			this.up = true;
+		}
+		pending = aatranscript.full.slice(this.strpos);
+		if(pending.length > 50000) { // Too much to send
+			console.error("Transcript too long to send!");
+			this.enabled = false;
+			return;
+		}
+		endpos = aatranscript.full.length;
+		$.ajax({
+			type: "POST",
+			url: this.serverpath,
+			data: {
+				format: 'simple',
+				input: this.input_value,
+				label: this.logtag,
+				output: pending,
+				outtimestamp: Date.now(),
+				sessionId: this.sessionid,
+				timestamp: this.input_timestamp
+			},
+			success: function(data) {
+				if(endpos > aaremote.strpos) {
+					aaremote.strpos = endpos;
+				}
+			},
+			error: function(data) {
+				console.error("Error submitting transcript: " + data);
+				aaremote.enabled = false;
+			}
+		});
 	}
 };
 
@@ -240,13 +298,30 @@ function scroll_to(anchor) {
 
 window.run_game = function(story64, options) {
 	var storybytes = decode_b64(story64);
-
-	if(options && options.aaLogServerPath) {
+	
+	if(!options) options = {};
+	
+	if(game_options.recording_url) { // Injected by IFComp site
+		options.aaLogServerPath = game_options.recording_url;
+		options.aaLogFormat = 'ifcomp';
+		console.log("Found injected IFComp transcript url: " + game_options.recording_url);
+	}
+	if(options.aaLogServerPath) {
 		aaremote.serverpath = options.aaLogServerPath;
 		aaremote.logtag = options.aaLogTag;
-		if(window.location.href.search('nofeedback') == -1) {
-			aaremote.enabled = true;
+		aaremote.format = options.aaLogFormat;
+		aaremote.enabled = true;
+		if(window.location.href.search('nofeedback') != -1 || document.cookie.includes('transcript_recording_opt_out=1')) {
+			console.log("User opted out of transcript recording; disabling aaremote");
+			aaremote.enabled = false;
+		} else {
+			console.log("Recording to " + options.aaLogServerPath + " in \"" + options.aaLogFormat + "\" format");
 		}
+		toggles.push({ // Add new toggle to turn it off
+			id: 'aacb-remote',
+			text: 'Send data\nto server',
+			init: aaremote.enabled
+		});
 	}
 
 	aatranscript = {
@@ -1179,6 +1254,8 @@ window.run_game = function(story64, options) {
 	$("#aaform").on('submit', function() {
 		var str = $(io.aainput).val();
 		aaremote.any_input = true;
+		aaremote.input_timestamp = Date.now();
+		aaremote.input_value = str;
 		if(status == aaengine.status.get_input) {
 			io.hist_add(str);
 			io.aainput.style.display = "none";
@@ -1252,19 +1329,25 @@ window.run_game = function(story64, options) {
 	$("#aacb-large").on("change", function() {
 		update_globalstyle();
 	});
-
+	
 	$("#aacb-fade").on("change", function() {
 		io.maybe_focus();
 	});
-
+	
 	$("#aacb-links").on("change", function() {
 		update_hyperlinks();
 	});
-
+	
 	$("#aacb-refocus").on("change", function() {
 		io.always_refocus = document.getElementById("aacb-refocus").checked;
 		io.maybe_focus();
 	});
+	
+	if($("#aacb-remote")) { // Only present if recording was set up
+		$("#aacb-remote").on("change", function() {
+			aaremote.enabled = $("#aacb-remote").checked;
+		});
+	}
 
 	$("#aamenulines").on('click', function() {
 		var menu = document.getElementById("aamenu");

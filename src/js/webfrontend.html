@@ -14,9 +14,13 @@
 			run_game(aastory, {
 				aaLogServerPath: undefined,
 				aaLogTag: undefined,
+				aaLogFormat: 'aa',
 			});
 			aastory = null;
 		});
+	</script>
+	<script>
+		game_options = {}; // The IFComp server injects some data into here
 	</script>
 </head>
 <body> <!-- Where "night" and "enlarge" classes attach -->
@@ -66,7 +70,7 @@
 		<div id="aaerrorouter"> <!-- Error messages -->
 			<div id="aaerrorinner">
 				<div id="aaerrorlog"></div> <!-- Filled with .aaerrorline divs when an error happens -->
-				<div id="aaaboutline">
+				<div class="aaaboutline">
 					<div id="aaerrorclose" class="aailink">Close</div>
 				</div>
 			</div>
