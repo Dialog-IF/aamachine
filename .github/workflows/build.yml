@@ -21,7 +21,7 @@ jobs:
     - name: make test
       run: make test
   
-  build:
+  build-linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -31,7 +31,9 @@ jobs:
     - name: install node packager
       run: sudo npm install -g @yao-pkg/pkg
     - name: make (aamrun)
-      run: make --directory=./src aamrun aamrun.exe
+      run: |
+        make --directory=./src aamrun.linux aamrun.exe
+        mv src/aamrun.linux src/aamrun
     - name: make (blobs)
       run: make --directory=./src/6502 aambox_frontend.bin c64_crunched.bin c64_drivecode.bin c64_loader.prg
     - name: make (linux)
@@ -53,9 +55,36 @@ jobs:
           src/aambundle.exe
           src/aamrun.exe
   
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v6
+    - name: install dependencies
+      run: |
+        brew update
+        brew install xa
+    - name: install node packager
+      run: sudo npm install -g @yao-pkg/pkg
+    - name: make (aamrun)
+      run: |
+        make --directory=./src aamrun.mac
+        mv src/aamrun.mac src/aamrun
+    - name: make (blobs)
+      run: make --directory=./src/6502 aambox_frontend.bin c64_crunched.bin c64_drivecode.bin c64_loader.prg
+    - name: make (mac)
+      run: make --directory=./src aamshow aambundle
+    - uses: actions/upload-artifact@v4
+      with:
+        name: macos-arm64
+        path: |
+          src/aamrun
+          src/aamshow
+          src/aambundle
+  
   release:
     runs-on: ubuntu-latest
-    needs: ['test', 'build']
+    needs: ['test', 'build-linux', 'build-macos']
     permissions:
       contents: write
       packages: read
@@ -78,6 +107,7 @@ jobs:
           # Create the bundle and add the prebuild binaries in
           mkdir -p "$BUNDLE/prebuilt"
           mv artifacts/linux-x86_64 "$BUNDLE/prebuilt/"
+          mv artifacts/macos-arm64 "$BUNDLE/prebuilt/"
           mv artifacts/win32 "$BUNDLE/prebuilt/"
           chmod +x "$BUNDLE"/prebuilt/*/*
           cp --recursive src "$BUNDLE/"
