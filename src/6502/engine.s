@@ -7964,14 +7964,18 @@ mainheight
 	jmp cdone
 defnull
 #if HAVE_QUIT
-	cmp	#$43
+	cmp	#$43 ; Quit
 	beq	yes
+#endif
+#if HAVE_FORMAT
+	cmp #$44 ; Formatting
+	beq yes
 #endif
 #if HAVE_STATUS
-	cmp	#$60
+	cmp	#$60 ; Status
 	beq	yes
 #endif
-	cmp	#$40
+	cmp	#$40 ; Undo
 	bne	cdone
 
 	jsr	io_undosupp

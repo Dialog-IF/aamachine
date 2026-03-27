@@ -1002,6 +1002,15 @@ window.run_game = function(story64, options) {
 			inp.click();
 			this.current.removeChild(inp);
 		},
+		have_format: function() { // Has text formatting support
+			return true;
+		},
+		have_color: function() { // Has color support
+			return true;
+		},
+		have_align: function() { // Has text alignment support
+			return true;
+		},
 		activate_input: function() {
 			var cfg, vmstate, autosave;
 

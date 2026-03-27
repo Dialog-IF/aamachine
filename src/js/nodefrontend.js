@@ -246,6 +246,16 @@ const io = {
 			}
 		});
 	}
+	
+	have_format: function() { // No text formatting
+		return false;
+	}
+	have_color: function() { // No color
+		return false;
+	}
+	have_align: function() { // No text alignment
+		return false;
+	}
 };
 
 const add_tag = function(){

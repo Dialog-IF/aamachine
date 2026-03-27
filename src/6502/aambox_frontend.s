@@ -16,6 +16,7 @@ PREXTRA		= 2
 PRSHIFT		= 0
 HAVE_QUIT	= 1
 HAVE_STATUS	= 0
+HAVE_FORMAT	= 0
 
 wrappos		= $00
 xpos		= $01

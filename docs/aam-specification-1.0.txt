@@ -906,6 +906,9 @@ CODE:
 		41	interpreter supports save/restore
 		42	interpreter supports hyperlinks
 		43	interpreter supports quit
+		44	interpreter supports formatting		[spec 1.0]
+		45	interpreter supports color			[spec 1.0]
+		46	interpreter supports text alignment	[spec 1.0]
 		50	currently transcripting				[spec 1.0]
 		60	interpreter supports top status		[spec 0.5]
 		61	interpreter supports inline status	[spec 0.5]
@@ -914,6 +917,10 @@ CODE:
 		in the range 00 to 3f, the raw value 0 for selectors in the range
 		40 to 7f. Selectors above 7f should raise an error; their behavior
 		is not yet defined.
+		
+		"Formatting" means, at minimum, bold and italic or equivalent.
+		These can be any two ways of distinguishing text (e.g. bright and
+		underlined) and need not be combinable.
 
 	78	SET_IDX			VALUE
 	79/f9	CHECK_EQ		WORD/VBYTE CODE
