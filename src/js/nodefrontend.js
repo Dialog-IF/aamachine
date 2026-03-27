@@ -137,6 +137,8 @@ const io = {
 	},
 	unstyle: function() {
 	},
+	set_body: function(id) {
+	},
 	parse_em: function(id, key, defvalue) {
 		if(id >= 0) {
 			let str = this.styles[id][key];

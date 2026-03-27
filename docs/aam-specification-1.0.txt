@@ -13,6 +13,7 @@ Changes in v1.0:
 	
 		NBSP
 		CLEAR_STATUS
+		SET_BODY
 	
 	New VM_INFO options:
 	
@@ -844,15 +845,17 @@ CODE:
 	6a	ENTER_SELF_LINK					[spec 0.4]
 	ea	LEAVE_SELF_LINK					[spec 0.4]
 
-	6b	SET_STYLE		BYTE
-	eb	RESET_STYLE		BYTE
+	6b	SET_STYLE		BYTE		[deprecated]
+	eb	RESET_STYLE		BYTE		[deprecated]
 
 	6c	EMBED_RES		VALUE			[spec 0.2]
 	ec	CAN_EMBED_RES		VALUE DEST		[spec 0.2]
 
 	6d	PROGRESS		VALUE VALUE
 
-	6e	ENTER_SPAN		VALUE			[spec 0.4]
+	ed	SET_BODY		INDEX			[spec 1.0]
+
+	6e	ENTER_SPAN		INDEX			[spec 0.4]
 	ee	LEAVE_SPAN					[spec 0.4]
 
 	6f	ENTER_STATUS		BYTE INDEX		[spec 0.5]
@@ -971,6 +974,8 @@ Output model
 
 		output_enterspan(style_class)
 		output_leavespan()
+
+		output_setbody(style_class)
 
 		output_enter_selflink()
 		output_leave_selflink()
@@ -2373,6 +2378,8 @@ Opcode semantics
 			output_setstyle(arg)
 			SPC = space
 		}
+		
+		This opcode is deprecated, but still supported for now.
 
 	RESET_STYLE		BYTE
 
@@ -2380,6 +2387,17 @@ Opcode semantics
 		if(CWL == 0) {
 			output_resetstyle(arg)
 		}
+		
+		This opcode is deprecated, but still supported for now.
+
+	SET_BODY		INDEX
+
+		if(inStatus || nSpan > 0) runtime_error(7)
+		output_setbody(arg)
+		
+		output_setbody applies a style class to the main body of the
+		document, if possible. Whether this affects existing text is
+		left to the implementation.
 
 	UNSTYLE
 
@@ -2627,6 +2645,16 @@ Opcode semantics
 		elseif(SPC == nbsp) output_nbsp()
 		output_sync()
 		arg <- input_get_key() // digits are numbers, others are chars
+		
+		If a link is clicked during a GET_KEY instruction, and the link
+		does not point to a single character or digit, the result is
+		undefined. It may be the first character of the link text, or
+		0d (RETURN), or a special sentinel value. It is not, however, an
+		error: it must return *some* value instead of crashing.
+		
+		(The web frontend currently returns the first character of the
+		link text, but this is an implementation detail, not required
+		by the specification.)
 
 	SCRIPT_ON
 
