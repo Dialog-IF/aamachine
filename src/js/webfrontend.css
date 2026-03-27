@@ -12,10 +12,10 @@ html {
 	--accent-light: #aa8;
 	
 	--night-page: var(--theme-darkest); /* Night mode outside gameport */
-	--night-bg: var(--theme-darkest); /* Night mode background */
+	--night-bg: inherit; /* Night mode background */
 	--night-fg: var(--theme-light); /* Night mode text */
 	--day-page: var(--theme-lightest); /* Day mode outside gameport */
-	--day-bg: var(--theme-lightest); /* Day mode background */
+	--day-bg: inherit; /* Day mode background */
 	--day-fg: var(--theme-darkest); /* Day mode text */
 	--ui: var(--theme-medium); /* UI elements like menu lines and buttons */
 	--ui-hover: var(--theme-light); /* UI elements when hovered */
