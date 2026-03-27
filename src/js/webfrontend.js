@@ -201,7 +201,7 @@ function prepare_styles(styles, style_data) {
 
 	for(i = 0; i < styles.length; i++) {
 		let name = "aa-" + (styles[i]["style-name"] || i);
-		name = name.replace(/[^a-z0-9]/g, '_');
+		name = name.replace(/[^a-z0-9-]/g, '-'); // There shouldn't be spaces and such, but sanitize just in case
 		if(name in style_data) name = "aax-" + i; // Emergency fallback, guaranteed not to conflict
 		style_data[i] = { name:name, attrs:{} };
 		
