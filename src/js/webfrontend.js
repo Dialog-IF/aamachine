@@ -201,6 +201,8 @@ function prepare_styles(styles, style_data) {
 
 	for(i = 0; i < styles.length; i++) {
 		let name = "aa-" + (styles[i]["style-name"] || i);
+		name = name.replace(/[^a-z0-9-]/g, '-'); // There shouldn't be spaces and such, but sanitize just in case
+		if(name in style_data) name = "aax-" + i; // Emergency fallback, guaranteed not to conflict
 		style_data[i] = { name:name, attrs:{} };
 		
 		html += "." + name + " {";
@@ -322,6 +324,7 @@ window.run_game = function(story64, options) {
 			this.scroll_anchor = null;
 			this.divs = [];
 			this.links_enabled = document.getElementById("aacb-links").checked;
+			this.set_body(null);
 		},
 		clear_all: function() {
 			if(!this.in_status) {
@@ -342,11 +345,17 @@ window.run_game = function(story64, options) {
 				this.after_text = false;
 				this.n_inner = 0;
 				this.transcript.par();
-				this.mainarray = [];
-				this.currarray = this.mainarray;
 				this.old_inline = null;
 				this.seen_index = 0;
 				this.seen_divs = this.divs.slice();
+				
+				// We have to be a bit careful about clearing mainarray because we should preserve the most recent (body style $)
+				let latest_style = null;
+				for(const el of this.mainarray) {
+					if(el.t == 'bs') latest_style = el;
+				}
+				this.mainarray = latest_style ? [latest_style] : [];
+				this.currarray = this.mainarray;
 			}
 		},
 		clear_links: function() {
@@ -643,6 +652,14 @@ window.run_game = function(story64, options) {
 		unstyle: function() {
 			this.raw_unstyle();
 			this.currarray.push({t: "us"});
+		},
+		set_body: function(id) {
+			$("#aabody").removeClass();
+			if(id !== null) { // Can be called with no id to reset
+				var cls = this.style_data[id].name;
+				$("#aabody").addClass(cls);
+				this.currarray.push({t: "sb", i: id});
+			}
 		},
 		enter_div: function(id) {
 			var div, sty;
@@ -1100,6 +1117,8 @@ window.run_game = function(story64, options) {
 					this.resetstyle(e.s);
 				} else if(t == "us") { // Unstyle
 					this.unstyle();
+				} else if(t == "sb") { // Set body
+					this.set_body(e.i);
 				} else if(t == "el") { // Enter link
 					this.enter_link(e.s);
 				} else if(t == "ll") { // Leave link

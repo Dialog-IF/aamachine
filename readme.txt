@@ -127,19 +127,30 @@ Release notes:
 		First community-maintained release! Incrementing the major version
 		per Linus's wishes. 0.*.* remains his for future development.
 		
-		Specification: clear all status areas; nbsp; get div width/height.
+		Specification: CLEAR_STATUS clears status areas but not the main
+		body, to complement CLEAR and CLEAR_ALL.
 		
-		Specification: links now work for GET_KEY as well as GET_INPUT.
+		Specification: NBSP is added to the suite of spacing opcodes.
 		
-		Web interpreter: supports playing audio.
+		Specification: New VM_INFO options can get div width/height and
+		test whether transcripting is active. The spec on VM_INFO is also
+		clearer in general.
 		
-<<<<<<< line-tagging
-=======
-		Web interpreter: supports enlarged text.
+		Specification: BODY_STYLE changes the global style of the page,
+		outside of any divs and spans.
 		
-		Web interpreter: theming is more flexible.
+		Specification: Links now work for GET_KEY as well as GET_INPUT.
 		
->>>>>>> main
+		Specification: Officially removed some deprecated opcodes to
+		make room for the future. Dialog no longer emits these (and in
+		one case, never did!).
+		
+		Web interpreter: Supports playing audio.
+		
+		Web interpreter: Supports enlarged text.
+		
+		Web interpreter: Theming is more flexible.
+		
 		Distribution: aamrun executable allows running Å-machine programs
 		without installing Node.
 

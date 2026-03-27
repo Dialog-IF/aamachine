@@ -283,7 +283,7 @@ void decode_lang(struct chunk *ch) {
 		put_aachar(ch->data[ptr++]);
 	}
 	printf("\n");
-	if(chunk[0].data[1] >= 4) {
+	if(chunk[0].data[1] >= 1 || chunk[0].data[1] >= 4) {
 		ptr++;
 		printf("No space before:  ");
 		while(ch->data[ptr]) {
@@ -341,7 +341,7 @@ static int put_string(uint8_t *writ, uint8_t *decoder, uint32_t *addr) {
 				bits <<= 1;
 				nbit--;
 			}
-			if(chunk[0].data[1] < 4) {
+			if(chunk[0].data[0] == 0 && chunk[0].data[1] < 4) {
 				put_aachar(0x80 + code);
 				charcount++;
 			} else if(code < escape_decode_boundary) {
@@ -970,7 +970,7 @@ int main(int argc, char **argv) {
 	strshift = chunk[0].data[3];
 
 	dictch = findchunk("DICT");
-	if(chunk[0].data[1] >= 4 && !dictch && !savefile) {
+	if((chunk[0].data[0] >= 1 || chunk[0].data[1] >= 4) && !dictch && !savefile) {
 		fprintf(stderr, "Error: No DICT chunk.\n");
 		exit(1);
 	}
@@ -978,7 +978,7 @@ int main(int argc, char **argv) {
 	ch = findchunk("LANG");
 	if(ch) {
 		extchars = ch->data + get16(ch->data + 2);
-		if(chunk[0].data[1] >= 4) {
+		if(chunk[0].data[0] >= 1 || chunk[0].data[1] >= 4) {
 			escape_decode_boundary = extchars[0] - 32;
 			if(escape_decode_boundary < 0) escape_decode_boundary = 0;
 			i = escape_decode_boundary + get16(dictch->data) - 1;
