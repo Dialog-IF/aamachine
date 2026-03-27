@@ -2571,10 +2571,10 @@ function vm_run(e, param) {
 					case 0x44: // interpreter supports formatting
 						v = io.have_format()? 1 : 0;
 						break;
-					case 0x44: // interpreter supports color
+					case 0x45: // interpreter supports color
 						v = io.have_color()? 1 : 0;
 						break;
-					case 0x44: // interpreter supports text-align
+					case 0x46: // interpreter supports text-align
 						v = io.have_align()? 1 : 0;
 						break;
 					case 0x50: // currently transcripting
