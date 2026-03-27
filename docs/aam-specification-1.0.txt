@@ -845,8 +845,8 @@ CODE:
 	6a	ENTER_SELF_LINK					[spec 0.4]
 	ea	LEAVE_SELF_LINK					[spec 0.4]
 
-	6b	SET_STYLE		BYTE
-	eb	RESET_STYLE		BYTE
+	6b	SET_STYLE		BYTE		[deprecated]
+	eb	RESET_STYLE		BYTE		[deprecated]
 
 	6c	EMBED_RES		VALUE			[spec 0.2]
 	ec	CAN_EMBED_RES		VALUE DEST		[spec 0.2]
@@ -2378,6 +2378,8 @@ Opcode semantics
 			output_setstyle(arg)
 			SPC = space
 		}
+		
+		This opcode is deprecated, but still supported for now.
 
 	RESET_STYLE		BYTE
 
@@ -2385,6 +2387,8 @@ Opcode semantics
 		if(CWL == 0) {
 			output_resetstyle(arg)
 		}
+		
+		This opcode is deprecated, but still supported for now.
 
 	SET_BODY		INDEX
 
