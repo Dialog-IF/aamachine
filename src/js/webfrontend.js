@@ -224,6 +224,32 @@ function prepare_styles(styles, style_data) {
 	return sty;
 }
 
+function preload_resources(ress) { // Most resources don't need any preloading, but fonts need to be injected into the HTML before they can be used
+	var sty, url, name, match, html = "";
+	for(const res of ress) { // {url:"", alt:"", options:[""]}
+		if(!res.url.match(/\.(ttf|otf|eot|woff2?)$/i)) continue; // Non-fonts don't matter right now
+		url = io.transform_url(res.url); // Convert file://xyz to /resources/xyz, leave https://abc untouched
+		if(!!url.match(/["\\]/)) { // We can't safely sanitize this, so just error out
+			console.error("Bad URL for font resource: " + url);
+			continue;
+		}
+		
+		// Now we have a valid font; copy all its properties across
+		html += '@font-face {';
+		
+		for(const opt of res.options) {
+			if(match = opt.match(/([^:\s]+)(\s|:)\s*(.*)/)) {
+				html += match[1] + ': ' + match[3] + '; ';
+			}
+		}
+		html += 'src: url("' + url + '"); '
+		html += '}\n'
+	}
+	sty = document.createElement("style");
+	sty.innerHTML = html;
+	return sty;
+}
+
 function errormsg(str) {
 	var line;
 	line = document.createElement("div");
@@ -864,7 +890,7 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "lrl"});
 		},
 		embed_res: function(res) {
-			var img, chan;
+			var img, chan, match, url, loop = false;
 
 			if(this.res_is_image(res)) { // Images
 				this.ensure_par();
@@ -873,14 +899,16 @@ window.run_game = function(story64, options) {
 				img.setAttribute("alt", res.alt);
 				this.current.appendChild(img);
 			} else if(this.res_is_audio(res)) { // Audio
-				let m = res.options.match(/\bchannel (\w+)\b/);
-				if(m) {
-					chan = m[1];
-				} else {
-					chan = "main";
+				for(const opt of res.options) {
+					if(match = opt.match(/channel(\s|:)\s*(.*)/)) {
+						chan = m[1];
+					}
+					if(opt.match(/loop(\s|:)/)) {
+						loop = true;
+					}
 				}
-				let url = this.transform_url(res.url);
-				let loop = !!res.options.match(/\bloop\b/);
+				if(!chan) chan = "main";
+				url = this.transform_url(res.url);
 				if(chan in this.audio && !this.audio[chan].ended) { // Something is currently playing on this channel, we need to stop it
 					//console.log("Existing: " + this.audio[chan] + " " + this.audio[chan].src + " " + url);
 					if(!this.audio[chan].src.endsWith(url)) { // Don't replace a sound with the same sound
@@ -1384,6 +1412,8 @@ window.run_game = function(story64, options) {
 	io.storage_key = aaengine.get_story_key();
 	io.style_data = [];
 	document.getElementsByTagName("head")[0].appendChild(prepare_styles(io.styles, io.style_data));
+	
+	document.getElementsByTagName("head")[0].appendChild(preload_resources(aaengine.get_resources())); // Some resources like fonts need preloading; we do that here
 
 	metadata = aaengine.get_metadata();
 	var div = document.getElementById("aaaboutmeta");

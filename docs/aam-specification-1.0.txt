@@ -601,7 +601,8 @@ URLS:
 	followed by a null-terminated URL, followed by a null-terminated option
 	string. As of version 1.0, the contents of this option string are left
 	to the interpreter to specify; future versions of this specification
-	may then codify this behavior, if it proves useful.
+	may then codify this behavior, if it proves useful. (The Å-machine web
+	interpreter treats it as a comma-separated list.)
 
 	It is up to the interpreter to decide how to embed (or link to) a
 	resource. The filename ending can be significant, in addition to the
