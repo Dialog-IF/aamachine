@@ -844,7 +844,7 @@ function vm_unwrap_savefile(e, filedata) {
 
 function get_res(e, id) { // Made global to enable get_resources
 	var obj = {url: "", alt: "", options: ""};
-	var n, i, offs;
+	var n, i, offs, opts="";
 	if(e.urls) {
 		n = get16(e.urls, 0);
 		if(id < n) {
@@ -857,10 +857,11 @@ function get_res(e, id) { // Made global to enable get_resources
 				obj.url += String.fromCharCode(e.urls[offs + i]);
 			}
 			for(i++; e.urls[offs + i]; i++) {
-				obj.options += String.fromCharCode(e.urls[offs + i]);
+				opts += String.fromCharCode(e.urls[offs + i]);
 			}
 		}
 	}
+	obj.options = opts.split(",").map(item => item.trim()).filter(item => item !== ""); // Split on commas, remove surrounding whitespace, remove empty strings, return array
 	return obj;
 }
 
