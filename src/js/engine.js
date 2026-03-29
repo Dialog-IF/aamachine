@@ -2568,8 +2568,8 @@ function vm_run(e, param) {
 					case 0x43: // interpreter supports quit
 						v = e.havequit? 1 : 0;
 						break;
-					case 0x44: // interpreter supports formatting
-						v = io.have_format()? 1 : 0;
+					case 0x44: // interpreter supports styling
+						v = io.have_styles()? 1 : 0;
 						break;
 					case 0x45: // interpreter supports color
 						v = io.have_color()? 1 : 0;

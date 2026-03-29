@@ -7967,8 +7967,8 @@ defnull
 	cmp	#$43 ; Quit
 	beq	yes
 #endif
-#if HAVE_FORMAT
-	cmp #$44 ; Formatting
+#if HAVE_STYLE
+	cmp #$44 ; Text styling
 	beq yes
 #endif
 #if HAVE_STATUS

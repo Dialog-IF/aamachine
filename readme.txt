@@ -132,9 +132,9 @@ Release notes:
 		
 		Specification: NBSP is added to the suite of spacing opcodes.
 		
-		Specification: New VM_INFO options can get div width/height and
-		test whether transcripting is active. The spec on VM_INFO is also
-		clearer in general.
+		Specification: New VM_INFO options can get div width/height, test
+		whether transcripting is active, and check for various types of
+		style support. The spec on VM_INFO is also clearer in general.
 		
 		Specification: BODY_STYLE changes the global style of the page,
 		outside of any divs and spans.

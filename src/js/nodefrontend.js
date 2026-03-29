@@ -247,7 +247,7 @@ const io = {
 		});
 	},
 	
-	have_format: function() { // No text formatting
+	have_styles: function() { // No text styling
 		return false;
 	},
 	have_color: function() { // No color

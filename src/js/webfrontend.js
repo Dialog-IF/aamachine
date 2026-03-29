@@ -1002,7 +1002,7 @@ window.run_game = function(story64, options) {
 			inp.click();
 			this.current.removeChild(inp);
 		},
-		have_format: function() { // Has text formatting support
+		have_styles: function() { // Has text styling support
 			return true;
 		},
 		have_color: function() { // Has color support

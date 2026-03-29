@@ -19,6 +19,9 @@ Changes in v1.0:
 	
 		Div width
 		Div height
+		Interpreter supports styling
+		Interpreter supports color
+		Interpreter supports text alignment
 		Currently transcripting
 	
 	Removed some previously-deprecated opcodes
@@ -906,7 +909,7 @@ CODE:
 		41	interpreter supports save/restore
 		42	interpreter supports hyperlinks
 		43	interpreter supports quit
-		44	interpreter supports formatting		[spec 1.0]
+		44	interpreter supports styling		[spec 1.0]
 		45	interpreter supports color			[spec 1.0]
 		46	interpreter supports text alignment	[spec 1.0]
 		50	currently transcripting				[spec 1.0]
@@ -918,9 +921,12 @@ CODE:
 		40 to 7f. Selectors above 7f should raise an error; their behavior
 		is not yet defined.
 		
-		"Formatting" means, at minimum, bold and italic or equivalent.
-		These can be any two ways of distinguishing text (e.g. bright and
-		underlined) and need not be combinable.
+		"Styling" means that "bold" and "italic" text can be distinguished
+		in some way, though they need not actually be bold and italic:
+		bright and underlined, or two different screen reader voices, both
+		qualify. Bold italic text may be equivalent to either bold or
+		italic (that is, an interpreter that cannot combine styles may
+		still return 1).
 
 	78	SET_IDX			VALUE
 	79/f9	CHECK_EQ		WORD/VBYTE CODE
