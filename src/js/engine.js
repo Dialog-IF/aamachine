@@ -2568,6 +2568,15 @@ function vm_run(e, param) {
 					case 0x43: // interpreter supports quit
 						v = e.havequit? 1 : 0;
 						break;
+					case 0x44: // interpreter supports styling
+						v = io.have_styles()? 1 : 0;
+						break;
+					case 0x45: // interpreter supports color
+						v = io.have_color()? 1 : 0;
+						break;
+					case 0x46: // interpreter supports text-align
+						v = io.have_align()? 1 : 0;
+						break;
 					case 0x50: // currently transcripting
 						v = io.script_active()? 1 : 0;
 						break;
