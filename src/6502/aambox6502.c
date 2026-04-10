@@ -153,7 +153,7 @@ void write6502(uint16_t address, uint8_t value) {
 			intaddr =
 				(core[0x0212] << 8);
 			if(extaddr >= extromsize) {
-				fprintf(stderr, "Attempting to read external rom at %06x\n", extaddr);
+				fprintf(stderr, "Attempting to read external rom at %06x when only %06x is available\n", extaddr, extromsize);
 				exit(1);
 			}
 			if(intaddr < (core[FIRSTPG] << 8) || intaddr >= (core[ENDPG] << 8)) {

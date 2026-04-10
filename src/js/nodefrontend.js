@@ -137,6 +137,8 @@ const io = {
 	},
 	unstyle: function() {
 	},
+	set_body: function(id) {
+	},
 	parse_em: function(id, key, defvalue) {
 		if(id >= 0) {
 			let str = this.styles[id][key];
@@ -243,6 +245,16 @@ const io = {
 				status = aaengine.vm_restore(data);
 			}
 		});
+	},
+	
+	have_styles: function() { // No text styling
+		return false;
+	},
+	have_color: function() { // No color
+		return false;
+	},
+	have_align: function() { // No text alignment
+		return false;
 	}
 };
 

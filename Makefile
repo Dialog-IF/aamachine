@@ -1,4 +1,6 @@
-all: src/aamshow src/aambundle test
+BINARIES=src/aamshow src/aambundle
+
+all: $(BINARIES) test
 
 src/aamshow:
 	$(MAKE) -C src
@@ -6,10 +8,10 @@ src/aamshow:
 src/aambundle:
 	$(MAKE) -C src
 
-test: src/aamshow src/aambundle
+test: $(BINARIES)
 	$(MAKE) -C test
 
-install: src/aamshow src/aambundle
+install: $(BINARIES)
 	$(MAKE) -C src install
 
 tidy:
@@ -29,6 +31,10 @@ windows:
 	$(MAKE) -C src windows
 
 6502:
-	$(MAKE) -C src 6502
+	$(MAKE) -C src/6502 all
 
+test: $(BINARIES)
+	make -C test/gosling test clean
+	make -C test/impossible test clean
+  
 .PHONY: all test clean tidy install uninstall distclean windows 6502
