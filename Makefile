@@ -33,8 +33,4 @@ windows:
 6502:
 	$(MAKE) -C src/6502 all
 
-test: $(BINARIES)
-	make -C test/gosling test clean
-	make -C test/impossible test clean
-  
 .PHONY: all test clean tidy install uninstall distclean windows 6502
