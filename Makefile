@@ -1,12 +1,20 @@
 BINARIES=src/aamshow src/aambundle
 
-all: $(BINARIES) test
+all: $(BINARIES) 6502 test
 
 src/aamshow:
 	$(MAKE) -C src
 
 src/aambundle:
 	$(MAKE) -C src
+
+windows:
+	$(MAKE) -C src windows
+
+6502:
+	$(MAKE) -C src 6502
+
+no6502: $(BINARIES) test
 
 test: $(BINARIES)
 	$(MAKE) -C test
@@ -27,10 +35,4 @@ uninstall:
 
 distclean: clean uninstall
 
-windows:
-	$(MAKE) -C src windows
-
-6502:
-	$(MAKE) -C src/6502 all
-
-.PHONY: all test clean tidy install uninstall distclean windows 6502
+.PHONY: all test clean tidy install uninstall distclean windows 6502 no6502
