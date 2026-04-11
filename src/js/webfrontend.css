@@ -10,7 +10,9 @@ html {
 	--theme-lightest: #eeeeee;
 	--accent-dark: #875;
 	--accent-light: #aa8;
-	
+}
+
+#aadefaults {
 	--night-page: var(--theme-darkest); /* Night mode outside gameport */
 	--night-bg: inherit; /* Night mode background */
 	--night-fg: var(--theme-light); /* Night mode text */
@@ -38,7 +40,7 @@ html {
 	--font-body: Georgia, serif; /* Main body text */
 }
 
-body {
+#aadefaults {
 	--bg: var(--day-bg);
 	--text: var(--day-fg);
 	--link: var(--day-link);
@@ -47,12 +49,18 @@ body {
 	color: var(--text);
 }
 
-body.night {
+.night #aadefaults {
 	--bg: var(--night-bg);
 	--text: var(--night-fg);
 	--link: var(--night-link);
 	--link-hover: var(--night-link-hover);
 	background-color: var(--night-page);
+}
+
+html, body, #aabody1, #aabody2, #aadefaults {
+	width: 100%;
+	height: 100%;
+	margin: 0;
 }
 
 body.enlarge {
@@ -173,10 +181,6 @@ h2 {
 
 .aamenuoption:hover {
 	color: var(--menu-hover);
-}
-
-#aabody { /* A wrapper with no existence of its own - only exists so that CSS rules can be nested correctly (inside `body` but outside `#aaform`) */
-	margin: 0;
 }
 
 #aaform {
