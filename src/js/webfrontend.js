@@ -238,9 +238,7 @@ function preload_resources(ress) { // Most resources don't need any preloading, 
 		html += '@font-face {';
 		
 		for(const opt of res.options) {
-			if(match = opt.match(/([^:\s]+)(\s|:)\s*(.*)/)) {
-				html += match[1] + ': ' + match[3] + '; ';
-			}
+			html += opt + '; ';
 		}
 		html += 'src: url("' + url + '"); '
 		html += '}\n'

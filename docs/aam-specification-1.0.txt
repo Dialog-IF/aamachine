@@ -605,7 +605,7 @@ URLS:
 	string. As of version 1.0, the contents of this option string are left
 	to the interpreter to specify; future versions of this specification
 	may then codify this behavior if it proves useful. (The web interpreter
-	treats it as a comma-separated list of keys and/or key:value pairs.)
+	treats it as a comma-separated list of options.)
 
 	It is up to the interpreter to decide how to embed (or link to) a
 	resource. The filename ending can be significant, in addition to the
