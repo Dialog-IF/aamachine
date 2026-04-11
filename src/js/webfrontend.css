@@ -47,6 +47,7 @@ html {
 	--link-hover: var(--day-link-hover);
 	background-color: var(--day-page);
 	color: var(--text);
+	scrollbar-color: var(--theme-medium) var(--theme-light);
 }
 
 .night #aadefaults {
@@ -55,6 +56,7 @@ html {
 	--link: var(--night-link);
 	--link-hover: var(--night-link-hover);
 	background-color: var(--night-page);
+	scrollbar-color: var(--theme-medium) var(--theme-dark);
 }
 
 html, body, #aabody1, #aabody2, #aadefaults {
