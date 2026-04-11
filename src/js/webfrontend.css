@@ -38,6 +38,11 @@ html {
 	
 	--font-status: Geneva, sans-serif; /* Status bar and menus */
 	--font-body: Georgia, serif; /* Main body text */
+	
+	--night-scroll-fg: var(--theme-medium);
+	--night-scroll-bg: var(--theme-dark);
+	--day-scroll-fg: var(--theme-medium);
+	--day-scroll-bg: var(--theme-light);
 }
 
 #aadefaults {
@@ -47,7 +52,7 @@ html {
 	--link-hover: var(--day-link-hover);
 	background-color: var(--day-page);
 	color: var(--text);
-	scrollbar-color: var(--theme-medium) var(--theme-light);
+	scrollbar-color: var(--day-scroll-fg) var(--day-scroll-bg);
 }
 
 .night #aadefaults {
@@ -56,7 +61,7 @@ html {
 	--link: var(--night-link);
 	--link-hover: var(--night-link-hover);
 	background-color: var(--night-page);
-	scrollbar-color: var(--theme-medium) var(--theme-dark);
+	scrollbar-color: var(--night-scroll-fg) var(--night-scroll-bg);
 }
 
 html, body, #aabody1, #aabody2, #aadefaults {
