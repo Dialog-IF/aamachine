@@ -30,7 +30,7 @@ Changes in v1.0:
 	
 	Specified behavior of unrecognized VM_INFO options
 	
-	Specified behavior of resource option strings
+	Specified format of resource option strings
 	
 	Rewrote some portions of the spec for clarity
 
