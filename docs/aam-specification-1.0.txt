@@ -152,7 +152,7 @@ Game state:
 
 	Unsaved data:
 
-		* Most output state (Style, screen contents, ...)
+		* Most output state (style, screen contents, ...)
 		* Runtime flags (transcript, trace, uppercase)
 		* TMP (global register used during some recursive operations)
 
