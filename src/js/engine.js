@@ -842,9 +842,23 @@ function vm_unwrap_savefile(e, filedata) {
 	return {rledata: data, regs: regs};
 }
 
+// a, x => [a, x]
+// true, x => x
+// [a, b, c], x => [a, b, c, x]
+function combine_arrays(oldarr, newval) {
+	if(oldarr === true) {
+		return newval;
+	} else if(oldarr instanceof Array) {
+		oldarr.push(newval);
+		return oldarr;
+	} else {
+		return [oldarr, newval];
+	}
+}
+
 function get_res(e, id) { // Made global to enable get_resources
-	var obj = {url: "", alt: "", options: ""};
-	var n, i, offs, opts="";
+	var obj = {url: "", alt: "", options: {}};
+	var n, i, offs, k, v, ext, match, opts="";
 	if(e.urls) {
 		n = get16(e.urls, 0);
 		if(id < n) {
@@ -861,7 +875,23 @@ function get_res(e, id) { // Made global to enable get_resources
 			}
 		}
 	}
-	obj.options = opts.split(",").map(item => item.trim()).filter(item => item !== ""); // Split on commas, remove surrounding whitespace, remove empty strings, return array
+	for(const opt of opts.split(",").map(item => item.trim()).filter(item => item !== "")) { // Split on commas, remove surrounding whitespace, remove empty strings, return array
+		if((match = opt.match(/^(.*?)\s*:\s*(.*)$/))) {
+			k = match[1];
+			v = match[2];
+			if(k in obj.options) { // Multiple values for the same key are consolidated into a list
+				v = combine_arrays(obj.options[k], v);
+			}
+			obj.options[k] = v;
+		} else {
+			k = opt;
+			if(k in obj.options) { // Key without value does not add to list
+				;
+			} else {
+				obj.options[k] = true;
+			}
+		}
+	}
 	return obj;
 }
 

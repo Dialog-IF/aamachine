@@ -30,6 +30,8 @@ Changes in v1.0:
 	
 	Specified behavior of unrecognized VM_INFO options
 	
+	Specified behavior of resource option strings
+	
 	Rewrote some portions of the spec for clarity
 
 These are still early days, and everything is subject to change. When only the
@@ -602,10 +604,9 @@ URLS:
 				header)
 
 	followed by a null-terminated URL, followed by a null-terminated option
-	string. As of version 1.0, the contents of this option string are left
-	to the interpreter to specify; future versions of this specification
-	may then codify this behavior if it proves useful. (The web interpreter
-	treats it as a comma-separated list of options.)
+	string. This option string is currently taken as a comma-delimited list
+	of options, each of which may be a simple string, or a key and value
+	separated by a colon.
 
 	It is up to the interpreter to decide how to embed (or link to) a
 	resource. The filename ending can be significant, in addition to the
