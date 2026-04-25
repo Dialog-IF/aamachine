@@ -33,11 +33,12 @@ var wants_dark_mode = window.matchMedia && window.matchMedia('(prefers-color-sch
 var toggles = [
 	{id: "aacb-fade", text: "Fading text", init: true},
 	{id: "aacb-links", text: "Hyperlinks", init: true},
-	{id: "aacb-hovertype", text: "Link previews", init: true},
+	{id: "aacb-hovertype", text: "Link previews", tooltip: "Preview what a link will do when hovering over it", init: true},
 	{id: "aacb-smoothscroll", text: "Smooth scrolling", init: false},
 	{id: "aacb-dark", text: "Dark theme", init: wants_dark_mode},
-	{id: "aacb-refocus", text: "Always re-focus", init: false},
+	{id: "aacb-refocus", text: "Always re-focus", tooltip: "Always bring focus back to the input bar after entering a command", init: false},
 	{id: "aacb-large", text: "Larger text", init: false},
+	{id: "aacb-nofont", text: "Disable fonts", tooltip: "Use the system's default fonts instead of the ones chosen by the author", init: false},
 ];
 
 var aaengine;
@@ -135,6 +136,10 @@ function createdoc() {
 		inp.setAttribute("id", t.id);
 		inp.setAttribute("type", "checkbox");
 		inp.checked = t.init;
+		if(t.tooltip) {
+			lbl.setAttribute("title", t.tooltip);
+			div.setAttribute("class", "aamenuoption aahastooltip");
+		}
 		div.appendChild(inp);
 		div.appendChild(document.createTextNode(t.text));
 		lbl.appendChild(div);
@@ -197,7 +202,7 @@ var aaremote = {
 };
 
 function prepare_styles(styles, style_data) {
-	var sty, i, j, html = "";
+	var sty, i, j, html = "", mono = false;
 
 	for(i = 0; i < styles.length; i++) {
 		let name = "aa-" + (styles[i]["style-name"] || i);
@@ -205,7 +210,7 @@ function prepare_styles(styles, style_data) {
 		if(name in style_data) name = "aax-" + i; // Emergency fallback, guaranteed not to conflict
 		style_data[i] = { name:name, attrs:{} };
 		
-		html += "." + name + " {";
+		html += "." + name + " { ";
 		for(j in styles[i]) {
 			if(j.startsWith("aria-")) { // Copy aria-* declarations to a special array, since we want to assign these to the HTML tag, not just leave them in the CSS
 				if(j == "aria-role") { // The HTML name is simply "role"
@@ -214,8 +219,23 @@ function prepare_styles(styles, style_data) {
 					style_data[i].attrs[j] = styles[i][j];
 				}
 			}
+			// Check if it's monospace for the no-fonts toggle
+			if(j == "font-family") {
+				if(styles[i][j].includes("monospace")) {
+					mono = true;
+				}
+			}
 			// But we also copy *everything* across into the CSS, regardless of aria-* or style-name, because these might be meaningful in some future spec
-			html += j + ": " + styles[i][j] + ";";
+			html += j + ": " + styles[i][j] + "; ";
+		}
+		html += "}\n";
+		
+		html += ".nofont ." + name + " { "; // Second rule for when fonts are disabled
+		if(mono) {
+			// https://github.com/necolas/normalize.css/issues/519
+			html += "font-family: monospace, monospace; ";
+		} else {
+			html += "font-family: inherit; ";
 		}
 		html += "}\n";
 	}
@@ -1285,6 +1305,11 @@ window.run_game = function(story64, options) {
 		} else {
 			$("body").removeClass("enlarge");
 		}
+		if(document.getElementById("aacb-nofont").checked) {
+			$("body").addClass("nofont");
+		} else {
+			$("body").removeClass("nofont");
+		}
 		io.maybe_focus();
 	}
 
@@ -1307,6 +1332,10 @@ window.run_game = function(story64, options) {
 	});
 	
 	$("#aacb-large").on("change", function() {
+		update_globalstyle();
+	});
+	
+	$("#aacb-nofont").on("change", function() {
 		update_globalstyle();
 	});
 
