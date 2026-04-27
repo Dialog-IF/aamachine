@@ -7,6 +7,7 @@
 
 #include "aambundle.h"
 
+#include "table_c64license.h"
 #include "table_c64drive.h"
 #include "table_c64load.h"
 #include "table_c64terp.h"
@@ -201,5 +202,17 @@ void bundle_c64(char *dirname) {
 		exit(1);
 	}
 	fwrite(image, 1, sizeof(image), outf);
+	fclose(outf);
+	
+	// Add the license
+	snprintf(filename, fnsize, "%s/interpreter_license.txt", dirname);
+	if(!(outf = fopen(filename, "wb"))) {
+		fprintf(stderr, "%s: %s\n", filename, strerror(errno));
+		exit(1);
+	}
+	if(1 != fwrite(table_c64license, sizeof(table_c64license), 1, outf)) {
+		fprintf(stderr, "%s: write error\n", filename);
+		exit(1);
+	}
 	fclose(outf);
 }
