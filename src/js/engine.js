@@ -842,6 +842,70 @@ function vm_unwrap_savefile(e, filedata) {
 	return {rledata: data, regs: regs};
 }
 
+// a, x => [a, x]
+// true, x => x
+// [a, b, c], x => [a, b, c, x]
+function combine_arrays(oldarr, newval) {
+	if(oldarr === true) {
+		return newval;
+	} else if(oldarr instanceof Array) {
+		oldarr.push(newval);
+		return oldarr;
+	} else {
+		return [oldarr, newval];
+	}
+}
+
+function get_res(e, id) { // Made global to enable get_resources
+	var obj = {url: "", alt: "", options: {}};
+	var n, i, offs, k, v, ext, match, opts="";
+	if(e.urls) {
+		n = get16(e.urls, 0);
+		if(id < n) {
+			offs = get16(e.urls, 2 + id * 2);
+			obj.alt = decodestr(e, (
+				(e.urls[offs] << 16) |
+				(e.urls[offs + 1] << 8) |
+				e.urls[offs + 2]) << e.strshift);
+			for(i = 3; e.urls[offs + i]; i++) {
+				obj.url += String.fromCharCode(e.urls[offs + i]);
+			}
+			for(i++; e.urls[offs + i]; i++) {
+				opts += String.fromCharCode(e.urls[offs + i]);
+			}
+		}
+	}
+	for(const opt of opts.split(",").map(item => item.trim()).filter(item => item !== "")) { // Split on commas, remove surrounding whitespace, remove empty strings, return array
+		if((match = opt.match(/^(.*?)\s*:\s*(.*)$/))) {
+			k = match[1];
+			v = match[2];
+			if(k in obj.options) { // Multiple values for the same key are consolidated into a list
+				v = combine_arrays(obj.options[k], v);
+			}
+			obj.options[k] = v;
+		} else {
+			k = opt;
+			if(k in obj.options) { // Key without value does not add to list
+				;
+			} else {
+				obj.options[k] = true;
+			}
+		}
+	}
+	return obj;
+}
+
+function get_resources(e) { // Array of all resources
+	var ress = [];
+	var i, n;
+	if(!e.urls) return [];
+	n = get16(e.urls, 0);
+	for(i = 0; i < n; i++) {
+		ress.push(get_res(e, i));
+	}
+	return ress;
+}
+
 function vm_run(e, param) {
 	var io = e.io;
 	var op, a1, a2, a3, a4, addr, tmp, v, i, j, flag, iter, match, curr, str;
@@ -1353,28 +1417,6 @@ function vm_run(e, param) {
 		var newhigh = ((0x15a * low) + (0x4e35 * high)) & 0xffff;
 		e.randomstate = (((newhigh << 16)>>>0) + (0x4e35 * low) + 1) & 0xffffffff;
 		return (e.randomstate >> 16) & 0x7fff;
-	}
-
-	function get_res(id) {
-		var obj = {url: "", alt: "", options: ""};
-		var n, i, offs;
-		if(e.urls) {
-			n = get16(e.urls, 0);
-			if(id < n) {
-				offs = get16(e.urls, 2 + id * 2);
-				obj.alt = decodestr(e, (
-					(e.urls[offs] << 16) |
-					(e.urls[offs + 1] << 8) |
-					e.urls[offs + 2]) << e.strshift);
-				for(i = 3; e.urls[offs + i]; i++) {
-					obj.url += String.fromCharCode(e.urls[offs + i]);
-				}
-				for(i++; e.urls[offs + i]; i++) {
-					obj.options += String.fromCharCode(e.urls[offs + i]);
-				}
-			}
-		}
-		return obj;
 	}
 
 	function makepairsub(literal, arg, addr) {
@@ -2261,7 +2303,7 @@ function vm_run(e, param) {
 							if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) {
 								io.space();
 							}
-							io.enter_link_res(get_res(a1 & 0x1fff));
+							io.enter_link_res(get_res(e, a1 & 0x1fff));
 							e.spc = e.SP_NOSPACE;
 						}
 						e.n_link++;
@@ -2345,12 +2387,12 @@ function vm_run(e, param) {
 				case 0x6c: // embed_res value
 					a1 = deref(fvalue());
 					if(e.spc == e.SP_AUTO || e.spc == e.SP_PENDING) io.space();
-					io.embed_res(get_res(a1 & 0x1fff));
+					io.embed_res(get_res(e, a1 & 0x1fff));
 					e.spc = e.SP_AUTO;
 					break;
 				case 0xec: // can_embed_res value dest
 					a1 = deref(fvalue());
-					store(e.code[e.inst++], io.can_embed_res(get_res(a1 & 0x1fff))? 1 : 0);
+					store(e.code[e.inst++], io.can_embed_res(get_res(e, a1 & 0x1fff))? 1 : 0);
 					break;
 				case 0x6d: // progress value value
 					a1 = deref(fvalue());
@@ -2567,6 +2609,15 @@ function vm_run(e, param) {
 						break;
 					case 0x43: // interpreter supports quit
 						v = e.havequit? 1 : 0;
+						break;
+					case 0x44: // interpreter supports styling
+						v = io.have_styles()? 1 : 0;
+						break;
+					case 0x45: // interpreter supports color
+						v = io.have_color()? 1 : 0;
+						break;
+					case 0x46: // interpreter supports text-align
+						v = io.have_align()? 1 : 0;
 						break;
 					case 0x50: // currently transcripting
 						v = io.script_active()? 1 : 0;
@@ -2876,6 +2927,9 @@ var aaengine = {
 	},
 	get_file: function(name) {
 		return instance_e.files[name];
+	},
+	get_resources: function() {
+		return get_resources(instance_e);
 	},
 	get_story_key: function() {
 		var i, str, hex;

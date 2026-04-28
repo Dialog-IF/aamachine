@@ -33,11 +33,12 @@ var wants_dark_mode = window.matchMedia && window.matchMedia('(prefers-color-sch
 var toggles = [
 	{id: "aacb-fade", text: "Fading text", init: true},
 	{id: "aacb-links", text: "Hyperlinks", init: true},
-	{id: "aacb-hovertype", text: "Link previews", init: true},
+	{id: "aacb-hovertype", text: "Link previews", tooltip: "Preview what a link will do when hovering over it", init: true},
 	{id: "aacb-smoothscroll", text: "Smooth scrolling", init: false},
 	{id: "aacb-dark", text: "Dark theme", init: wants_dark_mode},
-	{id: "aacb-refocus", text: "Always re-focus", init: false},
+	{id: "aacb-refocus", text: "Always re-focus", tooltip: "Always bring focus back to the input bar after entering a command", init: false},
 	{id: "aacb-large", text: "Larger text", init: false},
+	{id: "aacb-nofont", text: "Disable fonts", tooltip: "Use the system's default fonts instead of the ones chosen by the author", init: false},
 ];
 
 var aaengine;
@@ -135,6 +136,10 @@ function createdoc() {
 		inp.setAttribute("id", t.id);
 		inp.setAttribute("type", "checkbox");
 		inp.checked = t.init;
+		if(t.tooltip) {
+			lbl.setAttribute("title", t.tooltip);
+			div.setAttribute("class", "aamenuoption aahastooltip");
+		}
 		div.appendChild(inp);
 		div.appendChild(document.createTextNode(t.text));
 		lbl.appendChild(div);
@@ -197,7 +202,7 @@ var aaremote = {
 };
 
 function prepare_styles(styles, style_data) {
-	var sty, i, j, html = "";
+	var sty, i, j, html = "", mono = false;
 
 	for(i = 0; i < styles.length; i++) {
 		let name = "aa-" + (styles[i]["style-name"] || i);
@@ -205,7 +210,7 @@ function prepare_styles(styles, style_data) {
 		if(name in style_data) name = "aax-" + i; // Emergency fallback, guaranteed not to conflict
 		style_data[i] = { name:name, attrs:{} };
 		
-		html += "." + name + " {";
+		html += "." + name + " { ";
 		for(j in styles[i]) {
 			if(j.startsWith("aria-")) { // Copy aria-* declarations to a special array, since we want to assign these to the HTML tag, not just leave them in the CSS
 				if(j == "aria-role") { // The HTML name is simply "role"
@@ -214,10 +219,52 @@ function prepare_styles(styles, style_data) {
 					style_data[i].attrs[j] = styles[i][j];
 				}
 			}
+			// Check if it's monospace for the no-fonts toggle
+			if(j == "font-family") {
+				if(styles[i][j].includes("monospace")) {
+					mono = true;
+				}
+			}
 			// But we also copy *everything* across into the CSS, regardless of aria-* or style-name, because these might be meaningful in some future spec
-			html += j + ": " + styles[i][j] + ";";
+			html += j + ": " + styles[i][j] + "; ";
 		}
 		html += "}\n";
+		
+		html += ".nofont ." + name + " { "; // Second rule for when fonts are disabled
+		if(mono) {
+			// https://github.com/necolas/normalize.css/issues/519
+			html += "font-family: monospace, monospace; ";
+		} else {
+			html += "font-family: inherit; ";
+		}
+		html += "}\n";
+	}
+	sty = document.createElement("style");
+	sty.innerHTML = html;
+	return sty;
+}
+
+function preload_resources(ress) { // Most resources don't need any preloading, but fonts need to be injected into the HTML before they can be used
+	var sty, url, name, match, html = "";
+	for(const res of ress) { // {url:"", alt:"", options:{}}
+		url = io.transform_url(res.url); // Convert file://xyz to /resources/xyz, leave https://abc untouched
+		if(!!url.match(/["\\]/)) { // We can't safely sanitize this, so just error out
+			console.error("Bad URL for font resource: " + url);
+			continue;
+		}
+		
+		// Now we have a valid font; copy all its properties across
+		html += '@font-face {';
+		
+		for(const key in res.options) {
+			if(res.options[key] === true) {
+				console.error("All properties of a font resource should have values; key \"" + key + "\" does not!");
+				continue;
+			}
+			html += key + ': ' + res.options[key] + '; ';
+		}
+		html += 'src: url("' + url + '"); '
+		html += '}\n'
 	}
 	sty = document.createElement("style");
 	sty.innerHTML = html;
@@ -654,10 +701,12 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "us"});
 		},
 		set_body: function(id) {
-			$("#aabody").removeClass();
+			$("#aabody1").removeClass();
+			$("#aabody2").removeClass();
 			if(id !== null) { // Can be called with no id to reset
 				var cls = this.style_data[id].name;
-				$("#aabody").addClass(cls);
+				$("#aabody1").addClass(cls);
+				$("#aabody2").addClass(cls);
 				this.currarray.push({t: "sb", i: id});
 			}
 		},
@@ -864,7 +913,7 @@ window.run_game = function(story64, options) {
 			this.currarray.push({t: "lrl"});
 		},
 		embed_res: function(res) {
-			var img, chan;
+			var img, chan, match, url, loop = false;
 
 			if(this.res_is_image(res)) { // Images
 				this.ensure_par();
@@ -873,14 +922,9 @@ window.run_game = function(story64, options) {
 				img.setAttribute("alt", res.alt);
 				this.current.appendChild(img);
 			} else if(this.res_is_audio(res)) { // Audio
-				let m = res.options.match(/\bchannel (\w+)\b/);
-				if(m) {
-					chan = m[1];
-				} else {
-					chan = "main";
-				}
-				let url = this.transform_url(res.url);
-				let loop = !!res.options.match(/\bloop\b/);
+				loop = res.options.loop || false;
+				chan = res.options.channel || "main";
+				url = this.transform_url(res.url);
 				if(chan in this.audio && !this.audio[chan].ended) { // Something is currently playing on this channel, we need to stop it
 					//console.log("Existing: " + this.audio[chan] + " " + this.audio[chan].src + " " + url);
 					if(!this.audio[chan].src.endsWith(url)) { // Don't replace a sound with the same sound
@@ -900,6 +944,8 @@ window.run_game = function(story64, options) {
 					this.audio[chan].play();
 					this.audio[chan].loop = loop;
 				}
+			} else if(this.res_is_font(res)) {
+				; // Nothing; fonts are embedded up above
 			} else { // Anything else is not recognized
 				this.print("[");
 				this.print(res.alt);
@@ -915,6 +961,9 @@ window.run_game = function(story64, options) {
 		},
 		res_is_audio: function(res) {
 			return !!res.url.match(/\.(ogg|mp3|wav)$/i);
+		},
+		res_is_font: function(res) {
+			return !!res.url.match(/\.(ttf|otf|eot|woff2?)$/i);
 		},
 		adjust_size: function() {
 			var aamain, newheight;
@@ -1001,6 +1050,15 @@ window.run_game = function(story64, options) {
 			this.current.appendChild(cancel);
 			inp.click();
 			this.current.removeChild(inp);
+		},
+		have_styles: function() { // Has text styling support
+			return true;
+		},
+		have_color: function() { // Has color support
+			return true;
+		},
+		have_align: function() { // Has text alignment support
+			return true;
 		},
 		activate_input: function() {
 			var cfg, vmstate, autosave;
@@ -1247,6 +1305,11 @@ window.run_game = function(story64, options) {
 		} else {
 			$("body").removeClass("enlarge");
 		}
+		if(document.getElementById("aacb-nofont").checked) {
+			$("body").addClass("nofont");
+		} else {
+			$("body").removeClass("nofont");
+		}
 		io.maybe_focus();
 	}
 
@@ -1269,6 +1332,10 @@ window.run_game = function(story64, options) {
 	});
 	
 	$("#aacb-large").on("change", function() {
+		update_globalstyle();
+	});
+	
+	$("#aacb-nofont").on("change", function() {
 		update_globalstyle();
 	});
 
@@ -1384,6 +1451,14 @@ window.run_game = function(story64, options) {
 	io.storage_key = aaengine.get_story_key();
 	io.style_data = [];
 	document.getElementsByTagName("head")[0].appendChild(prepare_styles(io.styles, io.style_data));
+	
+//	console.log("Resource data: " + JSON.stringify(aaengine.get_resources()));
+	
+	document.getElementsByTagName("head")[0].appendChild(
+		preload_resources(
+			aaengine.get_resources().filter(res => io.res_is_font(res))
+		)
+	); // Some resources like fonts need preloading; we do that here
 
 	metadata = aaengine.get_metadata();
 	var div = document.getElementById("aaaboutmeta");

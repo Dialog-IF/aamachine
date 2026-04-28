@@ -19,6 +19,9 @@ Changes in v1.0:
 	
 		Div width
 		Div height
+		Interpreter supports styling
+		Interpreter supports color
+		Interpreter supports text alignment
 		Currently transcripting
 	
 	Removed some previously-deprecated opcodes
@@ -26,6 +29,8 @@ Changes in v1.0:
 	Expanded key-value options for resources to include ARIA roles
 	
 	Specified behavior of unrecognized VM_INFO options
+	
+	Specified format of resource option strings
 	
 	Rewrote some portions of the spec for clarity
 
@@ -147,7 +152,7 @@ Game state:
 
 	Unsaved data:
 
-		* Most output state (Style, screen contents, ...)
+		* Most output state (style, screen contents, ...)
 		* Runtime flags (transcript, trace, uppercase)
 		* TMP (global register used during some recursive operations)
 
@@ -599,9 +604,9 @@ URLS:
 				header)
 
 	followed by a null-terminated URL, followed by a null-terminated option
-	string. As of version 1.0, the contents of this option string are left
-	to the interpreter to specify; future versions of this specification
-	may then codify this behavior, if it proves useful.
+	string. This option string is currently taken as a comma-delimited list
+	of options, each of which may be a simple string, or a key and value
+	separated by a colon.
 
 	It is up to the interpreter to decide how to embed (or link to) a
 	resource. The filename ending can be significant, in addition to the
@@ -906,6 +911,9 @@ CODE:
 		41	interpreter supports save/restore
 		42	interpreter supports hyperlinks
 		43	interpreter supports quit
+		44	interpreter supports styling		[spec 1.0]
+		45	interpreter supports color			[spec 1.0]
+		46	interpreter supports text alignment	[spec 1.0]
 		50	currently transcripting				[spec 1.0]
 		60	interpreter supports top status		[spec 0.5]
 		61	interpreter supports inline status	[spec 0.5]
@@ -914,6 +922,13 @@ CODE:
 		in the range 00 to 3f, the raw value 0 for selectors in the range
 		40 to 7f. Selectors above 7f should raise an error; their behavior
 		is not yet defined.
+		
+		"Styling" means that "bold" and "italic" text can be distinguished
+		in some way, though they need not actually be bold and italic:
+		bright and underlined, or two different screen reader voices, both
+		qualify. Bold italic text may be equivalent to either bold or
+		italic (that is, an interpreter that cannot combine styles may
+		still return 1).
 
 	78	SET_IDX			VALUE
 	79/f9	CHECK_EQ		WORD/VBYTE CODE
