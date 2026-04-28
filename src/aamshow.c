@@ -897,8 +897,6 @@ int main(int argc, char **argv) {
 	int i, j, k, any;
 	struct chunk *ch;
 
-	aavm_init();
-
 	if(argc < 2) {
 		fprintf(stderr, "Aa-machine tools " VERSION "\n");
 		fprintf(stderr, "Copyright 2019-2022 Linus Akesson.\n");
@@ -916,6 +914,8 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Error: Not an IFF file.\n");
 		exit(1);
 	}
+	
+	aavm_init(header[0]); // Wait until after reading the file before initializing the opcode database so that we can pass the major version
 
 	if(!memcmp(header + 8, "AAVM", 4)) {
 		savefile = 0;
