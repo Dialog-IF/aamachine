@@ -45,7 +45,7 @@ html {
 	--day-scroll-bg: var(--theme-light);
 }
 
-#aadefaults {
+#aadefaults2 {
 	--bg: var(--day-bg);
 	--text: var(--day-fg);
 	--link: var(--day-link);
@@ -55,7 +55,7 @@ html {
 	scrollbar-color: var(--day-scroll-fg) var(--day-scroll-bg);
 }
 
-.night #aadefaults {
+.night #aadefaults2 {
 	--bg: var(--night-bg);
 	--text: var(--night-fg);
 	--link: var(--night-link);
@@ -64,7 +64,7 @@ html {
 	scrollbar-color: var(--night-scroll-fg) var(--night-scroll-bg);
 }
 
-html, body, #aabody1, #aabody2, #aadefaults {
+html, body, #aabody1, #aabody2, #aabody3, #aadefaults, #aadefaults2 {
 	width: 100%;
 	height: 100%;
 	margin: 0;
@@ -287,6 +287,7 @@ a {
 
 .aalink:hover {
 	color: var(--link-hover);
+	text-decoration: underline;
 }
 
 .aailink {
@@ -295,6 +296,7 @@ a {
 
 .aailink:hover {
 	color: var(--link-hover);
+	text-decoration: underline;
 }
 
 @keyframes fadelink {
@@ -333,6 +335,7 @@ a {
 
 .aareveal:hover {
 	color: var(--link-hover);
+	text-decoration: underline;
 }
 
 #aaaboutouter {

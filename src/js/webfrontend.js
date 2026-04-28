@@ -683,10 +683,12 @@ window.run_game = function(story64, options) {
 		set_body: function(id) {
 			$("#aabody1").removeClass();
 			$("#aabody2").removeClass();
+			$("#aabody3").removeClass();
 			if(id !== null) { // Can be called with no id to reset
 				var cls = this.style_data[id].name;
 				$("#aabody1").addClass(cls);
 				$("#aabody2").addClass(cls);
+				$("#aabody3").addClass(cls);
 				this.currarray.push({t: "sb", i: id});
 			}
 		},
