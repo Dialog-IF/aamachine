@@ -914,8 +914,6 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Error: Not an IFF file.\n");
 		exit(1);
 	}
-	
-	aavm_init(header[0]); // Wait until after reading the file before initializing the opcode database so that we can pass the major version
 
 	if(!memcmp(header + 8, "AAVM", 4)) {
 		savefile = 0;
@@ -953,6 +951,8 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Error: First chunk must be HEAD.\n");
 		exit(1);
 	}
+	
+	aavm_init(chunk[0].data[0]); // Wait until after reading the file before initializing the opcode database so that we can pass the major version
 
 	if(chunk[0].data[0] > AAVM_FORMAT_MAJOR || (chunk[0].data[0] == 1 && chunk[0].data[1] > AAVM_FORMAT_MINOR)) {
 		fprintf(stderr, "Error: Unsupported aastory file format version (%d.%d)\n",
