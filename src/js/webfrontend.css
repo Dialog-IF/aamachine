@@ -117,6 +117,10 @@ h2 {
 	animation-fill-mode: both;
 }
 
+.nofont #aastatus {
+	font-family: sans-serif;
+}
+
 .aaprogress {
 	background-color: var(--progress-bottom);
 	height: .31em;
@@ -190,6 +194,11 @@ h2 {
 	color: var(--menu-hover);
 }
 
+.aahastooltip {
+	text-decoration: underline;
+	text-decoration-style: dotted;
+}
+
 #aaform {
 	margin: 0;
 }
@@ -201,6 +210,10 @@ h2 {
 	margin: .3em;
 	padding-right: 1.3em;
 	clear: right;
+}
+
+.nofont #aamain {
+	font-family: serif;
 }
 
 #aascriptouter {
@@ -250,6 +263,10 @@ h2 {
 	color: inherit; /* Necessary because some browsers have built-in CSS rules that apply to `form input`, and we want it to inherit from `body` */
 	padding: 0;
 	height: 1.1em;
+}
+
+.nofont #aainput {
+	font-family: serif;
 }
 
 @keyframes fadein {
@@ -393,7 +410,7 @@ img {
 }
 
 .aaspanf {
-	font-family: webkit-workaround, monospace;
+	font-family: monospace, monospace;
 	font-size: 1em;
 }
 
@@ -407,4 +424,8 @@ img {
 
 .aaspanunf {
 	font-family: var(--font-body);
+}
+
+.nofont .aaspanunf {
+	font-family: serif;
 }
