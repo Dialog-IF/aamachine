@@ -3803,9 +3803,9 @@ v1
 
 op_bstyle ; Currently does nothing except error if in a span
 	.(
-;	lda	nspan
-;	ora	stflag
-;	bne err
+	lda	nspan
+	ora	stflag
+	bne err
 	jsr fetchindex ; Don't leave the operand lying around
 	jmp fetchnext ; We didn't touch Y, but op_67 did
 err
