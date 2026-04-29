@@ -69,7 +69,7 @@ endpos	= $9c
 wordend	= $9d
 dictlen	= $9e
 
-stflag	= $a0	; 00/ff/80
+stflag	= $a0	; current status area (00 none, ff top, 80 inline)
 screenw	= $a1
 undosz	= $a2	; word
 stybase	= $a4	; word
@@ -3747,18 +3747,6 @@ skip2
 	jmp	ldyfetchnext
 	.)
 
-op_bstyle ; Currently does nothing except error if in a span
-	.(
-	lda	nspan
-	ora	stflag
-	bne err
-	jsr fetchindex ; Don't leave the operand lying around
-	jmp fetchnext ; We didn't touch Y
-err
-	lda	#7
-	jmp	error
-	.)
-
 op_en_lv_span
 	.(
 	bcs	leave
@@ -3794,6 +3782,37 @@ leave
 	bpl	done ; always
 	.)
 
+op_67
+	.(
+	php ; Save the flags, since C is used to choose instruction variant
+	tya ; PHY/PLY don't exist on the 6502, so we have to use A
+	pha
+	ldy	#1
+	lda	(hdbase),y ; Header byte 0: major version
+	bne	v1
+	pla
+	tay
+	plp ; Restore the flags
+	jmp op_en_lv_st ; Version 0.x = enter/leave status
+v1
+	pla
+	tay
+	plp ; Don't leave the flags lying around on the stack
+	jmp op_bstyle ; Version 1.x = body style
+	.)
+
+op_bstyle ; Currently does nothing except error if in a span
+	.(
+	lda	nspan
+	ora	stflag
+	bne err
+	jsr fetchindex ; Don't leave the operand lying around
+	jmp fetchnext ; We didn't touch Y, but op_67 did
+err
+	lda	#7
+	jmp	error
+	.)
+
 op_en_lv_st
 	.(
 	bcs	leave
@@ -3801,6 +3820,11 @@ op_en_lv_st
 	jsr	fetch0
 	jmp	enter_status
 leave
+	jmp leave_status
+	.)
+
+leave_status
+	.(
 	sty	`pclsb
 	lda	#SPC_PAR
 	sta	rspc
@@ -3823,10 +3847,13 @@ skip
 	jmp	ldyfetchnext
 	.)
 
-op_en_st_1
+op_en_lv_st_1
 	.(
+	bcc	enter
+	jmp leave_status
+enter
 	jsr	fetchbyte
-	;jmp	enter_status
+	;jmp	enter_status ; fall through
 	.)
 
 enter_status
@@ -5714,10 +5741,6 @@ multi
 
 op_progress
 	.(
-	bcc notbstyle
-	jmp op_bstyle ; $ed is a separate op from $6d
-	
-notbstyle
 	jsr	fetchvalderef
 	jsr	fetchvalderef
 	sty	`pclsb
@@ -9252,7 +9275,7 @@ optable
 	.word	op_space_n	; 64
 	.word	op_print_val	; 65
 	.word	op_en_lv_div	; 66
-	.word	op_en_lv_st	; 67
+	.word	op_67	; 67
 	.word	op_link		; 68
 	.word	op_link		; 69
 	.word	op_selflink	; 6a
@@ -9260,7 +9283,7 @@ optable
 	.word	op_embed	; 6c
 	.word	op_progress	; 6d
 	.word	op_en_lv_span	; 6e
-	.word	op_en_st_1	; 6f
+	.word	op_en_lv_st_1	; 6f
 	.word	op_ext0		; 70
 	.word	op_bad		; 71
 	.word	op_save		; 72

@@ -193,8 +193,8 @@ var opcodes = {
     0x65: 'print-val',
     0x66: 'enter-div',
     0xe6: 'leave-div',
-    0x67: 'enter-status/0',
-    0xe7: 'leave-status',
+    0x67: 'set-body/old-enter-status',
+    0xe7: 'old-leave-status',
     0x68: 'enter-link-res',
     0xe8: 'leave-link-res',
     0x69: 'enter-link',
@@ -206,10 +206,10 @@ var opcodes = {
     0x6c: 'embed-res',
     0xec: 'res-embeddable?',
     0x6d: 'progress',
-    0xed: 'set-body',
     0x6e: 'enter-span',
     0xee: 'leave-span',
     0x6f: 'enter-status',
+    0xef: 'leave-status',
     0x70: 'ext-0',
     0x72: 'save',
     0xf2: 'save-undo',
@@ -2278,22 +2278,34 @@ function vm_run(e, param) {
 						e.spc = e.SP_PAR;
 					}
 					break;
-				case 0x67: // enter_status 0 index
-					a1 = findex();
-					if(!e.cwl) {
+				case 0x67:
+					if(e.head[0] < 1) { // enter_status 0 index
+						a1 = findex();
+						if(!e.cwl) {
+							if(e.in_status || e.n_span) {
+								throw IOSTATE;
+							}
+							io.enter_status(0, a1);
+							e.in_status = 1; // 0 + 1
+							e.spc = e.SP_PAR;
+						}
+					} else { // set_body index
+						a1 = findex();
 						if(e.in_status || e.n_span) {
 							throw IOSTATE;
 						}
-						io.enter_status(0, a1);
-						e.in_status = a1;
-						e.spc = e.SP_PAR;
+						io.set_body(a1);
 					}
 					break;
-				case 0xe7: // leave_status
-					if(!e.cwl) {
-						io.leave_status();
-						e.in_status = null;
-						e.spc = e.SP_PAR;
+				case 0xe7:
+					if(e.head[0] < 1) { // leave_status
+						if(!e.cwl) {
+							io.leave_status();
+							e.in_status = null;
+							e.spc = e.SP_PAR;
+						}
+					} else {
+						console.error("Opcode $E7 is not defined in version 1.x");
 					}
 					break;
 				case 0x68: // enter_link_res value
@@ -2403,13 +2415,6 @@ function vm_run(e, param) {
 						}
 					}
 					break;
-				case 0xed: // set_body index
-					a1 = findex();
-					if(e.in_status || e.n_span) {
-						throw IOSTATE;
-					}
-					io.set_body(a1);
-					break;
 				case 0x6e: // enter_span index
 					a1 = findex();
 					if(!e.cwl) {
@@ -2434,8 +2439,19 @@ function vm_run(e, param) {
 							throw IOSTATE;
 						}
 						io.enter_status(a1, a2);
-						e.in_status = a1;
+						e.in_status = a1 + 1; // So all status areas are represented by truthy values: 1 and 2 instead of 0 and 1
 						e.spc = e.SP_PAR;
+					}
+					break;
+				case 0xef:
+					if(e.head[0] > 0) { // leave_status
+						if(!e.cwl) {
+							io.leave_status();
+							e.in_status = null;
+							e.spc = e.SP_PAR;
+						}
+					} else {
+						console.error("Opcode $EF is not defined in version 0.x");
 					}
 					break;
 				case 0x70: // ext0 byte

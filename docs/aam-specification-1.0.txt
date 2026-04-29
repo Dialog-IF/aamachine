@@ -15,6 +15,10 @@ Changes in v1.0:
 		CLEAR_STATUS
 		SET_BODY
 	
+	Changed opcodes:
+	
+		LEAVE_STATUS
+	
 	New VM_INFO options:
 	
 		Div width
@@ -24,7 +28,10 @@ Changes in v1.0:
 		Interpreter supports text alignment
 		Currently transcripting
 	
-	Removed some previously-deprecated opcodes
+	Removed some previously-deprecated opcodes:
+	
+		ENTER_STATUS0
+		AUX_POP_VAL
 	
 	Expanded key-value options for resources to include ARIA roles
 	
@@ -839,7 +846,8 @@ CODE:
 	e6	LEAVE_DIV
 
 	67	ENTER_STATUS		0 INDEX		[pre-1.0 only]
-	e7	LEAVE_STATUS
+	e7	LEAVE_STATUS					[pre-1.0 only]
+	67	SET_BODY		INDEX			[spec 1.0]
 
 	68	ENTER_LINK_RES		VALUE			[spec 0.2]
 	e8	LEAVE_LINK_RES					[spec 0.2]
@@ -858,15 +866,15 @@ CODE:
 
 	6d	PROGRESS		VALUE VALUE
 
-	ed	SET_BODY		INDEX			[spec 1.0]
-
 	6e	ENTER_SPAN		INDEX			[spec 0.4]
 	ee	LEAVE_SPAN					[spec 0.4]
 
 	6f	ENTER_STATUS		BYTE INDEX		[spec 0.5]
-
-		00	normal (top) status area
+	
+		00	top status area
 		01	inline status area
+	
+	ef	LEAVE_STATUS						[spec 1.0]
 
 	70	EXT0			BYTE
 
@@ -2310,6 +2318,9 @@ Opcode semantics
 			SPC = par
 			inStatus = false
 		}
+		
+		Before version 1.0, this was opcode E7. From 1.0 onwards, it has
+		been moved to EF. The semantics are unchanged.
 
 	ENTER_LINK_RES		VALUE
 
