@@ -10,5 +10,6 @@ test:
 	## Run the actual test cases
 	make --directory=./test/gosling test clean
 	make --directory=./test/impossible test clean
+	make --directory=./test/body_not_status test clean
 
 .PHONY: test all
