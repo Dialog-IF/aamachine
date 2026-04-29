@@ -3789,7 +3789,7 @@ op_67
 	pha
 	ldy	#1
 	lda	(hdbase),y ; Header byte 0: major version
-	bne v1
+	bne	v1
 	pla
 	tay
 	plp ; Restore the flags
@@ -3803,11 +3803,11 @@ v1
 
 op_bstyle ; Currently does nothing except error if in a span
 	.(
-	lda	nspan
-	ora	stflag
-	bne err
+;	lda	nspan
+;	ora	stflag
+;	bne err
 	jsr fetchindex ; Don't leave the operand lying around
-	jmp ldyfetchnext ; We didn't touch Y, but op_67 did
+	jmp fetchnext ; We didn't touch Y, but op_67 did
 err
 	lda	#7
 	jmp	error
