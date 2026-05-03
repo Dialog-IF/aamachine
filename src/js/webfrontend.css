@@ -8,8 +8,8 @@ html {
 	--theme-medium: #888888;
 	--theme-light: #cccccc;
 	--theme-lightest: #eeeeee;
-	--accent-dark: #c95c03;
-	--accent-light: #fc8f36;
+	--accent-dark: #c95c03; /* An orange color chosen by forum poll */
+	--accent-light: #fc8f36; /* Will it work? Only real-world testing can say! */
 }
 
 #aadefaults {
