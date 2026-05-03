@@ -78,13 +78,13 @@ aambundle.exe: aambundle.c bundle_web.c bundle_c64.c \
 table_c64license.h:	6502/license.txt mkheader
 			./mkheader table_c64license <$< >$@
 
-table_c64drive.h:	6502/c64_drivecode.bin mkheader
+table_c64drive.h:	6502 6502/c64_drivecode.bin mkheader
 			./mkheader table_c64drive <$< >$@
 
-table_c64load.h:	6502/c64_loader.prg mkheader
+table_c64load.h:	6502 6502/c64_loader.prg mkheader
 			./mkheader table_c64load <$< >$@
 
-table_c64terp.h:	6502/c64_crunched.bin mkheader
+table_c64terp.h:	6502 6502/c64_crunched.bin mkheader
 			./mkheader table_c64terp <$< >$@
 
 table_weblicense.h:	js/license.txt mkheader
