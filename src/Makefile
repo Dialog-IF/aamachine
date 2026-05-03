@@ -61,9 +61,11 @@ aamshow.exe: aamshow.c crc32.c aavm.c aavm.h crc32.h
 	${MINGW32} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
 
 aambundle.exe: aambundle.c bundle_web.c bundle_c64.c \
+	table_c64license.h \
 	table_c64drive.h \
 	table_c64load.h \
 	table_c64terp.h \
+	table_weblicense.h \
 	table_css.h \
 	table_engine.h \
 	table_front.h \
