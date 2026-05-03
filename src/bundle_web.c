@@ -8,6 +8,7 @@
 
 #include "aambundle.h"
 
+#include "table_weblicense.h"
 #include "table_css.h"
 #include "table_engine.h"
 #include "table_front.h"
@@ -24,6 +25,7 @@ static struct tabledef {
 	{table_jquery,	sizeof(table_jquery),	"/resources/jquery.js"},
 	{table_css,	sizeof(table_css),	"/resources/style.css"},
 	{table_play,	sizeof(table_play),	"/play.html"},
+	{table_weblicense,	sizeof(table_weblicense),	"/interpreter_license.txt"},
 };
 
 static const char *encode = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";

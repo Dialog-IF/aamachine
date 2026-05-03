@@ -25,7 +25,7 @@ install: aamshow aambundle
 	cp aambundle $(INSTALLDIR)
 
 install-aamrun: aamrun
-	cp aamrun $(INSTALLDIR)
+	cp aamrun.linux $(INSTALLDIR)
 
 uninstall:
 	rm -f $(INSTALLDIR)/aamshow
@@ -33,9 +33,6 @@ uninstall:
 	rm -f $(INSTALLDIR)/aamrun
 
 distclean: clean uninstall
-
-aamrun: js/nodefrontend.js js/engine.js
-	pkg -t linux -o aamrun js/nodefrontend.js
 
 aamshow: aamshow.c crc32.c aavm.c aavm.h crc32.h
 	${CC} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
@@ -50,6 +47,12 @@ aambundle: aambundle.c bundle_web.c bundle_c64.c \
 	table_jquery.h \
 	table_play.h
 	${CC} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c
+
+aamrun.linux:	js/nodefrontend.js js/engine.js
+	pkg -t linux -o aamrun.linux js/nodefrontend.js
+
+aamrun.mac:		js/nodefrontend.js js/engine.js
+	pkg -t macos-arm64 -o aamrun.mac js/nodefrontend.js
 
 aamrun.exe: js/nodefrontend.js js/engine.js
 	pkg -t win -o aamrun.exe js/nodefrontend.js
@@ -68,6 +71,9 @@ aambundle.exe: aambundle.c bundle_web.c bundle_c64.c \
 	table_play.h
 	${MINGW32} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c
 
+table_c64license.h:	6502/license.txt mkheader
+			./mkheader table_c64license <$< >$@
+
 table_c64drive.h:	6502/c64_drivecode.bin mkheader
 			./mkheader table_c64drive <$< >$@
 
@@ -76,6 +82,9 @@ table_c64load.h:	6502/c64_loader.prg mkheader
 
 table_c64terp.h:	6502/c64_crunched.bin mkheader
 			./mkheader table_c64terp <$< >$@
+
+table_weblicense.h:	js/license.txt mkheader
+			./mkheader table_weblicense <$< >$@
 
 table_css.h:		js/webfrontend.css mkheader
 			./mkheader table_css <$< >$@

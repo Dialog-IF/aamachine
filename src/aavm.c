@@ -109,8 +109,6 @@ static struct aaopinfo aaopinfosrc[] = {
 	{AA_PRINT_VAL,		{AAO_VALUE}, 0,						"print_val"},
 	{AA_ENTER_DIV,		{AAO_INDEX}, 0,						"enter_div"},
 	{AA_LEAVE_DIV,		{}, 0,							"leave_div"},
-	{AA_ENTER_STATUS_0,	{AAO_ZERO, AAO_INDEX}, 0,				"enter_status"},
-	{AA_LEAVE_STATUS,	{}, 0,							"leave_status"},
 	{AA_ENTER_LINK_RES,	{AAO_VALUE}, 0,						"enter_link_res"},
 	{AA_LEAVE_LINK_RES,	{}, 0,							"leave_link_res"},
 	{AA_ENTER_LINK,		{AAO_VALUE}, 0,						"enter_link"},
@@ -122,7 +120,6 @@ static struct aaopinfo aaopinfosrc[] = {
 	{AA_EMBED_RES,		{AAO_VALUE}, 0,						"embed_res"},
 	{AA_CAN_EMBED_RES,	{AAO_VALUE, AAO_DEST}, 0,				"can_embed_res"},
 	{AA_PROGRESS,		{AAO_VALUE, AAO_VALUE}, 0,				"progress"},
-	{AA_SET_BODY,		{AAO_INDEX}, 0,						"set_body"},
 	{AA_ENTER_SPAN,		{AAO_INDEX}, 0,						"enter_span"},
 	{AA_LEAVE_SPAN,		{}, 0,							"leave_span"},
 	{AA_ENTER_STATUS,	{AAO_BYTE, AAO_INDEX}, 0,				"enter_status"},
@@ -140,6 +137,16 @@ static struct aaopinfo aaopinfosrc[] = {
 	{AA_CHECK_EQ_2A,	{AAO_WORD, AAO_WORD, AAO_CODE}, 0,			"check_eq_2"},
 	{AA_CHECK_EQ_2B,	{AAO_VBYTE, AAO_VBYTE, AAO_CODE}, 0,			"check_eq_2"},
 	{AA_TRACEPOINT,		{AAO_STRING, AAO_STRING, AAO_STRING, AAO_WORD}, 0,	"tracepoint"},
+};
+
+static struct aaopinfo aaopinfosrc_v0[] = {
+	{AA_ENTER_STATUS_0,	{AAO_ZERO, AAO_INDEX}, 0,				"enter_status"},
+	{AA_LEAVE_STATUS_OLD,	{}, 0,							"leave_status"},
+};
+
+static struct aaopinfo aaopinfosrc_v1[] = {
+	{AA_SET_BODY,		{AAO_INDEX}, 0,						"set_body"},
+	{AA_LEAVE_STATUS,	{}, 0,								"leave_status"},
 };
 
 char *aaext0name[AAEXT0_N] = {
@@ -165,7 +172,7 @@ char *aaext0name[AAEXT0_N] = {
 	"nbsp"
 };
 
-void aavm_init() {
+void aavm_init(int version_major) {
 	int i;
 
 	for(i = 0; i < sizeof(aaopinfosrc) / sizeof(*aaopinfosrc); i++) {
@@ -179,6 +186,36 @@ void aavm_init() {
 				aaopinfosrc + i,
 				sizeof(struct aaopinfo));
 			aaopinfo[aaopinfosrc[i].op | 0x80].oper[0] = aaopinfosrc[i].alt_oper0;
+		}
+	}
+	
+	if(version_major >= 1) { // version 1.x opcodes
+		for(i = 0; i < sizeof(aaopinfosrc_v1) / sizeof(*aaopinfosrc); i++) {
+			memcpy(
+				aaopinfo + aaopinfosrc_v1[i].op,
+				aaopinfosrc_v1 + i,
+				sizeof(struct aaopinfo));
+			if(aaopinfosrc[i].alt_oper0) {
+				memcpy(
+					aaopinfo + (aaopinfosrc_v1[i].op | 0x80),
+					aaopinfosrc_v1 + i,
+					sizeof(struct aaopinfo));
+				aaopinfo[aaopinfosrc_v1[i].op | 0x80].oper[0] = aaopinfosrc_v1[i].alt_oper0;
+			}
+		}
+	} else { // version 0.x opcodes
+		for(i = 0; i < sizeof(aaopinfosrc_v0) / sizeof(*aaopinfosrc); i++) {
+			memcpy(
+				aaopinfo + aaopinfosrc_v0[i].op,
+				aaopinfosrc_v0 + i,
+				sizeof(struct aaopinfo));
+			if(aaopinfosrc[i].alt_oper0) {
+				memcpy(
+					aaopinfo + (aaopinfosrc_v0[i].op | 0x80),
+					aaopinfosrc_v0 + i,
+					sizeof(struct aaopinfo));
+				aaopinfo[aaopinfosrc_v0[i].op | 0x80].oper[0] = aaopinfosrc_v0[i].alt_oper0;
+			}
 		}
 	}
 }

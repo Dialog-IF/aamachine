@@ -10,7 +10,9 @@ html {
 	--theme-lightest: #eeeeee;
 	--accent-dark: #875;
 	--accent-light: #aa8;
-	
+}
+
+#aadefaults {
 	--night-page: var(--theme-darkest); /* Night mode outside gameport */
 	--night-bg: inherit; /* Night mode background */
 	--night-fg: var(--theme-light); /* Night mode text */
@@ -36,23 +38,36 @@ html {
 	
 	--font-status: Geneva, sans-serif; /* Status bar and menus */
 	--font-body: Georgia, serif; /* Main body text */
+	
+	--night-scroll-fg: var(--theme-medium);
+	--night-scroll-bg: var(--theme-dark);
+	--day-scroll-fg: var(--theme-medium);
+	--day-scroll-bg: var(--theme-light);
 }
 
-body {
+#aadefaults {
 	--bg: var(--day-bg);
 	--text: var(--day-fg);
 	--link: var(--day-link);
 	--link-hover: var(--day-link-hover);
 	background-color: var(--day-page);
 	color: var(--text);
+	scrollbar-color: var(--day-scroll-fg) var(--day-scroll-bg);
 }
 
-body.night {
+.night #aadefaults {
 	--bg: var(--night-bg);
 	--text: var(--night-fg);
 	--link: var(--night-link);
 	--link-hover: var(--night-link-hover);
 	background-color: var(--night-page);
+	scrollbar-color: var(--night-scroll-fg) var(--night-scroll-bg);
+}
+
+html, body, #aabody1, #aabody2, #aadefaults {
+	width: 100%;
+	height: 100%;
+	margin: 0;
 }
 
 body.enlarge {
@@ -100,6 +115,10 @@ h2 {
 	animation-duration: .9s;
 	animation-delay: .1s;
 	animation-fill-mode: both;
+}
+
+.nofont #aastatus {
+	font-family: sans-serif;
 }
 
 .aaprogress {
@@ -175,8 +194,9 @@ h2 {
 	color: var(--menu-hover);
 }
 
-#aabody { /* A wrapper with no existence of its own - only exists so that CSS rules can be nested correctly (inside `body` but outside `#aaform`) */
-	margin: 0;
+.aahastooltip {
+	text-decoration: underline;
+	text-decoration-style: dotted;
 }
 
 #aaform {
@@ -190,6 +210,10 @@ h2 {
 	margin: .3em;
 	padding-right: 1.3em;
 	clear: right;
+}
+
+.nofont #aamain {
+	font-family: serif;
 }
 
 #aascriptouter {
@@ -238,7 +262,12 @@ h2 {
 	background-color: transparent;
 	color: inherit; /* Necessary because some browsers have built-in CSS rules that apply to `form input`, and we want it to inherit from `body` */
 	padding: 0;
+	padding-bottom: 0.1em; /* Compensate for the height to ensure the bottom isn't cut off */
 	height: 1.1em;
+}
+
+.nofont #aainput {
+	font-family: serif;
 }
 
 @keyframes fadein {
@@ -379,7 +408,7 @@ img {
 }
 
 .aaspanf {
-	font-family: webkit-workaround, monospace;
+	font-family: monospace, monospace;
 	font-size: 1em;
 }
 
@@ -393,4 +422,8 @@ img {
 
 .aaspanunf {
 	font-family: var(--font-body);
+}
+
+.nofont .aaspanunf {
+	font-family: serif;
 }
