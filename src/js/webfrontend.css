@@ -262,6 +262,7 @@ h2 {
 	background-color: transparent;
 	color: inherit; /* Necessary because some browsers have built-in CSS rules that apply to `form input`, and we want it to inherit from `body` */
 	padding: 0;
+	padding-bottom: 0.1em; /* Compensate for the height to ensure the bottom isn't cut off */
 	height: 1.1em;
 }
 
