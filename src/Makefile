@@ -4,18 +4,51 @@ VER_MINOR=0
 CC		= gcc
 CFLAGS		+= -Wall -O3 -DVERSION=$(VERSION) -DVER_MAJOR=$(VER_MAJOR) -DVER_MINOR=$(VER_MINOR)
 MINGW32		= i686-w64-mingw32-gcc
+INSTALLDIR	= /usr/local/bin
 
-all:			aamshow aambundle
+all: aamshow aambundle
 
-clean:
-			rm -f aamshow aambundle aamrun aamshow.exe aambundle.exe aamrun.exe *.o
+windows: aamrun.exe aamshow.exe aambundle.exe
 
-install:		aamshow aambundle aamrun
-			cp aamshow /usr/local/bin/
-			cp aambundle /usr/local/bin/
-			cp aamrun /usr/local/bin
+6502:
+	$(MAKE) -C 6502
 
-.PHONY:			all clean install
+tidy:
+	rm -f *.o
+
+clean: tidy
+	rm -f aamshow aambundle aamrun aamshow.exe aambundle.exe aamrun.exe
+	$(MAKE) -C 6502 clean
+
+install: aamshow aambundle
+	cp aamshow $(INSTALLDIR)
+	cp aambundle $(INSTALLDIR)
+
+install-aamrun: aamrun
+	cp aamrun.linux $(INSTALLDIR)
+
+uninstall:
+	rm -f $(INSTALLDIR)/aamshow
+	rm -f $(INSTALLDIR)/aambundle
+	rm -f $(INSTALLDIR)/aamrun
+
+distclean: clean uninstall
+
+aamshow: aamshow.c crc32.c aavm.c aavm.h crc32.h
+	${CC} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
+
+aambundle: aambundle.c bundle_web.c bundle_c64.c \
+	table_c64license.h \
+	table_c64drive.h \
+	table_c64load.h \
+	table_c64terp.h \
+	table_weblicense.h \
+	table_css.h \
+	table_engine.h \
+	table_front.h \
+	table_jquery.h \
+	table_play.h
+	${CC} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c
 
 aamrun.linux:	js/nodefrontend.js js/engine.js
 	pkg -t linux -o aamrun.linux js/nodefrontend.js
@@ -23,49 +56,35 @@ aamrun.linux:	js/nodefrontend.js js/engine.js
 aamrun.mac:		js/nodefrontend.js js/engine.js
 	pkg -t macos-arm64 -o aamrun.mac js/nodefrontend.js
 
-aamshow:		aamshow.c crc32.c aavm.c aavm.h crc32.h
-			${CC} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
-
-aambundle:		aambundle.c bundle_web.c bundle_c64.c \
-				table_c64license.h \
-				table_c64drive.h \
-				table_c64load.h \
-				table_c64terp.h \
-				table_weblicense.h \
-				table_css.h \
-				table_engine.h \
-				table_front.h \
-				table_jquery.h \
-				table_play.h
-			${CC} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c
-
-aamrun.exe:		js/nodefrontend.js js/engine.js
+aamrun.exe: js/nodefrontend.js js/engine.js
 	pkg -t win -o aamrun.exe js/nodefrontend.js
 
-aamshow.exe:		aamshow.c crc32.c aavm.c aavm.h crc32.h
-			${MINGW32} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
+aamshow.exe: aamshow.c crc32.c aavm.c aavm.h crc32.h
+	${MINGW32} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
 
-aambundle.exe:		aambundle.c bundle_web.c bundle_c64.c \
-				table_c64drive.h \
-				table_c64load.h \
-				table_c64terp.h \
-				table_css.h \
-				table_engine.h \
-				table_front.h \
-				table_jquery.h \
-				table_play.h
-			${MINGW32} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c
+aambundle.exe: aambundle.c bundle_web.c bundle_c64.c \
+	table_c64license.h \
+	table_c64drive.h \
+	table_c64load.h \
+	table_c64terp.h \
+	table_weblicense.h \
+	table_css.h \
+	table_engine.h \
+	table_front.h \
+	table_jquery.h \
+	table_play.h
+	${MINGW32} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c
 
 table_c64license.h:	6502/license.txt mkheader
 			./mkheader table_c64license <$< >$@
 
-table_c64drive.h:	6502/c64_drivecode.bin mkheader
+table_c64drive.h:	6502 6502/c64_drivecode.bin mkheader
 			./mkheader table_c64drive <$< >$@
 
-table_c64load.h:	6502/c64_loader.prg mkheader
+table_c64load.h:	6502 6502/c64_loader.prg mkheader
 			./mkheader table_c64load <$< >$@
 
-table_c64terp.h:	6502/c64_crunched.bin mkheader
+table_c64terp.h:	6502 6502/c64_crunched.bin mkheader
 			./mkheader table_c64terp <$< >$@
 
 table_weblicense.h:	js/license.txt mkheader
@@ -85,3 +104,5 @@ table_jquery.h:		js/jquery-3.4.1.min.js mkheader
 
 table_play.h:		js/webfrontend.html mkheader
 			./mkheader table_play <$< >$@
+
+.PHONY:	all clean tidy install uninstall distclean windows 6502

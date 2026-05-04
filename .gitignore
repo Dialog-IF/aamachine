@@ -6,3 +6,5 @@ aamshow
 *.aastory
 *.bin
 aambox6502
+**/*~
+**/#*#
