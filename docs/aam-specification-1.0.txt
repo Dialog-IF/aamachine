@@ -107,7 +107,7 @@ Words:
 			any value). The second word of that cell is the rest of
 			the list (either a pair or []).
 
-			An extended word (extdict) is a pointer to a two-word
+			An extended dict (extdict) is a pointer to a two-word
 			cell on the heap. If the first word of that cell is a
 			pair, it represents an unrecognized dict (not found in
 			the dictionary); the first word is a list of characters
