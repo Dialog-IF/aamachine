@@ -8,3 +8,6 @@ aamshow
 aambox6502
 **/*~
 **/#*#
+src/6502/cruncher
+src/6502/labels
+src/6502/mkfont
