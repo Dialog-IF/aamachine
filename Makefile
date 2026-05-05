@@ -1,18 +1,38 @@
-# Generate all binaries
-all:
-	make --directory=./src/6502 all
-	make --directory=./src all
+BINARIES=src/aamshow src/aambundle
 
-test:
-	## Ensure no compilation failures
-	make --directory=./src/6502 all clean
-	make --directory=./src all clean
-	## Run the actual test cases
-	## This one is a 0.x file using $67 ENTER_STATUS_0 and $e7 LEAVE_STATUS
-	make --directory=./test/gosling test clean
-	## This one is a 1.x file using $67 BODY_STYLE and $ef LEAVE_STATUS
-	make --directory=./test/body_not_status test clean
-	## This one is whatever the latest version of Dialog produces (update periodically)
-	make --directory=./test/impossible test clean
+all: $(BINARIES) 6502 test
 
-.PHONY: test all
+src/aamshow:
+	$(MAKE) -C src
+
+src/aambundle:
+	$(MAKE) -C src
+
+windows:
+	$(MAKE) -C src windows
+
+6502:
+	$(MAKE) -C src 6502
+
+no6502: $(BINARIES) test
+
+test: $(BINARIES)
+	$(MAKE) -C test
+
+install: $(BINARIES)
+	$(MAKE) -C src install
+
+tidy:
+	$(MAKE) -C src tidy
+	$(MAKE) -C test clean
+
+clean:
+	$(MAKE) -C src clean
+	$(MAKE) -C test clean
+
+uninstall:
+	$(MAKE) -C src uninstall
+
+distclean: clean uninstall
+
+.PHONY: all test clean tidy install uninstall distclean windows 6502 no6502
