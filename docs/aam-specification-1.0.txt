@@ -3,7 +3,7 @@ including the two file formats (story and saved game) and the bytecode
 semantics. Be warned that the description is technically comprehensive and
 rather condensed.
 
-Note that 1.0 is not any more official or stable than its predecessor, 0.5!
+Note that 1.0 is not any more official or stable than its predecessor, 0.5.
 The major version change marks where the community forked the project and
 took over development and maintenance.
 
@@ -30,7 +30,7 @@ Changes in v1.0:
 	
 	Removed some previously-deprecated opcodes:
 	
-		ENTER_STATUS0
+		ENTER_STATUS 0
 		AUX_POP_VAL
 	
 	Expanded key-value options for resources to include ARIA roles
@@ -72,7 +72,7 @@ Words:
 		* A live value (tagged reference), as follows:
 
 			0001..1fff	Object
-			2000..3dff	Word (index into dictionary)
+			2000..3dff	Dict word (index into dictionary)
 			3e00..3eff	Character
 			3f00		[] (empty list)
 			3f01..3fff	reserved
@@ -80,7 +80,7 @@ Words:
 			8000..9fff	Indirect reference (index into heap)
 			a000..bfff	reserved
 			c000..dffe	Pair (index into heap)
-			e000..fffe	Word, extended (index into heap)
+			e000..fffe	Dict word, extended (index into heap)
 
 			In this document, tagged references are described as if
 			they had two independent fields, "tag" and "value". But
@@ -97,6 +97,24 @@ Words:
 			101vvvvv vvvvvvvv			(reserved)
 			110vvvvv vvvvvvvv			pair
 			111vvvvv vvvvvvvv			extdict
+
+			The tag 001vvvvv vvvvvvvv may also be referred to as
+			a "dict" to avoid ambiguity with the other meaning of
+			"word" (any 16-bit value).
+
+			A pair is a pointer to a two-word cell on the heap. The
+			first word of that cell is the head of the list (can be
+			any value). The second word of that cell is the rest of
+			the list (either a pair or []).
+
+			An extended dict (extdict) is a pointer to a two-word
+			cell on the heap. If the first word of that cell is a
+			pair, it represents an unrecognized dict (not found in
+			the dictionary); the first word is a list of characters
+			and the second word is []. Otherwise, it represents a
+			dict with an optional ending; the first word is a dict
+			(the essential part) and the second word is a list of
+			characters (the optional part).
 
 		* A stored value, as follows:
 
@@ -845,8 +863,9 @@ CODE:
 	66	ENTER_DIV		INDEX
 	e6	LEAVE_DIV
 
-	67	ENTER_STATUS		0 INDEX		[pre-1.0 only]
+	67	ENTER_STATUS		0 INDEX			[pre-1.0 only]
 	e7	LEAVE_STATUS					[pre-1.0 only]
+	
 	67	SET_BODY		INDEX			[spec 1.0]
 
 	68	ENTER_LINK_RES		VALUE			[spec 0.2]
@@ -858,8 +877,8 @@ CODE:
 	6a	ENTER_SELF_LINK					[spec 0.4]
 	ea	LEAVE_SELF_LINK					[spec 0.4]
 
-	6b	SET_STYLE		BYTE		[deprecated]
-	eb	RESET_STYLE		BYTE		[deprecated]
+	6b	SET_STYLE		BYTE			[deprecated]
+	eb	RESET_STYLE		BYTE			[deprecated]
 
 	6c	EMBED_RES		VALUE			[spec 0.2]
 	ec	CAN_EMBED_RES		VALUE DEST		[spec 0.2]
@@ -874,7 +893,7 @@ CODE:
 		00	top status area
 		01	inline status area
 	
-	ef	LEAVE_STATUS						[spec 1.0]
+	ef	LEAVE_STATUS					[spec 1.0]
 
 	70	EXT0			BYTE
 
@@ -896,7 +915,7 @@ CODE:
 		0f	CLEAR_LINKS				[spec 0.4]
 		10	CLEAR_OLD				[spec 0.5]
 		11	CLEAR_DIV				[spec 0.5]
-		12	CLEAR_STATUS			[spec 1.0]
+		12	CLEAR_STATUS				[spec 1.0]
 		13	NBSP					[spec 1.0]
 
 	72	SAVE			CODE
@@ -920,9 +939,9 @@ CODE:
 		42	interpreter supports hyperlinks
 		43	interpreter supports quit
 		44	interpreter supports styling		[spec 1.0]
-		45	interpreter supports color			[spec 1.0]
+		45	interpreter supports color		[spec 1.0]
 		46	interpreter supports text alignment	[spec 1.0]
-		50	currently transcripting				[spec 1.0]
+		50	currently transcripting			[spec 1.0]
 		60	interpreter supports top status		[spec 0.5]
 		61	interpreter supports inline status	[spec 0.5]
 		
@@ -931,12 +950,11 @@ CODE:
 		40 to 7f. Selectors above 7f should raise an error; their behavior
 		is not yet defined.
 		
-		"Styling" means that "bold" and "italic" text can be distinguished
-		in some way, though they need not actually be bold and italic:
-		bright and underlined, or two different screen reader voices, both
-		qualify. Bold italic text may be equivalent to either bold or
-		italic (that is, an interpreter that cannot combine styles may
-		still return 1).
+		"Styling" means that bold and italic text can be distinguished in
+		some way from the default, though they need not actually be bold
+		and italic: bright and underlined, or two different screen reader
+		voices, both qualify. Bold italic text must also be distinct from
+		the default, but may be the same as either bold or italic.
 
 	78	SET_IDX			VALUE
 	79/f9	CHECK_EQ		WORD/VBYTE CODE
@@ -1010,23 +1028,29 @@ Output model
 		output_embed_res(resource_id)
 		output_progress_bar(amount, full_amount)
 
+	Many of these calls are documented under the relevant instructions
+	in the next section.
+
 	In addition, it is possible to insert changes of text-style into the
 	stream, to e.g. turn italics on or off. Such changes are valid until
 	the next beginning or end of a subdivision, or until the end of the
 	current paragraph.
-
+	
 		output_setstyle(bits) // see SET_STYLE for bit values
 		output_resetstyle(bits)
 		output_unstyle()
+	
+	This capability is deprecated and may be removed in a future version
+	of the Aa-machine.
 
 	Additional API calls perform high-level operations on the output state:
 
 		output_clear() // keep current stack of divs, but clear them
-		output_clear_all() // as above, and hide the status areas
+		output_clear_status() // hide all status areas
+		output_clear_all() // do both of the above
 		output_clear_links() // transform old links into static text
 		output_clear_div() // clear current div
 		output_clear_old() // clear old text
-		output_clear_status() // hide all status areas
 		output_leave_all()
 		output_sync()
 		bool output_script_on() // returns true to indicate success
@@ -1057,8 +1081,8 @@ Output model
 		* No attempt will be made to enter a status area from
 		  inside a span or a status area.
 
-		* No attempt will be made to clear or clear_all from inside a
-		  span or a status area.
+		* No attempt will be made to clear, clear_status, or clear_all
+		  from inside a span or a status area.
 
 		* No attempt will be made to save the game (to a file or an
 		  undo buffer) from within a span or a status area.
@@ -1414,9 +1438,9 @@ Opcode semantics
 
 	AUX_POP_VAL		DEST
 
-		Note: This instruction was removed in version 1.0.
-		No version of the dialog compiler generates it. The pop_serialized
-		subroutine is nevertheless used by AUX_POP_LIST.
+		Note: This instruction was removed in version 1.0. No version of
+		the Dialog compiler generates it. The pop_serialized subroutine
+		is nevertheless used by AUX_POP_LIST.
 
 		arg <- pop_serialized()
 
@@ -2446,6 +2470,13 @@ Opcode semantics
 			output_clear()
 		}
 
+	CLEAR_STATUS
+
+		if(CWL == 0) {
+			if(inStatus || nSpan > 0) runtime_error(7)
+			output_clear_status()
+		}
+
 	CLEAR_ALL
 
 		if(CWL == 0) {
@@ -2522,7 +2553,7 @@ Opcode semantics
 
 	SAVE			CODE
 
-		//fails on error/cancel, continues on success, jumps on restore
+		// fails on error/cancel, continues on success, jumps on restore
 		if(inStatus || nSpan > 0) runtime_error(7)
 		if(!vm_save(arg)) {
 			fail
@@ -2530,7 +2561,7 @@ Opcode semantics
 
 	SAVE_UNDO		CODE
 
-		//fails on error/cancel, continues on success, jumps on restore
+		// fails on error/cancel, continues on success, jumps on restore
 		if(inStatus || nSpan > 0) runtime_error(7)
 		if(!vm_save_undo(arg)) {
 			fail
@@ -2676,7 +2707,7 @@ Opcode semantics
 		does not point to a single character or digit, the result is
 		undefined. It may be the first character of the link text, or
 		0d (RETURN), or a special sentinel value. It is not, however, an
-		error: it must return *some* value instead of crashing.
+		error. Some value must be returned.
 		
 		(The web frontend currently returns the first character of the
 		link text, but this is an implementation detail, not required
@@ -2736,13 +2767,6 @@ Opcode semantics
 		// The interpreter may ignore this operation.
 
 		output_clear_div();
-	
-	CLEAR_STATUS
-	
-		// Clear all status areas.
-		// The interpreter may ignore this operation.
-    
-    output_clear_status();
 
 	VM_INFO			BYTE DEST
 
