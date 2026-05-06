@@ -124,19 +124,29 @@ Release notes:
 
 	1.0.0:
 	
-		First community-maintained release! Incrementing the major version
-		per Linus's wishes. 0.*.* remains his for future development.
+		First community-maintained release! Incrementing the major
+		version per Linus's wishes. 0.*.* remains his for future
+		development.
+		
+		Specification: Originally, ENTER_STATUS and LEAVE_STATUS were a
+		matched pair $67 and $E7. Then, ENTER_STATUS was moved to $6F.
+		In version 1.0, LEAVE_STATUS has been moved to $EF to match.
+		
+		Specification: The format of option strings is now specified.
+		These are needed for embedded fonts and audio on the web.
 		
 		Specification: CLEAR_STATUS clears status areas but not the main
 		body, to complement CLEAR and CLEAR_ALL.
 		
-		Specification: NBSP is added to the suite of spacing opcodes.
+		Specification: NBSP is added to the suite of spacing opcodes. It
+		produces a non-breaking space, with lower priority than SPACE.
 		
-		Specification: New VM_INFO options can get div width/height, test
-		whether transcripting is active, and check for various types of
-		style support. The spec on VM_INFO is also clearer in general.
+		Specification: New VM_INFO options can get div width/height,
+		test whether transcripting is active, and check for various
+		types of style support. The spec on VM_INFO is also clearer in
+		general.
 		
-		Specification: BODY_STYLE changes the global style of the page,
+		Specification: SET_BODY changes the global style of the page,
 		outside of any divs and spans.
 		
 		Specification: Links now work for GET_KEY as well as GET_INPUT.
@@ -145,14 +155,22 @@ Release notes:
 		make room for the future. Dialog no longer emits these (and in
 		one case, never did!).
 		
-		Web interpreter: Supports playing audio.
+		Specification: Many sections rewritten or added for clarity.
 		
-		Web interpreter: Supports enlarged text.
+		Web interpreter: Supports embedding fonts.
 		
-		Web interpreter: Theming is more flexible.
+		Web interpreter: Supports embedding audio.
+		
+		Web interpreter: Options to enlarge text and disable fonts.
+		
+		Web interpreter: New color scheme system makes it easier for
+		SET_BODY to customize the page theme.
 		
 		Distribution: aamrun executable allows running Å-machine programs
 		without installing Node.
+		
+		Distribution: aambundle now adds an interpreter_license.txt file
+		to its output, as the interpreter license requires.
 
 	0.5.4:
 
