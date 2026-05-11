@@ -3,6 +3,9 @@ VER_MAJOR=1
 VER_MINOR=0
 CC		= gcc
 CFLAGS		+= -Wall -O3 -DVERSION=$(VERSION) -DVER_MAJOR=$(VER_MAJOR) -DVER_MINOR=$(VER_MINOR)
+ifeq ($(shell uname -s),Darwin)
+CFLAGS		+= -arch x86_64 -arch arm64
+endif
 MINGW32		= i686-w64-mingw32-gcc
 INSTALLDIR	= /usr/local/bin
 
@@ -54,7 +57,10 @@ aamrun.linux:	js/nodefrontend.js js/engine.js
 	pkg -t linux -o aamrun.linux js/nodefrontend.js
 
 aamrun.mac:		js/nodefrontend.js js/engine.js
-	pkg -t macos-arm64 -o aamrun.mac js/nodefrontend.js
+	pkg -t macos-x64   -o aamrun.mac.x64   js/nodefrontend.js
+	pkg -t macos-arm64 -o aamrun.mac.arm64 js/nodefrontend.js
+	lipo -create -output aamrun.mac aamrun.mac.x64 aamrun.mac.arm64
+	rm -f aamrun.mac.x64 aamrun.mac.arm64
 
 aamrun.exe: js/nodefrontend.js js/engine.js
 	pkg -t win -o aamrun.exe js/nodefrontend.js
