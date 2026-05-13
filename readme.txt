@@ -122,6 +122,11 @@ Project website:
 
 Release notes:
 
+    1.0.1:
+
+		This release updates the build to produce universal OSX
+		binaries (Intel and ARM).
+
 	1.0.0:
 	
 		First community-maintained release! Incrementing the major
