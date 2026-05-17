@@ -1,4 +1,4 @@
-VERSION=\"1.0.1\"
+VERSION=\"1.0.2\"
 VER_MAJOR=1
 VER_MINOR=0
 CC		= gcc
