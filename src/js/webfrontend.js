@@ -1313,6 +1313,7 @@ window.run_game = function(story64, options) {
 		} else {
 			$("body").removeClass("nofont");
 		}
+		io.adjust_size();
 		io.maybe_focus();
 	}
 
