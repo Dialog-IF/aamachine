@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
 This archive contains version 1.0 of the Å-machine specification, and version
-1.0.0 of the tools and official interpreters.
+1.0.2 of the tools and official interpreters.
 
 The following interpreters are included:
 
@@ -122,8 +122,13 @@ Project website:
 
 Release notes:
 
-    1.0.1:
+	1.0.2:
+	
+		Fixes bug with window size getting out of sync when enabling
+		or disabling "enlarge text" mode on web.
 
+	1.0.1:
+	
 		This release updates the build to produce universal OSX
 		binaries (Intel and ARM).
 
