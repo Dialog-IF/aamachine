@@ -1,4 +1,4 @@
-VERSION=\"1.0.1\"
+VERSION=\"1.0.2\"
 VER_MAJOR=1
 VER_MINOR=0
 CC		= gcc
@@ -81,17 +81,17 @@ aambundle.exe: aambundle.c bundle_web.c bundle_c64.c \
 	table_play.h
 	${MINGW32} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c
 
-table_c64license.h:	6502/license.txt mkheader
-			./mkheader table_c64license <$< >$@
+table_c64license.h:	6502 6502/license.txt mkheader
+			./mkheader table_c64license <6502/license.txt >$@
 
 table_c64drive.h:	6502 6502/c64_drivecode.bin mkheader
-			./mkheader table_c64drive <$< >$@
+			./mkheader table_c64drive <6502/c64_drivecode.bin >$@
 
 table_c64load.h:	6502 6502/c64_loader.prg mkheader
-			./mkheader table_c64load <$< >$@
+			./mkheader table_c64load <6502/c64_loader.prg >$@
 
 table_c64terp.h:	6502 6502/c64_crunched.bin mkheader
-			./mkheader table_c64terp <$< >$@
+			./mkheader table_c64terp <6502/c64_crunched.bin >$@
 
 table_weblicense.h:	js/license.txt mkheader
 			./mkheader table_weblicense <$< >$@
