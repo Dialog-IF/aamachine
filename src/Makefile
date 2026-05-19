@@ -56,11 +56,11 @@ aambundle: aambundle.c bundle_web.c bundle_c64.c \
 aamrun.linux:	js/nodefrontend.js js/engine.js
 	pkg -t linux -o aamrun.linux js/nodefrontend.js
 
-aamrun.mac:		js/nodefrontend.js js/engine.js
-	pkg -t macos-x64   -o aamrun.mac.x64   js/nodefrontend.js
-	pkg -t macos-arm64 -o aamrun.mac.arm64 js/nodefrontend.js
-	lipo -create -output aamrun.mac aamrun.mac.x64 aamrun.mac.arm64
-	rm -f aamrun.mac.x64 aamrun.mac.arm64
+aamrun.x64:		js/nodefrontend.js js/engine.js
+	pkg -t macos-x64   -o aamrun.x64   js/nodefrontend.js
+
+aamrun.arm:		js/nodefrontend.js js/engine.js
+	pkg -t macos-arm64 -o aamrun.arm64 js/nodefrontend.js
 
 aamrun.exe: js/nodefrontend.js js/engine.js
 	pkg -t win -o aamrun.exe js/nodefrontend.js
