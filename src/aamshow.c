@@ -559,6 +559,7 @@ static aaoper_t decode_oper(int type, uint8_t *code, uint32_t *addr) {
 			return (aaoper_t) {AAO_STORE_REG, value & 0x3f};
 		}
 	case AAO_VALUE:
+	case AAO_RAW:
 		value = code[(*addr)++];
 		if(value >= 0xc0) {
 			return (aaoper_t) {AAO_VAR, value & 0x3f};

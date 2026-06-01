@@ -209,7 +209,8 @@ enum {
 	AAO_STRING,	// aaopinfo, instructions
 	AAO_LABEL,	// only for AA_LABEL
 	AAO_DEST,	// aaopinfo
-	AAO_VALUE	// aaopinfo
+	AAO_VALUE,	// aaopinfo
+	AAO_RAW,	// aaopinfo
 };
 
 enum {
