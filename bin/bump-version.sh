@@ -11,10 +11,10 @@ FULL_VERSION="$1"
 MAJOR_VERSION=$(echo "$FULL_VERSION" | cut -f1 -d.)
 MINOR_VERSION=$(echo "$FULL_VERSION" | cut -f2 -d.)
 
-sed -Ei "s|VERSION=.+|VERSION=\"$FULL_VERSION\"|" src/Makefile
-sed -Ei "s|VER_MAJOR=.+|VER_MAJOR=$MAJOR_VERSION|" src/Makefile
-sed -Ei "s|VER_MINOR=.+|VER_MINOR=$MINOR_VERSION|" src/Makefile
-sed -Ei "s|VERSION=.+|VERSION=\"$FULL_VERSION\"|" src/6502/Makefile
+sed -Ei "s|^VERSION=.+|VERSION=$FULL_VERSION|" src/Makefile
+sed -Ei "s|^VER_MAJOR=.+|VER_MAJOR=$MAJOR_VERSION|" src/Makefile
+sed -Ei "s|^VER_MINOR=.+|VER_MINOR=$MINOR_VERSION|" src/Makefile
+sed -Ei "s|^VERSION=.+|VERSION=$FULL_VERSION|" src/6502/Makefile
 
 sed -Ei "s|VER_MAJOR:.+|VER_MAJOR:	$MAJOR_VERSION,|" src/js/engine.js
 sed -Ei "s|VER_MINOR:.+|VER_MINOR:	$MINOR_VERSION,|" src/js/engine.js
