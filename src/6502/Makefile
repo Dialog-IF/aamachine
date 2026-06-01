@@ -12,7 +12,7 @@ aambox_frontend.bin:	aambox_frontend.s engine.s
 			xa -o $@ $<
 
 c64_frontend.bin:	c64_frontend.s engine.s font.bin
-			xa -l labels -o $@ $< -DVERSION="1.0.3"
+			xa -l labels -o $@ $< -DVERSION=\"$(VERSION)\"
 
 font.bin:		fontdef.txt mkfont
 			./mkfont <$< >$@
