@@ -69,7 +69,7 @@ Words:
 			with word-addressing or byte-addressing when dealing
 			with flag numbers.
 
-		* A live value (tagged reference), as follows:
+		* A literal value, as follows:
 
 			0001..1fff	Object
 			2000..3dff	Dict word (index into dictionary)
@@ -77,10 +77,15 @@ Words:
 			3f00		[] (empty list)
 			3f01..3fff	reserved
 			4000..7fff	Integer in the range 0..16383
-			8000..9fff	Indirect reference (index into heap)
+
+		* A live value (tagged reference), as follows:
+
+			0000		undefined
+			0001..7fff	Literal value as above
+			8000..9fff	Indirect reference (word index into heap)
 			a000..bfff	reserved
-			c000..dffe	Pair (index into heap)
-			e000..fffe	Dict word, extended (index into heap)
+			c000..dffe	Pair (word index into heap)
+			e000..fffe	Dict word, extended (word index into heap)
 
 			In this document, tagged references are described as if
 			they had two independent fields, "tag" and "value". But
@@ -100,7 +105,7 @@ Words:
 
 			The tag 001vvvvv vvvvvvvv may also be referred to as
 			a "dict" to avoid ambiguity with the other meaning of
-			"word" (any 16-bit value).
+			"word" (that is, any 16-bit value).
 
 			A pair is a pointer to a two-word cell on the heap. The
 			first word of that cell is the head of the list (can be
@@ -120,7 +125,7 @@ Words:
 
 			0000		Unset (Null)
 			0001..7fff	Literal value as above
-			8000..fffe	Index into long-term storage area
+			8000..fffe	Word index into long-term storage area
 
 		* Part of a serialized data stream:
 
@@ -668,33 +673,35 @@ CODE:
 
 	Operand types (always big-endian byte ordering):
 
-	BYTE: (e.g. number of slots to allocate, small constants, ...)
+	BYTE: small raw constant, e.g. number of slots to allocate
 		xxxxxxxx
 
-	VBYTE: (raw constant value, displayed as value in disassembly)
-		xxxxxxxx
+	VBYTE: small constant literal (0 or object number 1..ff)
+		xxxxxxxx		Literal 0000..00ff
 
-	WORD: (raw constant value, line number, ...)
-		xxxxxxxx xxxxxxxx		(depending on word size, which
-						is currently always 2)
+	WORD: large raw constant, e.g. line number for tracing
+		xxxxxxxx xxxxxxxx
+	
+	VWORD: constant literal
+		0xxxxxxx xxxxxxxx		Literal 0000..7fff
 
-	VALUE:
-		0xxxxxxx xxxxxxxx		Constant 0000-7fff
+	VALUE: constant or variable operand
+		0xxxxxxx xxxxxxxx		Literal OR raw number 0000..7fff
 		10xxxxxx			Value of register 00..3f
 		11xxxxxx			Value of env slot 00..3f
 
-	DEST:
+	DEST: destination for the result
 		00xxxxxx			Store into register 00..3f
 		01xxxxxx			Store into env slot 00..3f
 		10xxxxxx			Unify with register 00..3f
 		11xxxxxx			Unify with env slot 00..3f
 
-	INDEX:
+	INDEX: medium raw constant, e.g. index of variable, style class
 		0xxxxxxx			Index 00..7f
 		10xxxxxx			Index 80..bf
 		11xxxxxx xxxxxxxx		Index 0000..3fff
 
-	CODE:
+	CODE: byte address in CODE chunk
 		00000000			Absolute address 0 (known to
 						contain the FAIL opcode)
 		00xxxxxx			Close relative pointer
@@ -705,18 +712,23 @@ CODE:
 		1xxxxxxx xxxxxxxx xxxxxxxx	Absolute pointer (full 8 MB
 						range)
 
-	STRING:
-		0xxxxxxx			Tiny pointer (shift by 1, i.e.
-						reaches 256 bytes)
-		10xxxxxx xxxxxxxx		Short pointer (shift according
-						to header)
-		11xxxxxx xxxxxxxx xxxxxxxx	Long pointer (shift according
-						to header)
+	STRING: shifted byte address in WRIT chunk: tiny pointers are shifted
+			right by 1 bit, short and long pointers are shifted right by
+			a number of bits stored in the header
+		0xxxxxxx			Tiny pointer (shift by 1)
+		10xxxxxx xxxxxxxx		Short pointer (shift per header)
+		11xxxxxx xxxxxxxx xxxxxxxx	Long pointer (shift per header)
 
 	Decoding of a CODE operand can sometimes can be postponed until after
 	the execute stage, when it may be possible to decode straight into INST
 	or skip the operand altogether. Both close and relative pointers are
 	decoded relative to INST when encountering the CODE operand.
+
+	When accessing a VALUE operand, some instructions interpret the 16 bits
+	of data as a live value (tagged reference), while others interpret them
+	as a raw 16-bit number. The two may be distinguished better in a future
+	version of the specification. For now, see the semantics below, and
+	whether a given opcode calls deref().
 
 	The instructions (semantics below):
 
@@ -764,11 +776,11 @@ CODE:
 	11	MAKE_VAR		DEST
 
 	12	MAKE_PAIR		DEST DEST DEST
-	13/93	MAKE_PAIR		WORD/VBYTE DEST DEST
+	13/93	MAKE_PAIR		VWORD/VBYTE DEST DEST
 
 	14	AUX_PUSH_VAL		VALUE
 	94	AUX_PUSH_RAW		0			[spec 0.5]
-	15/95	AUX_PUSH_RAW		WORD/VBYTE
+	15/95	AUX_PUSH_RAW		VWORD/VBYTE
 	16	AUX_POP_VAL 	DEST		[pre-1.0 only]
 	17	AUX_POP_LIST		DEST
 	18	AUX_POP_LIST_CHK	VALUE
@@ -799,7 +811,7 @@ CODE:
 	2e/ae	SET_PARENT		VALUE/VBYTE VALUE
 	2f/af	SET_PARENT		VALUE/VBYTE VBYTE
 
-	30/b0	IF_RAW_EQ		WORD/0 VALUE CODE
+	30/b0	IF_RAW_EQ		VWORD/0 VALUE CODE
 	31	IF_BOUND		VALUE CODE
 	32	IF_EMPTY		VALUE CODE
 	33	IF_NUM			VALUE CODE
@@ -809,13 +821,13 @@ CODE:
 	b6	IF_UWORD		VALUE CODE		[spec 0.4]
 	37	IF_UNIFY		VALUE VALUE CODE
 	38	IF_GT			VALUE VALUE CODE
-	39/b9	IF_EQ			WORD/VBYTE VALUE CODE
+	39/b9	IF_EQ			VWORD/VBYTE VALUE CODE
 	3a/ba	IF_MEM_EQ		VALUE/0 INDEX VALUE CODE
 	3b/bb	IF_FLAG			VALUE/0 INDEX CODE
 	3c	IF_CWL			CODE
 	3d/bd	IF_MEM_EQ		VALUE/0 INDEX VBYTE CODE [spec 0.4]
 
-	40/c0	IFN_RAW_EQ		WORD/0 VALUE CODE
+	40/c0	IFN_RAW_EQ		VWORD/0 VALUE CODE
 	41	IFN_BOUND		VALUE CODE
 	42	IFN_EMPTY		VALUE CODE
 	43	IFN_NUM			VALUE CODE
@@ -825,7 +837,7 @@ CODE:
 	c6	IFN_UWORD		VALUE CODE		[spec 0.4]
 	47	IFN_UNIFY		VALUE VALUE CODE
 	48	IFN_GT			VALUE VALUE CODE
-	49/c9	IFN_EQ			WORD/VBYTE VALUE CODE
+	49/c9	IFN_EQ			VWORD/VBYTE VALUE CODE
 	4a/ca	IFN_MEM_EQ		VALUE/0 INDEX VALUE CODE
 	4b/cb	IFN_FLAG		VALUE/0 INDEX CODE
 	4c	IFN_CWL			CODE
@@ -957,12 +969,12 @@ CODE:
 		the default, but may be the same as either bold or italic.
 
 	78	SET_IDX			VALUE
-	79/f9	CHECK_EQ		WORD/VBYTE CODE
-	7a/fa	CHECK_GT_EQ		WORD/VBYTE CODE CODE
+	79/f9	CHECK_EQ		VWORD/VBYTE CODE
+	7a/fa	CHECK_GT_EQ		VWORD/VBYTE CODE CODE
 	7b/fb	CHECK_GT		VALUE/BYTE CODE
 	7c	CHECK_WORDMAP		INDEX CODE
 
-	7d	CHECK_EQ_2		WORD WORD CODE		[spec 0.4]
+	7d	CHECK_EQ_2		VWORD VWORD CODE	[spec 0.4]
 	fd	CHECK_EQ_2		VBYTE VBYTE CODE	[spec 0.4]
 
 	7f	TRACEPOINT		STRING STRING STRING WORD

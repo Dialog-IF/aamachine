@@ -508,6 +508,10 @@ static aaoper_t decode_oper(int type, uint8_t *code, uint32_t *addr) {
 		value = code[(*addr)++];
 		value = (value << 8) | code[(*addr)++];
 		return (aaoper_t) {AAO_WORD, value};
+	case AAO_VWORD:
+		value = code[(*addr)++];
+		value = (value << 8) | code[(*addr)++];
+		return (aaoper_t) {AAO_VWORD, value};
 	case AAO_INDEX:
 		value = code[(*addr)++];
 		if(value >= 0xc0) {
@@ -675,14 +679,15 @@ static void decode_code(struct chunk *ch) {
 						len = put_value(aao[i].value, tagsch);
 						break;
 					case AAO_WORD:
-						if(op == AA_TRACEPOINT) {
-							len = printf("%d", aao[i].value);
-						} else {
-							len = put_value(aao[i].value, tagsch);
-						}
+						len = printf("%d", aao[i].value);
+						break;
+					case AAO_VWORD:
+						len = put_value(aao[i].value, tagsch);
 						break;
 					case AAO_INDEX:
 						len = printf("%d", aao[i].value);
+						// TODO: What does this block of code do??
+						// It runs if you LOAD_VAL 0 INDEX, but surely that INDEX is a variable, not an object?
 						if(i == 1 && aao[0].type == AAO_ZERO && initch) {
 							if(op == (0x80 | AA_LOAD_VAL)
 							|| op == (0x80 | AA_STORE_VAL)

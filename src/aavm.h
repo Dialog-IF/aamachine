@@ -24,10 +24,10 @@
 #define AA_ASSIGN		0x10	// VALUE/VBYTE DEST
 #define AA_MAKE_VAR		0x11	// DEST
 #define AA_MAKE_PAIR_D		0x12	// DEST DEST DEST
-#define AA_MAKE_PAIR_WB		0x13	// WORD/VBYTE DEST DEST
+#define AA_MAKE_PAIR_WB		0x13	// VWORD/VBYTE DEST DEST
 #define AA_AUX_PUSH_VAL		0x14	// VALUE
 #define AA_AUX_PUSH_RAW_0	0x94	// 0
-#define AA_AUX_PUSH_RAW		0x15	// WORD/VBYTE
+#define AA_AUX_PUSH_RAW		0x15	// VWORD/VBYTE
 #define AA_AUX_POP_VAL		0x16	// DEST
 #define AA_AUX_POP_LIST		0x17	// DEST
 #define AA_AUX_POP_LIST_CHK	0x18	// VALUE
@@ -49,7 +49,7 @@
 #define AA_UNLINK		0x2d	// VALUE/0 INDEX INDEX VALUE
 #define AA_SET_PARENT_V		0x2e	// VALUE/VBYTE VALUE
 #define AA_SET_PARENT_B		0x2f	// VALUE/VBYTE VBYTE
-#define AA_IF_RAW_EQ		0x30	// WORD/0 VALUE CODE
+#define AA_IF_RAW_EQ		0x30	// VWORD/0 VALUE CODE
 #define AA_IF_BOUND		0x31	// VALUE CODE
 #define AA_IF_EMPTY		0x32	// VALUE CODE
 #define AA_IF_NUM		0x33	// VALUE CODE
@@ -59,12 +59,12 @@
 #define AA_IF_UWORD		0xb6	// VALUE CODE
 #define AA_IF_UNIFY		0x37	// VALUE VALUE CODE
 #define AA_IF_GT		0x38	// VALUE VALUE CODE
-#define AA_IF_EQ		0x39	// WORD/VBYTE VALUE CODE
+#define AA_IF_EQ		0x39	// VWORD/VBYTE VALUE CODE
 #define AA_IF_MEM_EQ_1		0x3a	// VALUE/0 INDEX VALUE CODE
 #define AA_IF_FLAG		0x3b	// VALUE/0 INDEX CODE
 #define AA_IF_CWL		0x3c	// CODE
 #define AA_IF_MEM_EQ_2		0x3d	// VALUE/0 INDEX VBYTE CODE
-#define AA_IFN_RAW_EQ		0x40	// WORD/0 VALUE CODE
+#define AA_IFN_RAW_EQ		0x40	// VWORD/0 VALUE CODE
 #define AA_IFN_BOUND		0x41	// VALUE CODE
 #define AA_IFN_EMPTY		0x42	// VALUE CODE
 #define AA_IFN_NUM		0x43	// VALUE CODE
@@ -74,7 +74,7 @@
 #define AA_IFN_UWORD		0xc6	// VALUE CODE
 #define AA_IFN_UNIFY		0x47	// VALUE VALUE CODE
 #define AA_IFN_GT		0x48	// VALUE VALUE CODE
-#define AA_IFN_EQ		0x49	// WORD/VBYTE VALUE CODE
+#define AA_IFN_EQ		0x49	// VWORD/VBYTE VALUE CODE
 #define AA_IFN_MEM_EQ_1		0x4a	// VALUE/0 INDEX VALUE CODE
 #define AA_IFN_FLAG		0x4b	// VALUE/0 INDEX CODE
 #define AA_IFN_CWL		0x4c	// CODE
@@ -129,11 +129,11 @@
 #define AA_GET_KEY		0xf3	// DEST
 #define AA_VM_INFO		0x74	// BYTE DEST
 #define AA_SET_IDX		0x78	// VALUE
-#define AA_CHECK_EQ		0x79	// WORD/VBYTE CODE
-#define AA_CHECK_GT_EQ		0x7a	// WORD/VBYTE CODE CODE
+#define AA_CHECK_EQ		0x79	// VWORD/VBYTE CODE
+#define AA_CHECK_GT_EQ		0x7a	// VWORD/VBYTE CODE CODE
 #define AA_CHECK_GT		0x7b	// VALUE/BYTE CODE
 #define AA_CHECK_WORDMAP	0x7c	// INDEX CODE
-#define AA_CHECK_EQ_2A		0x7d	// WORD WORD CODE
+#define AA_CHECK_EQ_2A		0x7d	// VWORD VWORD CODE
 #define AA_CHECK_EQ_2B		0xfd	// VBYTE VBYTE CODE
 #define AA_TRACEPOINT		0x7f	// STRING STRING STRING WORD
 
@@ -196,6 +196,7 @@ enum {
 	AAO_BYTE,	// aaopinfo, instructions
 	AAO_VBYTE,	// aaopinfo, instructions
 	AAO_WORD,	// aaopinfo, instructions
+	AAO_VWORD,	// aaopinfo, instructions
 	AAO_INDEX,	// aaopinfo, instructions
 	AAO_CONST,	// instructions
 	AAO_REG,	// instructions
