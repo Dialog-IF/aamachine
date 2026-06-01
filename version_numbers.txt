@@ -1,7 +1,0 @@
-When you update the version number, make sure to update:
- - The defines at the top of src/Makefile and src/6502/Makefile
- - The constants in src/js/engine.js (VER_MAJOR / VER_MINOR; these track the
-   supported aastory file format, so they only change on a major or minor bump,
-   not on a patch release)
- - The "about" blurb in src/js/webfrontend.html
- - The constant in src/js/nodefrontend.js
