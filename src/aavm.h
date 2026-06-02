@@ -49,7 +49,7 @@
 #define AA_UNLINK		0x2d	// VALUE/0 INDEX INDEX VALUE
 #define AA_SET_PARENT_V		0x2e	// VALUE/VBYTE VALUE
 #define AA_SET_PARENT_B		0x2f	// VALUE/VBYTE VBYTE
-#define AA_IF_RAW_EQ		0x30	// VWORD/0 VALUE CODE
+#define AA_IF_RAW_EQ		0x30	// VWORD/0 RAW CODE
 #define AA_IF_BOUND		0x31	// VALUE CODE
 #define AA_IF_EMPTY		0x32	// VALUE CODE
 #define AA_IF_NUM		0x33	// VALUE CODE
@@ -60,11 +60,11 @@
 #define AA_IF_UNIFY		0x37	// VALUE VALUE CODE
 #define AA_IF_GT		0x38	// VALUE VALUE CODE
 #define AA_IF_EQ		0x39	// VWORD/VBYTE VALUE CODE
-#define AA_IF_MEM_EQ_1		0x3a	// VALUE/0 INDEX VALUE CODE
+#define AA_IF_MEM_EQ_1		0x3a	// VALUE/0 INDEX RAW CODE
 #define AA_IF_FLAG		0x3b	// VALUE/0 INDEX CODE
 #define AA_IF_CWL		0x3c	// CODE
 #define AA_IF_MEM_EQ_2		0x3d	// VALUE/0 INDEX VBYTE CODE
-#define AA_IFN_RAW_EQ		0x40	// VWORD/0 VALUE CODE
+#define AA_IFN_RAW_EQ		0x40	// VWORD/0 RAW CODE
 #define AA_IFN_BOUND		0x41	// VALUE CODE
 #define AA_IFN_EMPTY		0x42	// VALUE CODE
 #define AA_IFN_NUM		0x43	// VALUE CODE
@@ -75,14 +75,14 @@
 #define AA_IFN_UNIFY		0x47	// VALUE VALUE CODE
 #define AA_IFN_GT		0x48	// VALUE VALUE CODE
 #define AA_IFN_EQ		0x49	// VWORD/VBYTE VALUE CODE
-#define AA_IFN_MEM_EQ_1		0x4a	// VALUE/0 INDEX VALUE CODE
+#define AA_IFN_MEM_EQ_1		0x4a	// VALUE/0 INDEX RAW CODE
 #define AA_IFN_FLAG		0x4b	// VALUE/0 INDEX CODE
 #define AA_IFN_CWL		0x4c	// CODE
 #define AA_IFN_MEM_EQ_2		0x4d	// VALUE/0 INDEX VBYTE CODE
-#define AA_ADD_RAW		0x50	// VALUE VALUE DEST
-#define AA_INC_RAW		0xd0	// VALUE DEST
-#define AA_SUB_RAW		0x51	// VALUE VALUE DEST
-#define AA_DEC_RAW		0xd1	// VALUE DEST
+#define AA_ADD_RAW		0x50	// RAW RAW DEST
+#define AA_INC_RAW		0xd0	// RAW DEST
+#define AA_SUB_RAW		0x51	// RAW RAW DEST
+#define AA_DEC_RAW		0xd1	// RAW DEST
 #define AA_RAND_RAW		0x52	// BYTE DEST
 #define AA_ADD_NUM		0x58	// VALUE VALUE DEST
 #define AA_INC_NUM		0xd8	// VALUE DEST
@@ -104,9 +104,9 @@
 #define AA_PRINT_VAL		0x65	// VALUE
 #define AA_ENTER_DIV		0x66	// INDEX
 #define AA_LEAVE_DIV		0xe6
-#define AA_ENTER_STATUS_0		0x67	// 0 INDEX
-#define AA_SET_BODY		0x67	// INDEX
-#define AA_LEAVE_STATUS_OLD	0xe7
+#define AA_ENTER_STATUS_0		0x67	// 0 INDEX - before 1.0
+#define AA_SET_BODY		0x67	// INDEX - 1.0 onwards
+#define AA_LEAVE_STATUS_OLD	0xe7	// before 1.0
 #define AA_ENTER_LINK_RES	0x68	// VALUE
 #define AA_LEAVE_LINK_RES	0xe8
 #define AA_ENTER_LINK		0x69	// VALUE
@@ -121,7 +121,7 @@
 #define AA_ENTER_SPAN		0x6e	// INDEX
 #define AA_LEAVE_SPAN		0xee
 #define AA_ENTER_STATUS		0x6f	// BYTE INDEX
-#define AA_LEAVE_STATUS		0xef
+#define AA_LEAVE_STATUS		0xef	// 1.0 onwards
 #define AA_EXT0			0x70	// BYTE
 #define AA_SAVE			0x72	// CODE
 #define AA_SAVE_UNDO		0xf2	// CODE
@@ -137,7 +137,7 @@
 #define AA_CHECK_EQ_2B		0xfd	// VBYTE VBYTE CODE
 #define AA_TRACEPOINT		0x7f	// STRING STRING STRING WORD
 
-#define AA_LABEL		0x80
+#define AA_LABEL		0x80 // Not real opcodes
 #define AA_SKIP			0x81
 
 #define AA_NEG_FLIP		0x70	// IF_x ^ IFN_x
@@ -168,13 +168,13 @@
 #define OVAR_CHILD		1
 #define OVAR_SIBLING		2
 
-#define REG_A			0x00
-#define REG_X			0x0d
-#define REG_TMP			0x3d
-#define REG_NIL			0x3e
-#define REG_IDX			0x3f
+#define REG_A			0x00 // First argument register
+#define REG_X			0x0d // First temporary register
+#define REG_TMP			0x3d // Quick temporary register (always available)
+#define REG_NIL			0x3e // Constant [] ($3f00) - immediate constants take two bytes, registers take only one, and this is needed often
+#define REG_IDX			0x3f // Opcodes $7x, $Fx operate implicitly on this register for smaller code
 
-#define AA_MAX_TEMP		(REG_TMP - REG_X)
+#define AA_MAX_TEMP		(REG_TMP - REG_X) // 48
 
 #define AASTYLE_REVERSE		1
 #define AASTYLE_BOLD		2
@@ -185,6 +185,10 @@
 #define AAFEAT_SAVE		0x41
 #define AAFEAT_LINKS		0x42
 #define AAFEAT_QUIT		0x43
+#define AAFEAT_STYLE		0x44
+#define AAFEAT_COLOR		0x45
+#define AAFEAT_ALIGN		0x46
+#define AAFEAT_SCRIPT		0x50
 #define AAFEAT_TOP_AREA		0x60
 #define AAFEAT_INLINE_AREA	0x61
 
@@ -206,11 +210,14 @@ enum {
 	AAO_CODE,	// aaopinfo, instructions
 	AAO_CODE2,	// instructions
 	AAO_CODE1,	// instructions
+	// CODE, CODE1, and CODE2 are used internally to mark the three different ways of encoding CODE operands: CODE1 is one byte, CODE2 is two bytes, CODE is three bytes (default)
 	AAO_STRING,	// aaopinfo, instructions
-	AAO_LABEL,	// only for AA_LABEL
+	AAO_LABEL,	// only for AA_LABEL (not a real operand type)
 	AAO_DEST,	// aaopinfo
+	// DEST is replaced by REG, VAR, STORE_REG, or STORE_VAR for compilation
 	AAO_VALUE,	// aaopinfo
 	AAO_RAW,	// aaopinfo
+	// VALUE and RAW are replaced by REG, VAR, or CONST for compilation
 };
 
 enum {
@@ -224,7 +231,7 @@ enum {
 
 typedef struct aaoper {
 	unsigned int type:8;
-	unsigned int value:24;
+	unsigned int value:24; // Largest operand value is 23 bits long (long CODEs, long STRINGs)
 } aaoper_t;
 
 struct aainstr {
@@ -238,7 +245,7 @@ struct aainstr {
 struct aaopinfo {
 	uint8_t		op;
 	uint8_t		oper[4];
-	uint8_t		alt_oper0;
+	uint8_t		alt_oper0; // Add 0x80 to switch oper[0] to this
 	char		*name;
 };
 
