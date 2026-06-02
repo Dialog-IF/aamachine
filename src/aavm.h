@@ -28,7 +28,7 @@
 #define AA_AUX_PUSH_VAL		0x14	// VALUE
 #define AA_AUX_PUSH_RAW_0	0x94	// 0
 #define AA_AUX_PUSH_RAW		0x15	// VWORD/VBYTE
-#define AA_AUX_POP_VAL		0x16	// DEST
+#define AA_AUX_POP_VAL		0x16	// DEST - before 1.0
 #define AA_AUX_POP_LIST		0x17	// DEST
 #define AA_AUX_POP_LIST_CHK	0x18	// VALUE
 #define AA_AUX_POP_LIST_MATCH	0x19	// VALUE
