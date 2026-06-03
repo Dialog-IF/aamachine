@@ -142,6 +142,13 @@ Words:
 		aux, and random access areas. This is handy for measuring peak
 		memory usage.
 
+Data types:
+
+	In the following description, BYTE always means eight bits, SHORT
+	always means 16 bits (two bytes), and LONG always means 32 bits (four
+	bytes). WORD means either SHORT or LONG, depending on the word size
+	specified in the header.
+
 Text:
 
 	The game-specific CHARACTER SET is a single-byte encoding.
@@ -192,10 +199,10 @@ Game state:
 
 	Special-purpose registers:
 
-		LONG (32-bit)	INST	Instruction pointer
+		LONG			INST	Instruction pointer
 		LONG			CONT	Continuation pointer
 
-		WORD (16-bit)	TOP	Main heap top (allocates upwards)
+		WORD			TOP	Main heap top (allocates upwards)
 		WORD			ENV	Env frame pointer (grows downwards)
 		WORD			CHO	Choice frame pointer (grows downwards)
 		WORD			SIM	Simple cut or null
@@ -381,7 +388,9 @@ DATA:
 REGS:
 
 	WORD[64]	State of the general-purpose registers
-	BYTE[26]	State of the special-purpose registers
+	LONG[2]		State of the special-purpose registers
+	WORD[8]			(continued)
+	BYTE[2]			(continued)
 	WORD		Number of active divs
 	WORD[n]		Active divs (class ids), outermost first
 
@@ -427,10 +436,10 @@ HEAD:
 	BYTE		wordsz	Word size (currently always 2)
 	BYTE		shift	Shift amount for short/long string pointers
 
-	BYTE[2]		release	Story release number
-	BYTE[6]		serial	Story serial number
+	SHORT		release	Story release number
+	BYTE[6]		serial	Story serial number (ASCII)
 
-	BYTE[4]		crc	Running CRC-32 of the contents of LOOK, LANG,
+	LONG		crc	Running CRC-32 of the contents of LOOK, LANG,
 				MAPS, DICT, INIT, CODE, and WRIT, in that
 				specific order
 
@@ -439,7 +448,7 @@ HEAD:
 	WORD		ramsz	Size (in words) of random access area
 				(including long-term heap)
 
-	BYTE[46]	ifid	(optional) "UUID://...//" + null-byte
+	BYTE[46]	ifid	(optional) "UUID://...//" + null (ASCII)
 
 INIT:
 
@@ -582,7 +591,7 @@ LOOK:
 	must perform case-insensitive comparison. Leading whitespace has been
 	removed from the entries. A blank entry (just the terminating
 	null-byte) marks the end.
-  
+
 	These pairs are typically CSS properties, but may include other
 	information of use to the interpreter, such as ARIA roles. Thus,
 	interpreters must ignore any unrecognized keys or values, rather than
