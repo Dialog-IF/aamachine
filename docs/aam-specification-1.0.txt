@@ -482,7 +482,7 @@ LANG:
 			* Let B = max(0, n_ext - 32) where n_ext is the number
 			of extended characters, as defined in the LANG chunk.
 
-			* Let K = ceil(2log(B + n_dict)) where n_dict is the
+			* Let K = ceil(log2(B + n_dict)) where n_dict is the
 			number of dictionary words, as defined in the DICT chunk.
 
 			* Read K bits, msb first, from the stream. Call this X.
