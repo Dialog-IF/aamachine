@@ -25,6 +25,14 @@ modification, are permitted provided that the following conditions are met:
 Note that the aambundle tool will automatically insert a license file that
 complies with these requirements.
 
+---
+
+The test cases in the development repository (not included in the official
+releases) are released under the same license unless otherwise specified.
+See the LICENSE.txt files in the individual test directories for details.
+
+---
+
 The web frontend of the javascript interpreter depends on jquery, which is
 redistributed inside this archive in compliance with the MIT license:
 
@@ -49,6 +57,8 @@ redistributed inside this archive in compliance with the MIT license:
 	TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 	SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+---
+
 The node frontend of the javascript interpreter depends on minimist, which is
 redistributed inside this archive in compliance with the MIT license:
 
@@ -72,6 +82,7 @@ redistributed inside this archive in compliance with the MIT license:
 	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 	SOFTWARE.
 
+---
 
 The commandline tool aambox6502, for testing the 6502 interpreter, makes use of
 a 6502 emulator by Mike Chambers called fake6502. This emulator is in the
