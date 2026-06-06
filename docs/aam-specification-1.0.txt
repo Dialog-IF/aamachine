@@ -69,7 +69,7 @@ Words:
 			with word-addressing or byte-addressing when dealing
 			with flag numbers.
 
-		* A live value (tagged reference), as follows:
+		* A literal value, as follows:
 
 			0001..1fff	Object
 			2000..3dff	Dict word (index into dictionary)
@@ -77,10 +77,15 @@ Words:
 			3f00		[] (empty list)
 			3f01..3fff	reserved
 			4000..7fff	Integer in the range 0..16383
-			8000..9fff	Indirect reference (index into heap)
+
+		* A live value (tagged reference), as follows:
+
+			0000		undefined
+			0001..7fff	Literal value as above
+			8000..9fff	Indirect reference (word index into heap)
 			a000..bfff	reserved
-			c000..dffe	Pair (index into heap)
-			e000..fffe	Dict word, extended (index into heap)
+			c000..dffe	Pair (word index into heap)
+			e000..fffe	Dict word, extended (word index into heap)
 
 			In this document, tagged references are described as if
 			they had two independent fields, "tag" and "value". But
@@ -100,7 +105,7 @@ Words:
 
 			The tag 001vvvvv vvvvvvvv may also be referred to as
 			a "dict" to avoid ambiguity with the other meaning of
-			"word" (any 16-bit value).
+			"word" (that is, any 16-bit value).
 
 			A pair is a pointer to a two-word cell on the heap. The
 			first word of that cell is the head of the list (can be
@@ -120,7 +125,7 @@ Words:
 
 			0000		Unset (Null)
 			0001..7fff	Literal value as above
-			8000..fffe	Index into long-term storage area
+			8000..fffe	Word index into long-term storage area
 
 		* Part of a serialized data stream:
 
@@ -136,6 +141,13 @@ Words:
 		The special value 3f3f marks unused words in the main heap,
 		aux, and random access areas. This is handy for measuring peak
 		memory usage.
+
+Data types:
+
+	In the following description, BYTE always means eight bits, SHORT
+	always means 16 bits (two bytes), and LONG always means 32 bits (four
+	bytes). WORD means either SHORT or LONG, depending on the word size
+	specified in the header.
 
 Text:
 
@@ -187,10 +199,10 @@ Game state:
 
 	Special-purpose registers:
 
-		LONG (32-bit)	INST	Instruction pointer
+		LONG			INST	Instruction pointer
 		LONG			CONT	Continuation pointer
 
-		WORD (16-bit)	TOP	Main heap top (allocates upwards)
+		WORD			TOP	Main heap top (allocates upwards)
 		WORD			ENV	Env frame pointer (grows downwards)
 		WORD			CHO	Choice frame pointer (grows downwards)
 		WORD			SIM	Simple cut or null
@@ -376,7 +388,9 @@ DATA:
 REGS:
 
 	WORD[64]	State of the general-purpose registers
-	BYTE[26]	State of the special-purpose registers
+	LONG[2]		State of the special-purpose registers
+	WORD[8]			(continued)
+	BYTE[2]			(continued)
 	WORD		Number of active divs
 	WORD[n]		Active divs (class ids), outermost first
 
@@ -422,10 +436,10 @@ HEAD:
 	BYTE		wordsz	Word size (currently always 2)
 	BYTE		shift	Shift amount for short/long string pointers
 
-	BYTE[2]		release	Story release number
-	BYTE[6]		serial	Story serial number
+	SHORT		release	Story release number
+	BYTE[6]		serial	Story serial number (ASCII)
 
-	BYTE[4]		crc	Running CRC-32 of the contents of LOOK, LANG,
+	LONG		crc	Running CRC-32 of the contents of LOOK, LANG,
 				MAPS, DICT, INIT, CODE, and WRIT, in that
 				specific order
 
@@ -434,7 +448,7 @@ HEAD:
 	WORD		ramsz	Size (in words) of random access area
 				(including long-term heap)
 
-	BYTE[46]	ifid	(optional) "UUID://...//" + null-byte
+	BYTE[46]	ifid	(optional) "UUID://...//" + null (ASCII)
 
 INIT:
 
@@ -477,7 +491,7 @@ LANG:
 			* Let B = max(0, n_ext - 32) where n_ext is the number
 			of extended characters, as defined in the LANG chunk.
 
-			* Let K = ceil(2log(B + n_dict)) where n_dict is the
+			* Let K = ceil(log2(B + n_dict)) where n_dict is the
 			number of dictionary words, as defined in the DICT chunk.
 
 			* Read K bits, msb first, from the stream. Call this X.
@@ -577,7 +591,7 @@ LOOK:
 	must perform case-insensitive comparison. Leading whitespace has been
 	removed from the entries. A blank entry (just the terminating
 	null-byte) marks the end.
-  
+
 	These pairs are typically CSS properties, but may include other
 	information of use to the interpreter, such as ARIA roles. Thus,
 	interpreters must ignore any unrecognized keys or values, rather than
@@ -668,33 +682,40 @@ CODE:
 
 	Operand types (always big-endian byte ordering):
 
-	BYTE: (e.g. number of slots to allocate, small constants, ...)
+	BYTE: small constant number, e.g. number of slots to allocate
 		xxxxxxxx
 
-	VBYTE: (raw constant value, displayed as value in disassembly)
-		xxxxxxxx
+	VBYTE: small constant literal (0 or object number 1..ff)
+		xxxxxxxx		Literal 0000..00ff
 
-	WORD: (raw constant value, line number, ...)
-		xxxxxxxx xxxxxxxx		(depending on word size, which
-						is currently always 2)
+	WORD: constant number, e.g. line number for tracing
+		xxxxxxxx xxxxxxxx
+	
+	VWORD: constant literal
+		0xxxxxxx xxxxxxxx		Literal 0000..7fff
 
-	VALUE:
-		0xxxxxxx xxxxxxxx		Constant 0000-7fff
+	RAW: unsigned 16-bit number
+		0xxxxxxx xxxxxxxx		Number 0000..7fff
 		10xxxxxx			Value of register 00..3f
 		11xxxxxx			Value of env slot 00..3f
 
-	DEST:
+	VALUE: live value (tagged reference)
+		0xxxxxxx xxxxxxxx		Literal 0000..7fff
+		10xxxxxx			Value of register 00..3f
+		11xxxxxx			Value of env slot 00..3f
+
+	DEST: destination for the result
 		00xxxxxx			Store into register 00..3f
 		01xxxxxx			Store into env slot 00..3f
 		10xxxxxx			Unify with register 00..3f
 		11xxxxxx			Unify with env slot 00..3f
 
-	INDEX:
+	INDEX: medium raw constant, e.g. index of variable, style class
 		0xxxxxxx			Index 00..7f
 		10xxxxxx			Index 80..bf
 		11xxxxxx xxxxxxxx		Index 0000..3fff
 
-	CODE:
+	CODE: byte address in CODE chunk
 		00000000			Absolute address 0 (known to
 						contain the FAIL opcode)
 		00xxxxxx			Close relative pointer
@@ -705,18 +726,22 @@ CODE:
 		1xxxxxxx xxxxxxxx xxxxxxxx	Absolute pointer (full 8 MB
 						range)
 
-	STRING:
-		0xxxxxxx			Tiny pointer (shift by 1, i.e.
-						reaches 256 bytes)
-		10xxxxxx xxxxxxxx		Short pointer (shift according
-						to header)
-		11xxxxxx xxxxxxxx xxxxxxxx	Long pointer (shift according
-						to header)
+	STRING: shifted byte address in WRIT chunk: tiny pointers are shifted
+			right by 1 bit, short and long pointers are shifted right by
+			a number of bits stored in the header
+		0xxxxxxx			Tiny pointer (shift by 1)
+		10xxxxxx xxxxxxxx		Short pointer (shift per header)
+		11xxxxxx xxxxxxxx xxxxxxxx	Long pointer (shift per header)
 
 	Decoding of a CODE operand can sometimes can be postponed until after
 	the execute stage, when it may be possible to decode straight into INST
 	or skip the operand altogether. Both close and relative pointers are
 	decoded relative to INST when encountering the CODE operand.
+
+	RAW and VALUE only differ when the value read from a register or env
+	variable has its high bit set. For a RAW operand, $8002 is interpreted
+	as the number $8002. For a VALUE operand, it is treated as a pointer,
+	and the word at heap address 2 will be fetched and used instead.
 
 	The instructions (semantics below):
 
@@ -764,11 +789,11 @@ CODE:
 	11	MAKE_VAR		DEST
 
 	12	MAKE_PAIR		DEST DEST DEST
-	13/93	MAKE_PAIR		WORD/VBYTE DEST DEST
+	13/93	MAKE_PAIR		VWORD/VBYTE DEST DEST
 
 	14	AUX_PUSH_VAL		VALUE
 	94	AUX_PUSH_RAW		0			[spec 0.5]
-	15/95	AUX_PUSH_RAW		WORD/VBYTE
+	15/95	AUX_PUSH_RAW		VWORD/VBYTE
 	16	AUX_POP_VAL 	DEST		[pre-1.0 only]
 	17	AUX_POP_LIST		DEST
 	18	AUX_POP_LIST_CHK	VALUE
@@ -799,7 +824,7 @@ CODE:
 	2e/ae	SET_PARENT		VALUE/VBYTE VALUE
 	2f/af	SET_PARENT		VALUE/VBYTE VBYTE
 
-	30/b0	IF_RAW_EQ		WORD/0 VALUE CODE
+	30/b0	IF_RAW_EQ		VWORD/0 RAW CODE
 	31	IF_BOUND		VALUE CODE
 	32	IF_EMPTY		VALUE CODE
 	33	IF_NUM			VALUE CODE
@@ -809,13 +834,13 @@ CODE:
 	b6	IF_UWORD		VALUE CODE		[spec 0.4]
 	37	IF_UNIFY		VALUE VALUE CODE
 	38	IF_GT			VALUE VALUE CODE
-	39/b9	IF_EQ			WORD/VBYTE VALUE CODE
-	3a/ba	IF_MEM_EQ		VALUE/0 INDEX VALUE CODE
+	39/b9	IF_EQ			VWORD/VBYTE VALUE CODE
+	3a/ba	IF_MEM_EQ		VALUE/0 INDEX RAW CODE
 	3b/bb	IF_FLAG			VALUE/0 INDEX CODE
 	3c	IF_CWL			CODE
 	3d/bd	IF_MEM_EQ		VALUE/0 INDEX VBYTE CODE [spec 0.4]
 
-	40/c0	IFN_RAW_EQ		WORD/0 VALUE CODE
+	40/c0	IFN_RAW_EQ		VWORD/0 RAW CODE
 	41	IFN_BOUND		VALUE CODE
 	42	IFN_EMPTY		VALUE CODE
 	43	IFN_NUM			VALUE CODE
@@ -825,16 +850,16 @@ CODE:
 	c6	IFN_UWORD		VALUE CODE		[spec 0.4]
 	47	IFN_UNIFY		VALUE VALUE CODE
 	48	IFN_GT			VALUE VALUE CODE
-	49/c9	IFN_EQ			WORD/VBYTE VALUE CODE
-	4a/ca	IFN_MEM_EQ		VALUE/0 INDEX VALUE CODE
+	49/c9	IFN_EQ			VWORD/VBYTE VALUE CODE
+	4a/ca	IFN_MEM_EQ		VALUE/0 INDEX RAW CODE
 	4b/cb	IFN_FLAG		VALUE/0 INDEX CODE
 	4c	IFN_CWL			CODE
 	4d/cd	IFN_MEM_EQ		VALUE/0 INDEX VBYTE CODE [spec 0.4]
 
-	50	ADD_RAW			VALUE VALUE DEST
-	d0	INC_RAW			VALUE DEST
-	51	SUB_RAW			VALUE VALUE DEST
-	d1	DEC_RAW			VALUE DEST
+	50	ADD_RAW			RAW RAW DEST
+	d0	INC_RAW			RAW DEST
+	51	SUB_RAW			RAW RAW DEST
+	d1	DEC_RAW			RAW DEST
 	52	RAND_RAW		BYTE DEST
 
 	58	ADD_NUM			VALUE VALUE DEST
@@ -957,12 +982,12 @@ CODE:
 		the default, but may be the same as either bold or italic.
 
 	78	SET_IDX			VALUE
-	79/f9	CHECK_EQ		WORD/VBYTE CODE
-	7a/fa	CHECK_GT_EQ		WORD/VBYTE CODE CODE
-	7b/fb	CHECK_GT		VALUE/BYTE CODE
+	79/f9	CHECK_EQ		VWORD/VBYTE CODE
+	7a/fa	CHECK_GT_EQ		VWORD/VBYTE CODE CODE
+	7b/fb	CHECK_GT		RAW/BYTE CODE
 	7c	CHECK_WORDMAP		INDEX CODE
 
-	7d	CHECK_EQ_2		WORD WORD CODE		[spec 0.4]
+	7d	CHECK_EQ_2		VWORD VWORD CODE	[spec 0.4]
 	fd	CHECK_EQ_2		VBYTE VBYTE CODE	[spec 0.4]
 
 	7f	TRACEPOINT		STRING STRING STRING WORD
@@ -1354,7 +1379,7 @@ Opcode semantics
 		heap[addr] = 0
 		arg <- <reference, addr>
 
-	MAKE_PAIR		WORD/VBYTE/DEST DEST DEST
+	MAKE_PAIR		VWORD/VBYTE/DEST DEST DEST
 
 		if(arg3 is a store variant) {
 			local variable addr = TOP
@@ -1431,7 +1456,7 @@ Opcode semantics
 			if(AUX >= TRL) runtime_error(2)
 			aux[AUX++] = v
 
-	AUX_PUSH_RAW		WORD/VBYTE/0
+	AUX_PUSH_RAW		VWORD/VBYTE/0
 
 		if(AUX >= TRL) runtime_error(2)
 		aux[AUX++] = arg
@@ -1879,11 +1904,11 @@ Opcode semantics
 			}
 		}
 
-	IF_RAW_EQ		WORD/0 VALUE CODE
+	IF_RAW_EQ		VWORD/0 RAW CODE
 
 		if(arg1 == arg2) INST = arg3
 
-	IFN_RAW_EQ		WORD/0 VALUE CODE
+	IFN_RAW_EQ		VWORD/0 RAW CODE
 
 		if(arg1 != arg2) INST = arg3
 
@@ -2014,19 +2039,19 @@ Opcode semantics
 			INST = arg3
 		}
 
-	IF_EQ			WORD/VBYTE VALUE CODE
+	IF_EQ			VWORD/VBYTE VALUE CODE
 
 		if(arg1 == deref(arg2)) INST = arg3
 
-	IFN_EQ			WORD/VBYTE VALUE CODE
+	IFN_EQ			VWORD/VBYTE VALUE CODE
 
 		if(arg1 != deref(arg2)) INST = arg3
 
-	IF_MEM_EQ		VALUE/0 INDEX VALUE/VBYTE CODE
+	IF_MEM_EQ		VALUE/0 INDEX RAW/VBYTE CODE
 
 		if(read_field(arg2, deref(arg1)) == arg3) INST = arg4
 
-	IFN_MEM_EQ		VALUE/0 INDEX VALUE/VBYTE CODE
+	IFN_MEM_EQ		VALUE/0 INDEX RAW/VBYTE CODE
 
 		if(read_field(arg2, deref(arg1)) != arg3) INST = arg4
 
@@ -2054,7 +2079,7 @@ Opcode semantics
 
 		if(CWL == 0) INST = arg1
 
-	ADD_RAW			VALUE VALUE DEST
+	ADD_RAW			RAW RAW DEST
 		arg3 <- (arg1 + arg2) & 0xffff
 
 	ADD_NUM			VALUE VALUE DEST
@@ -2071,7 +2096,7 @@ Opcode semantics
 			if(v < 0 || v > 0x3fff) fail
 			return <number, v>
 
-	SUB_RAW			VALUE VALUE DEST
+	SUB_RAW			RAW RAW DEST
 		arg3 <- (arg1 - arg2) & 0xffff
 
 	SUB_NUM			VALUE VALUE DEST
@@ -2121,11 +2146,11 @@ Opcode semantics
 		local variable result = unbox_int(arg1) - 1
 		arg2 <- box_int(result)
 
-	INC_RAW			VALUE DEST
+	INC_RAW			RAW DEST
 
 		arg2 <- (arg1 + 1) & 0xffff
 
-	DEC_RAW			VALUE DEST
+	DEC_RAW			RAW DEST
 
 		arg2 <- (arg1 - 1) & 0xffff
 
@@ -2803,11 +2828,11 @@ Opcode semantics
 			IDX = heap[IDX.value + 0]
 		}
 
-	CHECK_EQ		WORD/VBYTE CODE
+	CHECK_EQ		VWORD/VBYTE CODE
 
 		if(IDX == arg1) INST = arg2
 	
-	CHECK_GT_EQ		WORD/VBYTE CODE CODE
+	CHECK_GT_EQ		VWORD/VBYTE CODE CODE
 
 		if(IDX > arg1) {
 			INST = arg2
@@ -2815,7 +2840,7 @@ Opcode semantics
 			INST = arg3
 		}
 
-	CHECK_GT		VALUE/BYTE CODE
+	CHECK_GT		RAW/BYTE CODE
 
 		if(IDX > arg1) INST = arg2
 
@@ -2843,7 +2868,7 @@ Opcode semantics
 		(wordmaps[arg1]), looking up the word of interest (IDX) to see
 		if it's there.
 
-	CHECK_EQ_2		WORD/VBYTE WORD/VBYTE CODE
+	CHECK_EQ_2		VWORD/VBYTE VWORD/VBYTE CODE
 
 		if(IDX == arg1 || IDX == arg2) INST = arg3
 

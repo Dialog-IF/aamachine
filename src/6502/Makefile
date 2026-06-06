@@ -1,5 +1,5 @@
-VERSION=\"1.0.2\"
-CFLAGS=-Wall -O2 -DVERSION=$(VERSION)
+VERSION=1.0.3
+CFLAGS=-Wall -O2 -DVERSION=\"$(VERSION)\"
 
 all:			aambox6502 aambox_frontend.bin c64_crunched.bin c64_drivecode.bin c64_loader.prg
 
@@ -12,7 +12,7 @@ aambox_frontend.bin:	aambox_frontend.s engine.s
 			xa -o $@ $<
 
 c64_frontend.bin:	c64_frontend.s engine.s font.bin
-			xa -l labels -o $@ $< -DVERSION=$(VERSION)
+			xa -l labels -o $@ $< -DVERSION=\"$(VERSION)\"
 
 font.bin:		fontdef.txt mkfont
 			./mkfont <$< >$@
