@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
 This archive contains version 1.0 of the Å-machine specification, and version
-1.0.2 of the tools and official interpreters.
+1.0.3 of the tools and official interpreters.
 
 The following interpreters are included:
 
@@ -121,6 +121,10 @@ Project website:
 	https://github.com/Dialog-IF/aamachine/
 
 Release notes:
+
+	1.0.3:
+	
+		Cleans up the specification and some dev tools.
 
 	1.0.2:
 	

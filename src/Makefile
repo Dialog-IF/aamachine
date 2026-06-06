@@ -1,8 +1,8 @@
-VERSION=\"1.0.2\"
+VERSION=1.0.3
 VER_MAJOR=1
 VER_MINOR=0
 CC		= gcc
-CFLAGS		+= -Wall -O3 -DVERSION=$(VERSION) -DVER_MAJOR=$(VER_MAJOR) -DVER_MINOR=$(VER_MINOR)
+CFLAGS		+= -Wall -O3 -DVERSION=\"$(VERSION)\" -DVER_MAJOR=$(VER_MAJOR) -DVER_MINOR=$(VER_MINOR)
 ifeq ($(shell uname -s),Darwin)
 CFLAGS		+= -arch x86_64 -arch arm64
 endif
