@@ -1,0 +1,6 @@
+name: aamachine
+title: Å-machine
+version: 1.0
+asciidoc:
+  attributes:
+    page-copyright: &copy; 2018-2026 Linus Åkesson and the Dialog Project
