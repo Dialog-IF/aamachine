@@ -11,10 +11,11 @@ try {
 } catch(e) {
 	minimist = require('./minimist.js'); // Include a local copy to reduce dependencies
 }
-var argv = minimist(process.argv.slice(2));
+var argv = minimist(process.argv.slice(2), {boolean:['T', 'tag-lines', 'D', 'dfrotz']});
 
 var status;
 var io_tag_lines = false;
+var quirks = false;
 
 const io = {
 	hidden: false,
@@ -56,7 +57,7 @@ const io = {
 		this.pending_word = "";
 		this.pending_spaces = 0;
 		this.xpos = 0;
-		this.newlines = 1;
+		this.newlines = quirks ? 999 : 1;
 	},
 	clear: function() {
 		this.par();
@@ -280,11 +281,12 @@ var filename, seed;
 
 const usage = function() {
 	console.log("Usage: aamrun [OPTIONS] file.aastory");
-	console.log("    -s              Set random seed.");
-	console.log("    -w              Set screen width (default 80).");
+	console.log("    -s N            Set random seed.");
+	console.log("    -w N            Set screen width (default 80).");
 	console.log("    -h, --help      Show this message.");
 	console.log("    -v, -V          Show version and exit.");
 	console.log("    -T, --tag-lines Prepend output with \"  \", input with \"> \" or \") \".");
+	console.log("    -D, --dfrotz    Emulate dfrotz quirks.");
 }
 
 if(argv.v || argv.V) {
@@ -302,6 +304,9 @@ if(argv.h || argv.help) {
 }
 if(argv.T || argv["tag-lines"]) {
 	io_tag_lines = true;
+}
+if(argv.D || argv.dfrotz) { // Suppress initial newlines
+	quirks = true;
 }
 
 try {
@@ -351,7 +356,7 @@ rlif.on('line', (line) => {
 	} else if(status == aaengine.status.get_input) {
 		io.xpos = 0;
 		io.pending_spaces = 0;
-		io.newlines = 1;
+		io.newlines = quirks ? 999 : 1;
 		if(io_tag_lines) process.stdout.write("  ");
 		status = aaengine.vm_proceed_with_input(line);
 		add_tag();
