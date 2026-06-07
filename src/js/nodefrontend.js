@@ -125,7 +125,7 @@ const io = {
 	},
 	measure_dims: function(which) {
 		if(which == 0) { // Width
-			return 80;
+			return this.width > 0 ? this.width : 0;
 		} else if(which == 1) { // Height
 			return 0;
 		} else {
