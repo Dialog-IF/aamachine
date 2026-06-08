@@ -68,8 +68,10 @@ jobs:
       run: sudo npm install -g @yao-pkg/pkg
     - name: make (aamrun)
       run: |
-        make --directory=./src aamrun.mac
-        mv src/aamrun.mac src/aamrun
+        make --directory=./src aamrun.mac.x64 aamrun.mac.arm
+        mv src/prebuilt/aamrun.mac src/aamrun
+        mv src/aamrun.mac.x64 src/aamrun.x64
+        mv src/aamrun.mac.arm src/aamrun.arm
     - name: make (blobs)
       run: make --directory=./src/6502 aambox_frontend.bin c64_crunched.bin c64_drivecode.bin c64_loader.prg
     - name: make (mac)
@@ -79,6 +81,8 @@ jobs:
         name: macos-universal
         path: |
           src/aamrun
+          src/aamrun.x64
+          src/aamrun.arm
           src/aamshow
           src/aambundle
   

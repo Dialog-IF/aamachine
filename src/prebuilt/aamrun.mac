@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Checks the current architecture and calls either aamrun.x64 or aamrun.arm
+# This is a workaround for the fact that Node pkg binaries are broken by lipo
+
+# This bit is taken from dgt (https://github.com/hlship/dialog-tool)
+# Resolve symlinks to find the location of this actual script file
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+	SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+	SOURCE="$(readlink "$SOURCE")"
+	# If SOURCE is relative, resolve it relative to the symlink's directory
+	[[ "$SOURCE" != /* ]] && SOURCE="$SCRIPT_DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+
+if [[ "$(uname -m)" == "arm64" ]] ; then
+	"$SCRIPT_DIR/aamrun.arm" "$@"
+else
+	"$SCRIPT_DIR/aamrun.x64" "$@"
+fi
