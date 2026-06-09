@@ -50,7 +50,7 @@ The notation 'a-b' means the range of characters from a to b, inclusive.
 
 Throughout this document, numbers used to count things (like "16 bits" or
 "WORD[64]") are decimal (base 10), while numbers used as values (like "80" or
-"7fff" are hexadecimal (base 16). In ambiguous cases, hexadecimal numbers are
+"7fff") are hexadecimal (base 16). In ambiguous cases, hexadecimal numbers are
 marked with a $ symbol. In pseudocode, hexadecimal numbers start with "0x";
 all other numbers are decimal.
 
