@@ -125,7 +125,11 @@ Release notes:
 	1.0.3:
 	
 		Cleans up the specification and some dev tools.
-
+		
+		Aamrun binary is no longer universal on OSX (caused crashes).
+		
+		Aamrun can now emulate dfrotz quirks for automated testing.
+	
 	1.0.2:
 	
 		Fixes bug with window size getting out of sync when enabling
