@@ -432,7 +432,7 @@ chunks. <<HEAD>> must be the first chunk inside the form. In the following table
 (*) marks the chunks that participate in the story checksum.
 
 * <<HEAD>>: File header
-* <<CODE>> (*): Bytecode instructions
+* <<CODE-chunk>> (*): Bytecode instructions
 * <<DICT>> (*): Game dictionary
 * <<FILE>>: Embedded resource file (may appear more than once)
 * <<INIT>> (*): Initial game state, also needed for save/restore
@@ -658,7 +658,7 @@ The URL scheme "file" refers to data inside <<FILE>> chunks, e.g.
 A null-terminated filename, e.g. "title.png", immediately followed by
 the file contents.
 
-[[CODE]]
+[[CODE-chunk,CODE]]
 === CODE
 
 A byte-addressable read-only chunk, up to 8 MB in size, containing
@@ -734,8 +734,8 @@ Operand types (always big-endian byte ordering):
 * `10xxxxxx`: Index 80..bf
 * `11xxxxxx xxxxxxxx`: Index 0000..3fff
 
-[[CODE-type,CODE]]
-*CODE*: byte address in <<CODE>> chunk
+[[CODE]]
+*CODE*: byte address in <<CODE-chunk>> chunk
 
 * `00000000`: Absolute address 0 (known to contain the <<FAIL>> opcode)
 * `00xxxxxx`: Close relative pointer (+ 1..3f bytes)
@@ -785,16 +785,16 @@ Opcode	Mnemonic	Args	Version
 01	<<FAIL>>	{empty}	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-02	<<SET_CONT>>	<<CODE-type,CODE>>	{empty}
+02	<<SET_CONT>>	<<CODE>>	{empty}
 03	<<PROCEED>>	{empty}	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-04	<<JMP>>	<<CODE-type,CODE>>	{empty}
-05	<<JMP_MULTI>>	<<CODE-type,CODE>>	{empty}
-85	<<JMPL_MULTI>>	<<CODE-type,CODE>>	{empty}
-06	<<JMP_SIMPLE>>	<<CODE-type,CODE>>	{empty}
-86	<<JMPL_SIMPLE>>	<<CODE-type,CODE>>	{empty}
-07	<<JMP_TAIL>>	<<CODE-type,CODE>>	{empty}
+04	<<JMP>>	<<CODE>>	{empty}
+05	<<JMP_MULTI>>	<<CODE>>	{empty}
+85	<<JMPL_MULTI>>	<<CODE>>	{empty}
+06	<<JMP_SIMPLE>>	<<CODE>>	{empty}
+86	<<JMPL_SIMPLE>>	<<CODE>>	{empty}
+07	<<JMP_TAIL>>	<<CODE>>	{empty}
 87	<<TAIL>>	{empty}	{empty}
 {empty}	{empty}	{empty}	{empty}
 
@@ -803,9 +803,9 @@ Opcode	Mnemonic	Args	Version
 89	<<POP_ENV_PROCEED>>	{empty}	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-0a/8a	<<PUSH_CHOICE>>	<<BYTE>>/0 <<CODE-type,CODE>>	{empty}
+0a/8a	<<PUSH_CHOICE>>	<<BYTE>>/0 <<CODE>>	{empty}
 0b/8b	<<POP_CHOICE>>	<<BYTE>>/0	{empty}
-0c/8c	<<POP_PUSH_CHOICE>>	<<BYTE>>/0 <<CODE-type,CODE>>	{empty}
+0c/8c	<<POP_PUSH_CHOICE>>	<<BYTE>>/0 <<CODE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
 0d	<<CUT_CHOICE>>	{empty}	{empty}
@@ -837,7 +837,7 @@ Opcode	Mnemonic	Args	Version
 {empty}	{empty}	{empty}	{empty}
 
 1c	<<STOP>>	{empty}	{empty}
-1d	<<PUSH_STOP>>	<<CODE-type,CODE>>	{empty}
+1d	<<PUSH_STOP>>	<<CODE>>	{empty}
 1e	<<POP_STOP>>	{empty}	{empty}
 {empty}	{empty}	{empty}	{empty}
 
@@ -866,38 +866,38 @@ Opcode	Mnemonic	Args	Version
 2f/af	<<SET_PARENT>>	<<VALUE>>/<<VBYTE>> <<VBYTE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-30/b0	<<IF_RAW_EQ>>	<<VWORD>>/0 <<RAW>> <<CODE-type,CODE>>	{empty}
-31	<<IF_BOUND>>	<<VALUE>> <<CODE-type,CODE>>	{empty}
-32	<<IF_EMPTY>>	<<VALUE>> <<CODE-type,CODE>>	{empty}
-33	<<IF_NUM>>	<<VALUE>> <<CODE-type,CODE>>	{empty}
-34	<<IF_PAIR>>	<<VALUE>> <<CODE-type,CODE>>	{empty}
-35	<<IF_OBJ>>	<<VALUE>> <<CODE-type,CODE>>	{empty}
-36	<<IF_WORD>>	<<VALUE>> <<CODE-type,CODE>>	{empty}
-b6	<<IF_UWORD>>	<<VALUE>> <<CODE-type,CODE>>	≥ 0.4
-37	<<IF_UNIFY>>	<<VALUE>> <<VALUE>> <<CODE-type,CODE>>	{empty}
-38	<<IF_GT>>	<<VALUE>> <<VALUE>> <<CODE-type,CODE>>	{empty}
-39/b9	<<IF_EQ>>	<<VWORD>>/<<VBYTE>> <<VALUE>> <<CODE-type,CODE>>	{empty}
-3a/ba	<<IF_MEM_EQ>>	<<VALUE>>/0 <<INDEX>> <<RAW>> <<CODE-type,CODE>>	{empty}
-3b/bb	<<IF_FLAG>>	<<VALUE>>/0 <<INDEX>> <<CODE-type,CODE>>	{empty}
-3c	<<IF_CWL>>	<<CODE-type,CODE>>	{empty}
-3d/bd	<<IF_MEM_EQ>>	<<VALUE>>/0 <<INDEX>> <<VBYTE>> <<CODE-type,CODE>>	≥ 0.4
+30/b0	<<IF_RAW_EQ>>	<<VWORD>>/0 <<RAW>> <<CODE>>	{empty}
+31	<<IF_BOUND>>	<<VALUE>> <<CODE>>	{empty}
+32	<<IF_EMPTY>>	<<VALUE>> <<CODE>>	{empty}
+33	<<IF_NUM>>	<<VALUE>> <<CODE>>	{empty}
+34	<<IF_PAIR>>	<<VALUE>> <<CODE>>	{empty}
+35	<<IF_OBJ>>	<<VALUE>> <<CODE>>	{empty}
+36	<<IF_WORD>>	<<VALUE>> <<CODE>>	{empty}
+b6	<<IF_UWORD>>	<<VALUE>> <<CODE>>	≥ 0.4
+37	<<IF_UNIFY>>	<<VALUE>> <<VALUE>> <<CODE>>	{empty}
+38	<<IF_GT>>	<<VALUE>> <<VALUE>> <<CODE>>	{empty}
+39/b9	<<IF_EQ>>	<<VWORD>>/<<VBYTE>> <<VALUE>> <<CODE>>	{empty}
+3a/ba	<<IF_MEM_EQ>>	<<VALUE>>/0 <<INDEX>> <<RAW>> <<CODE>>	{empty}
+3b/bb	<<IF_FLAG>>	<<VALUE>>/0 <<INDEX>> <<CODE>>	{empty}
+3c	<<IF_CWL>>	<<CODE>>	{empty}
+3d/bd	<<IF_MEM_EQ>>	<<VALUE>>/0 <<INDEX>> <<VBYTE>> <<CODE>>	≥ 0.4
 {empty}	{empty}	{empty}	{empty}
 
-40/c0	<<IFN_RAW_EQ>>	<<VWORD>>/0 <<RAW>> <<CODE-type,CODE>>	{empty}
-41	<<IFN_BOUND>>	<<VALUE>> <<CODE-type,CODE>>	{empty}
-42	<<IFN_EMPTY>>	<<VALUE>> <<CODE-type,CODE>>	{empty}
-43	<<IFN_NUM>>	<<VALUE>> <<CODE-type,CODE>>	{empty}
-44	<<IFN_PAIR>>	<<VALUE>> <<CODE-type,CODE>>	{empty}
-45	<<IFN_OBJ>>	<<VALUE>> <<CODE-type,CODE>>	{empty}
-46	<<IFN_WORD>>	<<VALUE>> <<CODE-type,CODE>>	{empty}
-c6	<<IFN_UWORD>>	<<VALUE>> <<CODE-type,CODE>>	≥ 0.4
-47	<<IFN_UNIFY>>	<<VALUE>> <<VALUE>> <<CODE-type,CODE>>	{empty}
-48	<<IFN_GT>>	<<VALUE>> <<VALUE>> <<CODE-type,CODE>>	{empty}
-49/c9	<<IFN_EQ>>	<<VWORD>>/<<VBYTE>> <<VALUE>> <<CODE-type,CODE>>	{empty}
-4a/ca	<<IFN_MEM_EQ>>	<<VALUE>>/0 <<INDEX>> <<RAW>> <<CODE-type,CODE>>	{empty}
-4b/cb	<<IFN_FLAG>>	<<VALUE>>/0 <<INDEX>> <<CODE-type,CODE>>	{empty}
-4c	<<IFN_CWL>>	<<CODE-type,CODE>>	{empty}
-4d/cd	<<IFN_MEM_EQ>>	<<VALUE>>/0 <<INDEX>> <<VBYTE>> <<CODE-type,CODE>>	≥ 0.4
+40/c0	<<IFN_RAW_EQ>>	<<VWORD>>/0 <<RAW>> <<CODE>>	{empty}
+41	<<IFN_BOUND>>	<<VALUE>> <<CODE>>	{empty}
+42	<<IFN_EMPTY>>	<<VALUE>> <<CODE>>	{empty}
+43	<<IFN_NUM>>	<<VALUE>> <<CODE>>	{empty}
+44	<<IFN_PAIR>>	<<VALUE>> <<CODE>>	{empty}
+45	<<IFN_OBJ>>	<<VALUE>> <<CODE>>	{empty}
+46	<<IFN_WORD>>	<<VALUE>> <<CODE>>	{empty}
+c6	<<IFN_UWORD>>	<<VALUE>> <<CODE>>	≥ 0.4
+47	<<IFN_UNIFY>>	<<VALUE>> <<VALUE>> <<CODE>>	{empty}
+48	<<IFN_GT>>	<<VALUE>> <<VALUE>> <<CODE>>	{empty}
+49/c9	<<IFN_EQ>>	<<VWORD>>/<<VBYTE>> <<VALUE>> <<CODE>>	{empty}
+4a/ca	<<IFN_MEM_EQ>>	<<VALUE>>/0 <<INDEX>> <<RAW>> <<CODE>>	{empty}
+4b/cb	<<IFN_FLAG>>	<<VALUE>>/0 <<INDEX>> <<CODE>>	{empty}
+4c	<<IFN_CWL>>	<<CODE>>	{empty}
+4d/cd	<<IFN_MEM_EQ>>	<<VALUE>>/0 <<INDEX>> <<VBYTE>> <<CODE>>	≥ 0.4
 {empty}	{empty}	{empty}	{empty}
 
 50	<<ADD_RAW>>	<<RAW>> <<RAW>> <<DEST>>	{empty}
@@ -980,8 +980,8 @@ ef	<<LEAVE_STATUS>>	{empty}	≥ 1.0
 70	<<EXT0>>	<<EXT0,BYTE†>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-72	<<SAVE>>	<<CODE-type,CODE>>	{empty}
-f2	<<SAVE_UNDO>>	<<CODE-type,CODE>>	{empty}
+72	<<SAVE>>	<<CODE>>	{empty}
+f2	<<SAVE_UNDO>>	<<CODE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
 73	<<GET_INPUT>>	<<DEST>>	{empty}
@@ -992,14 +992,14 @@ f3	<<GET_KEY>>	<<DEST>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
 78	<<SET_IDX>>	<<VALUE>>	{empty}
-79/f9	<<CHECK_EQ>>	<<VWORD>>/<<VBYTE>> <<CODE-type,CODE>>	{empty}
-7a/fa	<<CHECK_GT_EQ>>	<<VWORD>>/<<VBYTE>> <<CODE-type,CODE>> <<CODE-type,CODE>>	{empty}
-7b/fb	<<CHECK_GT>>	<<RAW>>/<<BYTE>> <<CODE-type,CODE>>	{empty}
-7c	<<CHECK_WORDMAP>>	<<INDEX>> <<CODE-type,CODE>>	{empty}
+79/f9	<<CHECK_EQ>>	<<VWORD>>/<<VBYTE>> <<CODE>>	{empty}
+7a/fa	<<CHECK_GT_EQ>>	<<VWORD>>/<<VBYTE>> <<CODE>> <<CODE>>	{empty}
+7b/fb	<<CHECK_GT>>	<<RAW>>/<<BYTE>> <<CODE>>	{empty}
+7c	<<CHECK_WORDMAP>>	<<INDEX>> <<CODE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-7d	<<CHECK_EQ_2>>	<<VWORD>> <<VWORD>> <<CODE-type,CODE>>	≥ 0.4
-fd	<<CHECK_EQ_2>>	<<VBYTE>> <<VBYTE>> <<CODE-type,CODE>>	≥ 0.4
+7d	<<CHECK_EQ_2>>	<<VWORD>> <<VWORD>> <<CODE>>	≥ 0.4
+fd	<<CHECK_EQ_2>>	<<VBYTE>> <<VBYTE>> <<CODE>>	≥ 0.4
 {empty}	{empty}	{empty}	{empty}
 
 7f	<<TRACEPOINT>>	<<STRING>> <<STRING>> <<STRING>> <<WORD>>	{empty}
