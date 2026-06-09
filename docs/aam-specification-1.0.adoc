@@ -67,6 +67,12 @@ The notation:
 
 Means that the "whatsit data" appears "number of whatsits" times in sequence.
 
+Throughout this document, numbers used to count things (like "16 bits" or
+"`WORD[64]`") are decimal (base 10), while numbers used as values (like "80" or
+"7fff" are hexadecimal (base 16). In ambiguous cases, hexadecimal numbers are
+marked with a `$` symbol. In pseudocode, hexadecimal numbers start with `0x`;
+all other numbers are decimal.
+
 == Runtime data
 
 === Words
@@ -106,6 +112,9 @@ with flag numbers.
 * ``a000..bfff``	reserved
 * ``c000..dffe``	Pair (word index into heap)
 * ``e000..fffe``	Dict word, extended (word index into heap)
+
+Live values only exist in registers or on the heap, and
+can be invalidated when the heap shrinks.
 
 In this document, tagged references are described as if
 they had two independent fields, "tag" and "value". But
@@ -147,6 +156,11 @@ characters (the optional part).
 * ``0001..7fff``	<<literal,Literal value>>
 * ``8000..fffe``	Word index into long-term storage area
 
+Stored values exist in global and object variables (the
+lower parts of RAM) and may have to be updated when
+long-term storage is rearranged. See the pseudocode for
+<<clear_longterm,`clear_longterm`>>.
+
 Part of a *serialized data stream*:
 
 * ``0000      ``	End of stream marker
@@ -157,6 +171,11 @@ Part of a *serialized data stream*:
 * ``8101..bfff``	reserved
 * ``c000..dfff``	Proper list marker
 * ``e000..fffe``	Improper list marker
+
+Values are serialized into this format if they need to be
+stored on the aux heap or in long-term storage. See the
+pseudocode for <<push_serialized,`push_serialized`>> and
+<<push_longterm,`push_longterm`>>.
 
 The special value `3f3f` marks unused words in the main heap,
 aux, and random access areas. This is handy for measuring peak
@@ -349,8 +368,7 @@ Data in the long-term storage area is organized into chunks:
 * `WORD`: Pointer to owner reference (index into random access area)
 * `WORD[n - 2]`: Serialized data
 
-These chunks can move around at runtime (see psuedo-code for
-`clear_longterm()` below). When this happens, pointers are
+These chunks can move around at runtime (see pseudocode for <<clear_longterm,`clear_longerm`>> below). When this happens, pointers are
 updated in the random access area.
 
 === Env frame format
@@ -1548,6 +1566,7 @@ frame to SIM if there is no existing cutting choice point.
 
  push_serialized(arg)
 
+[[push_serialized]]
  def push_serialized(v):
  	v = deref(v)
  	if(v.tag == pair) {
@@ -1964,6 +1983,7 @@ is nevertheless used by <<AUX_POP_LIST>>.
  		ram[addr] = v
  	}
 
+[[push_longterm]]
  def push_longterm(v):
  	v = deref(v)
  	if(v.tag == pair) {
@@ -1991,6 +2011,7 @@ is nevertheless used by <<AUX_POP_LIST>>.
  	if(TMP > HEAD.ramsz) runtime_error(6)
  	ram[TMP++] = v
 
+[[clear_longterm]]
  def clear_longterm(addr):
  	local variable v = ram[addr]
  	if(v & 0x8000) {
