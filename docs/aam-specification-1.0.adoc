@@ -253,7 +253,7 @@ free to work with a different internal representation at runtime.
 
 **Other:**
 
-* `BYTE`: `CWL`, collect-words level
+* `BYTE`: `CWL`, collect-words nesting level
 * `BYTE`: `SPC`, whitespace level
 
 Values for SPC:
@@ -276,8 +276,12 @@ This is how dialogc uses these 64 registers:
 
 * ``R00..R0c``	Arguments (with optional just-pointer)
 * ``R0d..R3c``	Temporary values
-* ``R3d     ``	Quick temporary register
+* ``R3d     ``	Quick temporary register (always available)
 * ``R3e     ``	Constant `[]` (3f00)
+
+Since registers take only one byte to encode and a large
+immediate value takes two, storing frequently-needed constants in
+registers can lead to smaller code.
 
 With a few exceptions, all of the registers (special-purpose and
 general-purpose) are initialized to zero when the virtual machine
@@ -319,8 +323,8 @@ big-endian byte ordering).
 
 ==== Random access area
 
-This memory is addressable, and it may contain pointers in the
-form of word offsets into itself.
+This memory is word-addressable, and it may contain pointers in
+the form of word offsets into itself.
 
 * `WORD`: Word offset of global data
 * `WORD[<<initialized-registers,NOB>>]`: Word offset of per-object data
@@ -348,6 +352,9 @@ def read_field(field, obj):
 		return ram[ram[obj] + field]
 	}
 ----
+
+For both `field_addr` and `read_field`, "obj" may be 0 to access global
+variables (not affiliated with any object).
 
 ==== Heaps
 
@@ -584,8 +591,8 @@ The following fields are present if the storyfile version is
 ** `BYTE`: Length of word (2..ff)
 ** `BYTE[2]`: Start of characters (offset in chunk)
 
-Strings of characters referenced by the dictionary. Can overlap each
-other.
+Strings of characters (arrays of bytes in the game-specific character
+set) referenced by the dictionary. No terminator. Can overlap.
 
 [[MAPS]]
 === MAPS
@@ -611,12 +618,12 @@ Payload data:
 * `BYTE[2]`: Number of style classes
 ** `BYTE[2]`: Offset in chunk of style definition
 
-Each style definition consists of zero or more null-terminated CSS
-key-value pairs without the final semicolon, e.g. "width: 100%". The
-original case from the Dialog source code is preserved, so interpreters
-must perform case-insensitive comparison. Leading whitespace has been
-removed from the entries. A blank entry (just the terminating
-null byte) marks the end.
+Each style definition consists of zero or more null-terminated ASCII
+strings. Each is a CSS key-value pair without the final semicolon, e.g.
+"width: 100%". The original case from the Dialog source code is
+preserved, so interpreters must perform case-insensitive comparison.
+Leading whitespace has been removed from the entries. A blank entry
+(just the terminating null byte) marks the end.
 
 These pairs are typically CSS properties, but may include other
 information of use to the interpreter, such as ARIA roles. Thus,
@@ -646,6 +653,9 @@ Identifiers:
 * `04`: Story blurb (double linefeed is a paragraph break)
 * `05`: Release date in YYYY-MM-DD format
 * `06`: Compiler version string
+
+Strings use the game-specific character set, except that $10 (normally
+undefined for output) is a line feed.
 
 [[WRIT]]
 === WRIT
@@ -709,6 +719,9 @@ instruction.
 ==== Operands
 
 Operand types (always big-endian byte ordering):
+
+[[0,0]]
+**0**: implicit constant zero, not encoded
 
 [[BYTE,BYTE]]
 *BYTE*: small constant number, e.g. number of slots to allocate
@@ -823,14 +836,14 @@ Opcode	Mnemonic	Args	Version
 87	<<TAIL>>	{empty}	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-08/88	<<PUSH_ENV>>	<<BYTE>>/0	{empty}
+08/88	<<PUSH_ENV>>	<<BYTE>>/<<0>>	{empty}
 09	<<POP_ENV>>	{empty}	{empty}
 89	<<POP_ENV_PROCEED>>	{empty}	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-0a/8a	<<PUSH_CHOICE>>	<<BYTE>>/0 <<CODE>>	{empty}
-0b/8b	<<POP_CHOICE>>	<<BYTE>>/0	{empty}
-0c/8c	<<POP_PUSH_CHOICE>>	<<BYTE>>/0 <<CODE>>	{empty}
+0a/8a	<<PUSH_CHOICE>>	<<BYTE>>/<<0>> <<CODE>>	{empty}
+0b/8b	<<POP_CHOICE>>	<<BYTE>>/<<0>>	{empty}
+0c/8c	<<POP_PUSH_CHOICE>>	<<BYTE>>/<<0>> <<CODE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
 0d	<<CUT_CHOICE>>	{empty}	{empty}
@@ -850,7 +863,7 @@ Opcode	Mnemonic	Args	Version
 {empty}	{empty}	{empty}	{empty}
 
 14	<<AUX_PUSH_VAL>>	<<VALUE>>	{empty}
-94	<<AUX_PUSH_RAW>>	0	≥ 0.5
+94	<<AUX_PUSH_RAW>>	<<0>>	≥ 0.5
 15/95	<<AUX_PUSH_RAW>>	<<VWORD>>/<<VBYTE>>	{empty}
 16	AUX_POP_VAL 	<<DEST>>	< 1.0
 17	<<AUX_POP_LIST>>	<<DEST>>	{empty}
@@ -870,28 +883,28 @@ Opcode	Mnemonic	Args	Version
 9f	<<JOIN_WORDS>>	<<VALUE>> <<DEST>>	≥ 0.4
 {empty}	{empty}	{empty}	{empty}
 
-20/a0	<<LOAD_WORD>>	<<VALUE>>/0 <<INDEX>> <<DEST>>	{empty}
-21/a1	<<LOAD_BYTE>>	<<VALUE>>/0 <<INDEX>> <<DEST>>	{empty}
-22/a2	<<LOAD_VAL>>	<<VALUE>>/0 <<INDEX>> <<DEST>>	{empty}
+20/a0	<<LOAD_WORD>>	<<VALUE>>/<<0>> <<INDEX>> <<DEST>>	{empty}
+21/a1	<<LOAD_BYTE>>	<<VALUE>>/<<0>> <<INDEX>> <<DEST>>	{empty}
+22/a2	<<LOAD_VAL>>	<<VALUE>>/<<0>> <<INDEX>> <<DEST>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-24/a4	<<STORE_WORD>>	<<VALUE>>/0 <<INDEX>> <<VALUE>>	{empty}
-25/a5	<<STORE_BYTE>>	<<VALUE>>/0 <<INDEX>> <<VALUE>>	{empty}
-26/a6	<<STORE_VAL>>	<<VALUE>>/0 <<INDEX>> <<VALUE>>	{empty}
+24/a4	<<STORE_WORD>>	<<VALUE>>/<<0>> <<INDEX>> <<VALUE>>	{empty}
+25/a5	<<STORE_BYTE>>	<<VALUE>>/<<0>> <<INDEX>> <<VALUE>>	{empty}
+26/a6	<<STORE_VAL>>	<<VALUE>>/<<0>> <<INDEX>> <<VALUE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-28/a8	<<SET_FLAG>>	<<VALUE>>/0 <<INDEX>>	{empty}
-29/a9	<<RESET_FLAG>>	<<VALUE>>/0 <<INDEX>>	{empty}
+28/a8	<<SET_FLAG>>	<<VALUE>>/<<0>> <<INDEX>>	{empty}
+29/a9	<<RESET_FLAG>>	<<VALUE>>/<<0>> <<INDEX>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-2d/ad	<<UNLINK>>	<<VALUE>>/0 <<INDEX>> <<INDEX>> <<VALUE>>	{empty}
+2d/ad	<<UNLINK>>	<<VALUE>>/<<0>> <<INDEX>> <<INDEX>> <<VALUE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
 2e/ae	<<SET_PARENT>>	<<VALUE>>/<<VBYTE>> <<VALUE>>	{empty}
 2f/af	<<SET_PARENT>>	<<VALUE>>/<<VBYTE>> <<VBYTE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-30/b0	<<IF_RAW_EQ>>	<<VWORD>>/0 <<RAW>> <<CODE>>	{empty}
+30/b0	<<IF_RAW_EQ>>	<<VWORD>>/<<0>> <<RAW>> <<CODE>>	{empty}
 31	<<IF_BOUND>>	<<VALUE>> <<CODE>>	{empty}
 32	<<IF_EMPTY>>	<<VALUE>> <<CODE>>	{empty}
 33	<<IF_NUM>>	<<VALUE>> <<CODE>>	{empty}
@@ -902,13 +915,13 @@ b6	<<IF_UWORD>>	<<VALUE>> <<CODE>>	≥ 0.4
 37	<<IF_UNIFY>>	<<VALUE>> <<VALUE>> <<CODE>>	{empty}
 38	<<IF_GT>>	<<VALUE>> <<VALUE>> <<CODE>>	{empty}
 39/b9	<<IF_EQ>>	<<VWORD>>/<<VBYTE>> <<VALUE>> <<CODE>>	{empty}
-3a/ba	<<IF_MEM_EQ>>	<<VALUE>>/0 <<INDEX>> <<RAW>> <<CODE>>	{empty}
-3b/bb	<<IF_FLAG>>	<<VALUE>>/0 <<INDEX>> <<CODE>>	{empty}
+3a/ba	<<IF_MEM_EQ>>	<<VALUE>>/<<0>> <<INDEX>> <<RAW>> <<CODE>>	{empty}
+3b/bb	<<IF_FLAG>>	<<VALUE>>/<<0>> <<INDEX>> <<CODE>>	{empty}
 3c	<<IF_CWL>>	<<CODE>>	{empty}
-3d/bd	<<IF_MEM_EQ>>	<<VALUE>>/0 <<INDEX>> <<VBYTE>> <<CODE>>	≥ 0.4
+3d/bd	<<IF_MEM_EQ>>	<<VALUE>>/<<0>> <<INDEX>> <<VBYTE>> <<CODE>>	≥ 0.4
 {empty}	{empty}	{empty}	{empty}
 
-40/c0	<<IFN_RAW_EQ>>	<<VWORD>>/0 <<RAW>> <<CODE>>	{empty}
+40/c0	<<IFN_RAW_EQ>>	<<VWORD>>/<<0>> <<RAW>> <<CODE>>	{empty}
 41	<<IFN_BOUND>>	<<VALUE>> <<CODE>>	{empty}
 42	<<IFN_EMPTY>>	<<VALUE>> <<CODE>>	{empty}
 43	<<IFN_NUM>>	<<VALUE>> <<CODE>>	{empty}
@@ -919,10 +932,10 @@ c6	<<IFN_UWORD>>	<<VALUE>> <<CODE>>	≥ 0.4
 47	<<IFN_UNIFY>>	<<VALUE>> <<VALUE>> <<CODE>>	{empty}
 48	<<IFN_GT>>	<<VALUE>> <<VALUE>> <<CODE>>	{empty}
 49/c9	<<IFN_EQ>>	<<VWORD>>/<<VBYTE>> <<VALUE>> <<CODE>>	{empty}
-4a/ca	<<IFN_MEM_EQ>>	<<VALUE>>/0 <<INDEX>> <<RAW>> <<CODE>>	{empty}
-4b/cb	<<IFN_FLAG>>	<<VALUE>>/0 <<INDEX>> <<CODE>>	{empty}
+4a/ca	<<IFN_MEM_EQ>>	<<VALUE>>/<<0>> <<INDEX>> <<RAW>> <<CODE>>	{empty}
+4b/cb	<<IFN_FLAG>>	<<VALUE>>/<<0>> <<INDEX>> <<CODE>>	{empty}
 4c	<<IFN_CWL>>	<<CODE>>	{empty}
-4d/cd	<<IFN_MEM_EQ>>	<<VALUE>>/0 <<INDEX>> <<VBYTE>> <<CODE>>	≥ 0.4
+4d/cd	<<IFN_MEM_EQ>>	<<VALUE>>/<<0>> <<INDEX>> <<VBYTE>> <<CODE>>	≥ 0.4
 {empty}	{empty}	{empty}	{empty}
 
 50	<<ADD_RAW>>	<<RAW>> <<RAW>> <<DEST>>	{empty}
@@ -964,7 +977,7 @@ e3	<<PAR>>	{empty}	{empty}
 e6	<<LEAVE_DIV>>	{empty}	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-67	<<ENTER_STATUS>>	0 <<INDEX>>	< 1.0
+67	<<ENTER_STATUS>>	<<0>> <<INDEX>>	< 1.0
 e7	<<LEAVE_STATUS>>	{empty}	< 1.0
 {empty}	{empty}	{empty}	{empty}
 

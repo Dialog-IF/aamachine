@@ -232,8 +232,9 @@ Game state:
 		WORD			TRL	Trail stack pointer (grows downwards)
 		WORD			STA	Stoppable aux pointer
 		WORD			STC	Stoppable choice pointer
-
-		BYTE			CWL	Collect-words level
+		
+		Other:
+		BYTE			CWL	Collect-words nesting level
 		BYTE			SPC	Whitespace state
 	
 		Values for SPC:
@@ -254,8 +255,12 @@ Game state:
 
 			R00..R0c	Arguments (with optional just-pointer)
 			R0d..R3c	Temporary values
-			R3d		Quick temporary register
+			R3d		Quick temporary register (always available)
 			R3e		Constant [] (3f00)
+		
+		Since registers take only one byte to encode and a large
+		immediate value takes two, storing frequently-needed constants
+		in registers can lead to smaller code.
 
 	With a few exceptions, all of the registers (special-purpose and
 	general-purpose) are initialized to zero when the virtual machine
@@ -298,8 +303,8 @@ Game state:
 
 	Random access area:
 
-		This memory is addressable, and it may contain pointers in the
-		form of word offsets into itself.
+		This memory is word-addressable, and it may contain pointers in
+		the form of word offsets into itself.
 
 		WORD				Word offset of global data
 		WORD[NOB]			Word offset of per-object data
@@ -323,6 +328,9 @@ Game state:
 			} else {
 				return ram[ram[obj] + field]
 			}
+		
+		For both `field_addr` and `read_field`, "obj" may be 0 to access
+		global variables (not affiliated with any object).
 
 	Heaps:
 
@@ -573,8 +581,8 @@ DICT:
 		BYTE[2]		Start of characters (offset in chunk)
 	}
 
-	Strings of characters referenced by the dictionary. Can overlap each
-	other.
+	Strings of characters (arrays of bytes in the game-specific character
+	set) referenced by the dictionary. No terminator. Can overlap.
 
 MAPS:
 
@@ -605,12 +613,12 @@ LOOK:
 		BYTE[2]		Offset in chunk of style definition
 	}
 
-	Each style definition consists of zero or more null-terminated CSS
-	key-value pairs without the final semicolon, e.g. "width: 100%". The
-	original case from the Dialog source code is preserved, so interpreters
-	must perform case-insensitive comparison. Leading whitespace has been
-	removed from the entries. A blank entry (just the terminating
-	null-byte) marks the end.
+	Each style definition consists of zero or more null-terminated ASCII
+	strings. Each is a CSS key-value pair without the final semicolon, e.g.
+	"width: 100%". The original case from the Dialog source code is
+	preserved, so interpreters must perform case-insensitive comparison.
+	Leading whitespace has been removed from the entries. A blank entry
+	(just the terminating null byte) marks the end.
 
 	These pairs are typically CSS properties, but may include other
 	information of use to the interpreter, such as ARIA roles. Thus,
@@ -639,9 +647,12 @@ META: (optional)
 	01	Story title
 	02	Story author
 	03	Story noun
-	04	Story blurb (double linefeed is a paragraph break)
+	04	Story blurb (double line feed is a paragraph break)
 	05	Release date in YYYY-MM-DD format
 	06	Compiler version string
+
+	Strings use the game-specific character set, except that $10 (normally
+	undefined for output) is a line feed.
 
 WRIT:
 
@@ -701,6 +712,8 @@ CODE:
 	instruction.
 
 	Operand types (always big-endian byte ordering):
+
+	0: implicit constant zero, not encoded
 
 	BYTE: small constant number, e.g. number of slots to allocate
 		xxxxxxxx
