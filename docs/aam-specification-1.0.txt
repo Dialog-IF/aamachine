@@ -216,18 +216,20 @@ Game state:
 	free to work with a different internal representation at runtime.
 
 	Special-purpose registers:
-
+		
+		Byte pointers into CODE chunk:
 		LONG			INST	Instruction pointer
 		LONG			CONT	Continuation pointer
-
+		
+		Word pointers into main heap:
 		WORD			TOP	Main heap top (allocates upwards)
 		WORD			ENV	Env frame pointer (grows downwards)
 		WORD			CHO	Choice frame pointer (grows downwards)
 		WORD			SIM	Simple cut or null
-
+		
+		Word pointers into aux heap:
 		WORD			AUX	Aux stack pointer (grows upwards)
 		WORD			TRL	Trail stack pointer (grows downwards)
-
 		WORD			STA	Stoppable aux pointer
 		WORD			STC	Stoppable choice pointer
 

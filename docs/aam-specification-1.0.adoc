@@ -232,20 +232,27 @@ free to work with a different internal representation at runtime.
 
 ==== Special-purpose registers
 
+**Byte pointers into <<CODE-chunk,CODE>> chunk:
+
 * `LONG`: `INST`, Instruction pointer
 * `LONG`: `CONT`, Continuation pointer
-[]
+
+**Word pointers into main heap:**
+
 * `WORD`: `TOP`, top of main heap (grows upwards)
 * `WORD`: `ENV`, env frame pointer (grows downwards)
 * `WORD`: `CHO`, choice frame pointer (grows downwards)
 * `WORD`: `SIM`, simple cut pointer or null
-[]
+
+**Word pointers into aux heap:**
+
 * `WORD`: `AUX`, aux stack pointer (grows upwards)
 * `WORD`: `TRL`, trl stack pointer (grows downwards)
-[]
 * `WORD`: `STA`, stoppable aux pointer
 * `WORD`: `STC`, stoppable choice pointer
-[]
+
+**Other:**
+
 * `BYTE`: `CWL`, collect-words level
 * `BYTE`: `SPC`, whitespace level
 
