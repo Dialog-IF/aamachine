@@ -129,6 +129,10 @@ Release notes:
 		Aamrun binary is no longer universal on OSX (caused crashes).
 		
 		Aamrun can now emulate dfrotz quirks for automated testing.
+		
+		Specification tentatively changed from plaintext to asciidoc.
+		The plaintext version is still included in this release, but
+		may not be in the future.
 	
 	1.0.2:
 	
