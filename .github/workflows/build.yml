@@ -21,6 +21,27 @@ jobs:
     - name: make test
       run: make test
   
+  build-manual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: dialog
+      - uses: actions/checkout@v4
+        with:
+          repository: Dialog-IF/manual
+          path: manual
+      - name: build site with antora
+        run: |
+          cd manual
+          npm i @antora/lunr-extension@github:Randozart/dialog-antora-lunr-extension#dialog-punctuation-fix
+          npx antora@3.1.10 ./local-antora-playbook-aamachine.yml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manual
+          path: |
+            manual/build/site/**/*
+  
   build-linux:
     runs-on: ubuntu-latest
     steps:
@@ -116,6 +137,7 @@ jobs:
           chmod +x "$BUNDLE"/prebuilt/*/*
           cp --recursive src "$BUNDLE/"
           cp --recursive docs "$BUNDLE/"
+          cp --recursive artifacts/manual "$BUNDLE"/docs_html
           cp --recursive example "$BUNDLE/"
           cp *.txt "$BUNDLE"/
           # Group them together in a single zip
