@@ -167,10 +167,10 @@ Part of a *serialized data stream*:
 * ``0001..7fff``	<<literal,Literal value>>
 * ``8000      ``	Unbound variable
 * ``8001..80ff``	reserved
-* ``8100      ``	Extended word marker
+* ``8100      ``	Extdict (two words) follows
 * ``8101..bfff``	reserved
-* ``c000..dfff``	Proper list marker
-* ``e000..fffe``	Improper list marker
+* ``c000..dfff``	Proper list with (x & 1fff) elements follows
+* ``e000..fffe``	Improper list with (x & 1fff) elements follows
 
 Values are serialized into this format if they need to be
 stored on the aux heap or in long-term storage. See the
