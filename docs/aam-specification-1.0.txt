@@ -48,6 +48,12 @@ backwards-compatible.
 The notation 'a..b' means the range of integers from a to b, inclusive.
 The notation 'a-b' means the range of characters from a to b, inclusive.
 
+Throughout this document, numbers used to count things (like "16 bits" or
+"WORD[64]") are decimal (base 10), while numbers used as values (like "80" or
+"7fff") are hexadecimal (base 16). In ambiguous cases, hexadecimal numbers are
+marked with a $ symbol. In pseudocode, hexadecimal numbers start with "0x";
+all other numbers are decimal.
+
 Runtime data
 ============
 
@@ -86,6 +92,9 @@ Words:
 			a000..bfff	reserved
 			c000..dffe	Pair (word index into heap)
 			e000..fffe	Dict word, extended (word index into heap)
+
+			Live values only exist in registers or on the heap, and
+			can be invalidated when the heap shrinks.
 
 			In this document, tagged references are described as if
 			they had two independent fields, "tag" and "value". But
@@ -127,16 +136,25 @@ Words:
 			0001..7fff	Literal value as above
 			8000..fffe	Word index into long-term storage area
 
+			Stored values exist in global and object variables (the
+			lower parts of RAM) and may have to be updated when
+			long-term storage is rearranged. See the pseudocode for
+			clear_longterm.
+
 		* Part of a serialized data stream:
 
 			0000		End of stream marker
 			0001..7fff	Literal value as above
 			8000		Unbound variable
 			8001..80ff	reserved
-			8100		Extended word marker
+			8100		Extdict (two words) follows
 			8101..bfff	reserved
-			c000..dfff	Proper list marker
-			e000..fffe	Improper list marker
+			c000..dfff	Proper list with (x & 1fff) elements follows
+			e000..fffe	Improper list with (x & 1fff) elements follows
+
+			Values are serialized into this format if they need to be
+			stored on the aux heap or in long-term storage. See the
+			pseudocode for push_serialized and push_longterm.
 
 		The special value 3f3f marks unused words in the main heap,
 		aux, and random access areas. This is handy for measuring peak
@@ -198,22 +216,25 @@ Game state:
 	free to work with a different internal representation at runtime.
 
 	Special-purpose registers:
-
+		
+		Byte pointers into CODE chunk:
 		LONG			INST	Instruction pointer
 		LONG			CONT	Continuation pointer
-
+		
+		Word pointers into main heap:
 		WORD			TOP	Main heap top (allocates upwards)
 		WORD			ENV	Env frame pointer (grows downwards)
 		WORD			CHO	Choice frame pointer (grows downwards)
 		WORD			SIM	Simple cut or null
-
+		
+		Word pointers into aux heap:
 		WORD			AUX	Aux stack pointer (grows upwards)
 		WORD			TRL	Trail stack pointer (grows downwards)
-
 		WORD			STA	Stoppable aux pointer
 		WORD			STC	Stoppable choice pointer
-
-		BYTE			CWL	Collect-words level
+		
+		Other:
+		BYTE			CWL	Collect-words nesting level
 		BYTE			SPC	Whitespace state
 	
 		Values for SPC:
@@ -234,8 +255,12 @@ Game state:
 
 			R00..R0c	Arguments (with optional just-pointer)
 			R0d..R3c	Temporary values
-			R3d		Quick temporary register
+			R3d		Quick temporary register (always available)
 			R3e		Constant [] (3f00)
+		
+		Since registers take only one byte to encode and a large
+		immediate value takes two, storing frequently-needed constants
+		in registers can lead to smaller code.
 
 	With a few exceptions, all of the registers (special-purpose and
 	general-purpose) are initialized to zero when the virtual machine
@@ -278,8 +303,8 @@ Game state:
 
 	Random access area:
 
-		This memory is addressable, and it may contain pointers in the
-		form of word offsets into itself.
+		This memory is word-addressable, and it may contain pointers in
+		the form of word offsets into itself.
 
 		WORD				Word offset of global data
 		WORD[NOB]			Word offset of per-object data
@@ -303,6 +328,9 @@ Game state:
 			} else {
 				return ram[ram[obj] + field]
 			}
+		
+		For both `field_addr` and `read_field`, "obj" may be 0 to access
+		global variables (not affiliated with any object).
 
 	Heaps:
 
@@ -333,7 +361,7 @@ Game state:
 					random access area)
 		WORD[n - 2]		Serialized data
 
-		These chunks can move around at runtime (see psuedo-code for
+		These chunks can move around at runtime (see pseudocode for
 		clear_longterm() below). When this happens, pointers are
 		updated in the random access area.
 
@@ -380,7 +408,7 @@ DATA:
 
 	Take the game state (including the full extent of the heaps), then
 	exclusive-or with the contents of the INIT chunk padded with the
-	'unused' word (0x3f3f). This stream of bytes is run-length encoded in
+	'unused' word ($3f3f). This stream of bytes is run-length encoded in
 	the following way: A non-null byte is represented by itself. A stretch
 	of N (1..256) null-bytes is represented by a null-byte, followed by a
 	byte of value N - 1.
@@ -456,7 +484,7 @@ INIT:
 	starting with the 'Initialized registers'. Words are stored in
 	big-endian byte order. The chunk can be smaller than the RAM area.
 	Remaining words are assumed to be filled with the 'unused' value
-	(0x3f3f).
+	($3f3f).
 
 LANG:
 
@@ -474,17 +502,17 @@ LANG:
 					perform y.
 
 		An individual byte in the table is decoded as follows:
-		00..5e, 60..7f	Character 0x20 + x
+		00..5e, 60..7f	Character $20 + x
 		5f		Escape code (see below)
 		80		End of string
-		81..ff		Go to table entry x - 0x80
+		81..ff		Go to table entry x - $80
 
 		Escape code handling for story-file version 0.3 or earlier:
 
 			* Read 7 bits, msb first, from the stream. Call this X.
 
-			* Produce character 0x80 + X. Note that X must be
-			greater than or equal to 0x20.
+			* Produce character $80 + X. Note that X must be
+			greater than or equal to $20.
 
 		Escape code handling for story-file version 0.4 or later:
 
@@ -496,9 +524,9 @@ LANG:
 
 			* Read K bits, msb first, from the stream. Call this X.
 
-			* If X < B, produce character 0xa0 + X.
+			* If X < B, produce character $a0 + X.
 
-			* Otherwise, produce a space character (0x20) followed by
+			* Otherwise, produce a space character ($20) followed by
 			dictionary word X - B.
 
 	Extended character table:
@@ -553,8 +581,8 @@ DICT:
 		BYTE[2]		Start of characters (offset in chunk)
 	}
 
-	Strings of characters referenced by the dictionary. Can overlap each
-	other.
+	Strings of characters (arrays of bytes in the game-specific character
+	set) referenced by the dictionary. No terminator. Can overlap.
 
 MAPS:
 
@@ -568,7 +596,7 @@ MAPS:
 	BYTE[2]		Number of entries (sorted by index value)
 	{
 		WORD	Index value (dictionary word or character)
-		WORD	Single object id + 0xe000, offset in chunk of payload,
+		WORD	Single object id + e000, offset in chunk of payload,
 			or null (for wildcard words such as 'the')
 	}
 
@@ -585,12 +613,12 @@ LOOK:
 		BYTE[2]		Offset in chunk of style definition
 	}
 
-	Each style definition consists of zero or more null-terminated CSS
-	key-value pairs without the final semicolon, e.g. "width: 100%". The
-	original case from the Dialog source code is preserved, so interpreters
-	must perform case-insensitive comparison. Leading whitespace has been
-	removed from the entries. A blank entry (just the terminating
-	null-byte) marks the end.
+	Each style definition consists of zero or more null-terminated ASCII
+	strings. Each is a CSS key-value pair without the final semicolon, e.g.
+	"width: 100%". The original case from the Dialog source code is
+	preserved, so interpreters must perform case-insensitive comparison.
+	Leading whitespace has been removed from the entries. A blank entry
+	(just the terminating null byte) marks the end.
 
 	These pairs are typically CSS properties, but may include other
 	information of use to the interpreter, such as ARIA roles. Thus,
@@ -619,9 +647,12 @@ META: (optional)
 	01	Story title
 	02	Story author
 	03	Story noun
-	04	Story blurb (double linefeed is a paragraph break)
+	04	Story blurb (double line feed is a paragraph break)
 	05	Release date in YYYY-MM-DD format
 	06	Compiler version string
+
+	Strings use the game-specific character set, except that $10 (normally
+	undefined for output) is a line feed.
 
 WRIT:
 
@@ -681,6 +712,8 @@ CODE:
 	instruction.
 
 	Operand types (always big-endian byte ordering):
+
+	0: implicit constant zero, not encoded
 
 	BYTE: small constant number, e.g. number of slots to allocate
 		xxxxxxxx
