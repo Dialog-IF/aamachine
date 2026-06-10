@@ -124,7 +124,7 @@ Release notes:
 
 	1.0.3:
 	
-		Cleans up the specification and some dev tools.
+		Cleaned up the specification and some dev tools.
 		
 		Aamrun binary is no longer universal on OSX (caused crashes).
 		
@@ -133,6 +133,9 @@ Release notes:
 		Specification tentatively changed from plaintext to asciidoc.
 		The plaintext version is still included in this release, but
 		may not be in the future.
+		
+		An HTML version of the specs, generated from the asciidoc, is
+		now included in docs_html.
 		
 		Fixed error with SPC being set to "par" instead of "line" at a
 		LEAVE_DIV operation.
