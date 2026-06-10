@@ -133,6 +133,9 @@ Release notes:
 		Specification tentatively changed from plaintext to asciidoc.
 		The plaintext version is still included in this release, but
 		may not be in the future.
+		
+		Fixed error with SPC being set to "par" instead of "line" at a
+		LEAVE_DIV operation.
 	
 	1.0.2:
 	

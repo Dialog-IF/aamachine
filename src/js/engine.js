@@ -2275,7 +2275,7 @@ function vm_run(e, param) {
 				case 0xe6: // leave_div
 					if(!e.cwl) {
 						io.leave_div(e.divs.pop());
-						e.spc = e.SP_PAR;
+						e.spc = e.SP_LINE;
 					}
 					break;
 				case 0x67:
