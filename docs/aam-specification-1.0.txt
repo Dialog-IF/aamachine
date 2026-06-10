@@ -2364,8 +2364,13 @@ Opcode semantics
 			local variable style_class = last element of divList
 			remove last element from divList
 			output_leavediv(style_class)
-			SPC = par
+			SPC = line
 		}
+		
+		Previous versions of this specification erroneously said SPC
+		should be set to "par" instead of "line". This is not meant to
+		be a change between Aa-machine versions; ideally SPC should be
+		set to "line" even when running version 0.5 story files.
 
 	ENTER_SPAN		INDEX
 
