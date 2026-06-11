@@ -363,7 +363,8 @@ rlif.on('line', (line) => {
 	}
 	if(status == aaengine.status.quit) {
 		//console.log(aaengine.mem_info());
-		io.line();
+		if(quirks) io.par();
+		else io.line();
 		io.flush();
 		process.exit(0);
 	}
