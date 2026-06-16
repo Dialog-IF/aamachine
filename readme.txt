@@ -122,7 +122,7 @@ Project website:
 
 Release notes:
 
-	1.0.3:
+	1.0.2:
 	
 		Cleaned up the specification and some dev tools.
 		
@@ -139,10 +139,8 @@ Release notes:
 		
 		Fixed error with SPC being set to "par" instead of "line" at a
 		LEAVE_DIV operation.
-	
-	1.0.2:
-	
-		Fixes bug with window size getting out of sync when enabling
+		
+		Fixed bug with window size getting out of sync when enabling
 		or disabling "enlarge text" mode on web.
 
 	1.0.1:
