@@ -3807,6 +3807,12 @@ if it's there.
  // event, predicate, file, line
  vm_tracepoint(arg1, arg2, arg3, arg4)
 
+[[EXT32]]
+=== EXT32
+
+The operands and semantics of this opcode are not yet defined.
+It is guaranteed to always be illegal in 16-bit story files.
+
 
 == Examples
 
