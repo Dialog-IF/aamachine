@@ -70,7 +70,7 @@ var opcodes = {
     0x04: 'jmp',
     0x05: 'jmp-multi',
     0x85: 'jmpl-multi',
-    0x06: 'jmpl-simple',
+    0x06: 'jmp-simple',
     0x86: 'jmpl-simple',
     0x07: 'jmp-tail',
     0x87: 'tail',
