@@ -1,5 +1,8 @@
 all: test clean
 
+apple2:
+	$(MAKE) -C apple2 test
+
 test:
 	## This one is a 0.x file using 67 ENTER_STATUS_0 and E7 LEAVE_STATUS
 	make -C gosling test
@@ -13,4 +16,4 @@ clean:
 	$(MAKE) -C body_not_status clean
 	$(MAKE) -C impossible clean
 
-.PHONY: all test clean
+.PHONY: all test apple2 clean

@@ -14,8 +14,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v6
-    - name: install assembler
-      run: sudo apt install xa65
+    - name: install assemblers
+      run: sudo apt install xa65 acme
     - name: install node packager
       run: sudo npm install -g @yao-pkg/pkg
     - name: make test
@@ -48,7 +48,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v6
     - name: install dependencies
-      run: sudo apt install gcc-mingw-w64 xa65
+      run: sudo apt install gcc-mingw-w64 xa65 acme
     - name: install node packager
       run: sudo npm install -g @yao-pkg/pkg
     - name: make (aamrun)
@@ -84,7 +84,7 @@ jobs:
     - name: install dependencies
       run: |
         brew update
-        brew install xa
+        brew install xa acme
     - name: install node packager
       run: sudo npm install -g @yao-pkg/pkg
     - name: make (aamrun)

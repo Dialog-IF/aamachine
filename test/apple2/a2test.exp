@@ -1,0 +1,94 @@
+#!/usr/bin/expect -f
+# a2test.exp -- feed commands into izconsole and wait for a target string.
+#
+# Usage:  ./a2test.exp "TARGET STRING" dsk [walkthrough-file | "command string"] [-- izconsole flags...]
+#         ./a2test.exp "Intro Text" story.dsk
+#         ./a2test.exp "DARKNESS" story.dsk walk.txt
+#         ./a2test.exp "DARKNESS" story.dsk "open door
+# > go north"
+#         ./a2test.exp "DARKNESS" story.dsk walk.txt -- --model 2plus
+#
+# The disk image is required.  The walkthrough is optional: if the third
+# argument names an existing file its lines are sent as commands; otherwise it
+# is taken as a literal command string, one command per line.  With no third
+# argument, only the story's opening text is checked for the target.
+# Everything after "--" is passed through to izconsole.
+#
+# Exit codes:  0 target string seen
+#              1 commands exhausted, target never seen
+#              2 usage error
+#              3 emulator died or hung before finishing
+
+set target [lindex $argv 0]
+set dsk    [lindex $argv 1]
+set arg3   [lindex $argv 2]
+if {$target eq "" || $dsk eq ""} {
+  puts stderr "usage: a2test.exp \"TARGET STRING\" dsk \[walkthrough-file | command string\] \[-- izconsole flags...\]"
+  exit 2
+}
+
+set lines {}
+if {$arg3 ne ""} {
+  if {[file exists $arg3]} {
+    set fd [open $arg3 r]
+    set lines [split [read $fd] "\n"]
+    close $fd
+  } else {
+    set lines [split $arg3 "\n"]
+  }
+}
+
+# everything after "--" is passed through to izconsole
+set dash [lsearch -exact $argv "--"]
+if {$dash >= 0} {
+  set izflags [lrange $argv [expr {$dash + 1}] end]
+} else {
+  set izflags {}
+}
+
+log_user 0
+spawn -noecho ~/bin/izconsole -speed full {*}$izflags $dsk
+
+# wait for the game prompt (or the target, which may appear in the intro)
+expect {
+  -timeout 10
+  -exact $target { puts "TARGET FOUND in intro"; exit 0 }
+  "> " { }
+  eof   { puts "emulator exited before prompt"; exit 3 }
+  timeout { puts "no prompt after $timeout s"; exit 3 }
+}
+
+set found 0
+set n 0
+foreach line $lines {
+  if {[string trim $line] eq ""} { continue }
+  incr n
+  send -- "$line\r"
+  expect {
+    -timeout 10
+    -exact $target {
+      set found 1
+      puts "TARGET FOUND (command $n: \"$line\")"
+      break
+    }
+    "> " { }        ;# this command completed, keep going
+    eof   { puts "*** emulator exited (command $n: \"$line\")"; exit 3 }
+    timeout { puts "*** timed out after command $n: \"$line\""; exit 3 }
+  }
+}
+
+if {!$found} {
+  expect {
+    -timeout 60
+    -exact $target {
+      set found 1
+      puts "TARGET FOUND"
+    }
+    eof   { puts "*** emulator exited"; exit 3 }
+    timeout { puts "*** timed out"; exit 3 }
+  }
+}
+
+if {!$found} { puts "*** TARGET NOT FOUND after $n commands" }
+close
+exit [expr {$found ? 0 : 1}]

@@ -585,7 +585,7 @@ initengine5
 	.)
 
 	.(
-	lda	#>initsegment
+	lda	#>initsegment+$ff	; in case initsegment isn't on a page boundary
 	sta	firstpg
 	.)
 
@@ -2149,6 +2149,12 @@ listdone
 	sta	result+0
 	rts
 	.)
+
+#ifdef A2_ENGINE_HIMEM
+engine_reloc = *
+* = $d000
+himem_start = *
+#endif
 
 error
 	.(
@@ -8179,9 +8185,23 @@ ext0_restore
 	adc	SAVEADDR+6
 	sta	physize+1
 
+#ifdef A2_EVICT_MAX
+	; io_load may refill the whole
+	; SAVEMAXBYTES window whatever the image
+	; really weighs, so every page it can
+	; reach has to go, up to and including the
+	; one holding the last byte. That last one
+	; is a partial page unless SAVEADDR is
+	; page aligned, hence unmap1 rather than
+	; falling into the dex.
+
+	ldx	#>(SAVEADDR+SAVEMAXBYTES-1)
+	bne	unmap1		; always, page is nonzero
+#else
 	tax
 	lda	physize
 	bne	unmap1
+#endif
 unmap
 	dex
 unmap1
@@ -9408,6 +9428,11 @@ optable
 	.word	op_trace	; 7f
 
 engine_footprint = *-engine_firstaddr
+
+#ifdef A2_ENGINE_HIMEM
+himem_end = *
+* = engine_reloc
+#endif
 
 ;======================================
 initsegment
