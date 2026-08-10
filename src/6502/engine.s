@@ -9353,6 +9353,7 @@ loop
 	lda	#0
 	sta	ioparam
 	sta	ioparam+1
+	sta	evict		; no page table yet
 	ldx	#SAFEPG
 	stx	firstpg
 	lda	#SAFEPG+48
@@ -9436,6 +9437,8 @@ szloop
 	sbc	vtsize+1
 	sta	freeptr+1
 	sta	vtmsb
+
+	jsr	shrinkcache
 
 	.(
 	sta	vtptr+1
@@ -10312,6 +10315,81 @@ allocwords
 	sbc	phydata+1
 	sta	freeptr+1
 	tay
+
+	jsr	shrinkcache
+	rts
+	.)
+
+shrinkcache
+	; The page cache lives directly
+	; below the heap, so whenever the
+	; heap has grown downwards the
+	; cache window has to shrink to
+	; match. Any page that ends up
+	; outside it is marked
+	; out-of-core, because the heap
+	; is about to be written over it.
+	;
+	; preserves a, x, y
+
+	.(
+	pha
+	lda	freeptr+1
+	cmp	endpg
+	bcs	done	; cache still fits
+
+	txa
+	pha
+	tya
+	pha
+
+	; keep at least one page, or the
+	; round robin in fault would run
+	; off the end of the window
+
+	lda	freeptr+1
+	cmp	firstpg
+	bcs	haveroom
+
+	lda	firstpg
+haveroom
+	cmp	firstpg
+	bne	notlast
+
+	adc	#0	; carry is set
+notlast
+	ldx	endpg	; old end
+	sta	endpg
+
+	ldy	evict
+	beq	notyet	; no page table yet
+
+	.(
+loop
+	dex
+	cpx	endpg
+	bcc	evdone
+
+	jsr	evictx	; preserves x, y
+	jmp	loop
+evdone
+	.)
+
+	; keep the round robin inside
+	; the window
+
+	cpy	endpg
+	bcc	notyet
+
+	lda	firstpg
+	sta	evict
+notyet
+	pla
+	tay
+	pla
+	tax
+done
+	pla
 	rts
 	.)
 
@@ -10344,6 +10422,7 @@ loadchunk
 	sta	freeptr+1
 	sta	phydata+1
 
+	jsr	shrinkcache
 	jsr	readdatato
 
 	ldx	freeptr
