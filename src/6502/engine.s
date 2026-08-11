@@ -6120,11 +6120,35 @@ savegame
 	; buffers. Avoid putting the
 	; initial state in the part
 	; that we will overwrite.
+	;
+	; The cache has to reach past
+	; the reserved part, or the
+	; round robin in swapin would
+	; be left without a window to
+	; run in. A machine too small
+	; for that cannot save.
 
+	lda	#>(SAVEADDR+8192)
+	cmp	endpg
+	bcc	roomok
+
+	jmp	failure
+roomok
 	lda	firstpg
 	pha
-	lda	#>(SAVEADDR+4096)
+	lda	#>(SAVEADDR+8192)
 	sta	firstpg
+
+	; swapin only consults firstpg
+	; where the round robin wraps,
+	; so the cursor has to be
+	; moved into the new window as
+	; well. Otherwise pages would
+	; still be handed out below
+	; it, in the part we are about
+	; to overwrite.
+
+	sta	evict
 
 	jsr	cleanupmem
 	jsr	xorinit
@@ -6409,11 +6433,31 @@ ok
 	jmp	ldyfetchnext
 	.)
 
+savefull
+	; The image outgrew the page cache.
+	; Drop the return address into savegame,
+	; put firstpg back from where savegame
+	; pushed it, and unxor the heap before
+	; failing. failure resets the stack, so
+	; whatever is left below does not matter.
+
+	.(
+	pla
+	pla
+
+	pla
+	sta	firstpg
+	jsr	xorinit
+	jmp	failure
+	.)
+
 putsavebyte
 	; input a = byte
 	; input/output phytmp
 	; (incremented)
 	; preserves y
+	; fails the save if the image would
+	; run past the end of the page cache
 
 	.(
 	ldx	#0
@@ -6426,6 +6470,9 @@ wrap
 	inc	phytmp+1
 
 	ldx	phytmp+1
+	cpx	endpg
+	bcs	savefull
+
 	;jmp	evictx
 	.)
 
