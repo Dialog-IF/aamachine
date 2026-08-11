@@ -6111,6 +6111,7 @@ err
 	lda	#7
 	jmp	error
 savegame
+#if SAVERESTORE
 	.(
 	sty	`pclsb
 
@@ -6394,7 +6395,12 @@ ok
 	jmp	refetchnext
 	.)
 	.)
+#else // SAVERESTORE
+	jmp	failure
+#endif
+
 saveundo
+#if UNDO
 	jsr	fetchcode
 	sty	`pclsb
 
@@ -6431,8 +6437,12 @@ copy
 	jmp	failure
 ok
 	jmp	ldyfetchnext
+#else // UNDO
+	jmp	failure
+#endif
 	.)
 
+#if SAVERESTORE
 savefull
 	; The image outgrew the page cache.
 	; Drop the return address into savegame,
@@ -6475,6 +6485,7 @@ wrap
 
 	;jmp	evictx
 	.)
+#endif
 
 evictx
 	; input x = physical page
@@ -6500,6 +6511,7 @@ evictx
 	rts
 	.)
 
+#if SAVERESTORE
 cleanupmem
 	.(
 	lda	rtop+0
@@ -6628,6 +6640,7 @@ no4
 done3
 	rts
 	.)
+#endif
 
 xorinit
 	.(
@@ -8048,7 +8061,11 @@ defnull
 	cmp	#$40 ; Undo
 	bne	cdone
 
+#if UNDO
 	jsr	io_undosupp
+#else
+	clc
+#endif
 	bcc	cdone
 yes
 	inc	result+1
@@ -8111,6 +8128,7 @@ ext0_restart
 	jmp	fetchinst
 
 ext0_restore
+#if SAVERESTORE
 	.(
 	jsr	io_load
 	bcc	err
@@ -8328,9 +8346,13 @@ notregs
 txt_wronggame
 	.asc	"Savefile doesn't match story.",0
 	.)
+#else // SAVERESTORE
+	jmp	failure
+#endif
 
 ext0_undo
 	.(
+#if UNDO
 	lda	inbase
 	sta	ioparam
 	lda	inbase+1
@@ -8356,6 +8378,7 @@ copy
 err
 	jmp	ldyfetchnext
 fail
+#endif // UNDO
 	jmp	failure
 	.)
 
