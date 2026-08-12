@@ -329,6 +329,12 @@ wrap2
 	jmp	postwrap2
 	.)
 
+puts_xy
+	.(
+	stx	phydata
+	sty	phydata+1
+	;jmp	puts
+	.)
 puts
 	; input phydata = string in ram
 
@@ -3134,11 +3140,9 @@ op_bad
 	ror
 	jsr	puthex
 
-	lda	#<text
-	sta	phydata
-	lda	#>text
-	sta	phydata+1
-	jsr	puts
+	ldx	#<text
+	ldy	#>text
+	jsr	puts_xy
 
 	lda	`pclsb
 	clc
@@ -8187,11 +8191,9 @@ chunkloop
 	jmp	fetchinst
 
 wronggame
-	lda	#<txt_wronggame
-	sta	phydata
-	lda	#>txt_wronggame
-	sta	phydata+1
-	jsr	puts
+	ldx	#<txt_wronggame
+	ldy	#>txt_wronggame
+	jsr	puts_xy
 	lda	#SPC_AUTO
 	sta	rspc
 	jsr	vio_line
