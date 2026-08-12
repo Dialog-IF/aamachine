@@ -113,6 +113,8 @@ bits	= $ff
 
 initdata = SAFEPG << 8
 
+SAVEMAXBYTES = $1000
+
 HEAPEND	= RAMEND-$300
 
 regs	= HEAPEND+$000	; 64 words, b-e
@@ -6133,7 +6135,7 @@ savegame
 	; run in. A machine too small
 	; for that cannot save.
 
-	lda	#>(SAVEADDR+8192)
+	lda	#>(SAVEADDR+SAVEMAXBYTES)
 	cmp	endpg
 	bcc	roomok
 
@@ -6141,7 +6143,7 @@ savegame
 roomok
 	lda	firstpg
 	pha
-	lda	#>(SAVEADDR+8192)
+	lda	#>(SAVEADDR+SAVEMAXBYTES)
 	sta	firstpg
 
 	; swapin only consults firstpg
