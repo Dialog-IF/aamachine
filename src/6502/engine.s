@@ -6157,6 +6157,38 @@ roomok
 
 	sta	evict
 
+	; The image is about to be written over
+	; the bottom of the cache, but phypc is a
+	; physical page held outside the page
+	; table -- the round robin protects it,
+	; nothing else does. fetchcode further
+	; down still reads the current instruction
+	; through it, so if it sits in the part we
+	; overwrite it has to be moved up into the
+	; reserved window first. Otherwise the
+	; instruction pointer written into the
+	; savefile is whatever the image happened
+	; to leave behind, and restoring it later
+	; runs the engine off into nothing.
+
+	.(
+	lda	`phypc+1
+	cmp	#>SAVEADDR
+	bcc	safe
+
+	cmp	firstpg
+	bcs	safe
+
+	tax
+	jsr	evictx
+
+	ldy	pcmsb
+	ldx	pcbank
+	jsr	swapin
+	sta	`phypc+1
+safe
+	.)
+
 	jsr	cleanupmem
 	jsr	xorinit
 
