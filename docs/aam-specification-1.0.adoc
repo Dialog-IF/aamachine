@@ -847,7 +847,7 @@ raising an error.
 === TAGS (optional)
 
 * `WORD`: Number of named objects
-** `WORD`: Offset in chunk of null-terminated object name
+** `WORD`: Byte offset in chunk of null-terminated object name
 
 Strings of characters for the object names.
 
@@ -917,7 +917,7 @@ The URL scheme "file" refers to data inside <<FILE>> chunks, e.g.
 
 As above, except that each descriptor instead begins with:
 
-* `BYTE[4]`: String pointer to alt-text (shift according to header)
+* `LONG`: String pointer to alt-text (shift according to header)
 
 [[FILE]]
 === FILE
