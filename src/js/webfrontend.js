@@ -207,14 +207,14 @@ function prepare_styles(styles, style_data) {
 	for(i = 0; i < styles.length; i++) {
 		mono = false;
 		let name = "aa-" + (styles[i]["style-name"] || i);
-		name = name.replace(/[^a-z0-9-]/g, '-'); // There shouldn't be spaces and such, but sanitize just in case
+		name = name.replace(/[^a-zA-Z0-9-]/g, '-'); // There shouldn't be spaces and such, but sanitize just in case
 		if(name in style_data) name = "aax-" + i; // Emergency fallback, guaranteed not to conflict
 		style_data[i] = { name:name, attrs:{} };
 		
 		html += "." + name + " { ";
 		for(j in styles[i]) {
-			if(j.startsWith("aria-")) { // Copy aria-* declarations to a special array, since we want to assign these to the HTML tag, not just leave them in the CSS
-				if(j == "aria-role") { // The HTML name is simply "role"
+			if(j.startsWith("aria-") || j.startsWith("data-") { // Copy aria-* and data-* declarations to a special array, since we want to assign these to the HTML tag, not just leave them in the CSS
+				if(j == "aria-role") { // The HTML name is simply "role", not "aria-role", though it is an ARIA attribute
 					style_data[i].attrs["role"] = styles[i][j];
 				} else {
 					style_data[i].attrs[j] = styles[i][j];
