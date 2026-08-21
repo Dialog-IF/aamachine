@@ -502,6 +502,10 @@ io_readpage
 #include "engine.s"
 
 SAFEPG = (* + $ff) >> 8
+#ifdef RAMTOP
+RAMEND = RAMTOP
+#else
 RAMEND = $10000
+#endif
 
 SAVEADDR = SAFEPG << 8
