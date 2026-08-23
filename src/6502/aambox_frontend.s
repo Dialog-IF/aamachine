@@ -10,6 +10,8 @@
 
 TRACE_INST	= 0
 TRACE_STORE	= 0
+UNDO		= 1
+SAVERESTORE	= 1
 
 DEFWIDTH	= 80
 PREXTRA		= 2
@@ -502,6 +504,10 @@ io_readpage
 #include "engine.s"
 
 SAFEPG = (* + $ff) >> 8
+#ifdef RAMTOP
+RAMEND = RAMTOP
+#else
 RAMEND = $10000
+#endif
 
 SAVEADDR = SAFEPG << 8
