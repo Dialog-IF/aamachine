@@ -844,28 +844,52 @@ io_sprepare
 	.(
 	sta	statush
 
+	; Save horizontal position
 	lda	CH
 	bit	col80
 	bpl	noourch
-	lda	OURCH
+	lda	OURCH		; 80 column mode uses another variable
 noourch
 	sta	savedch
+	; Save vertical position too
 	lda	cury
 	sta	savedcv
 
-	; clear the status rows by pointing the
-	; window at them and homing
+	; Fill every status row with inverse spaces
 
-	lda	#0
-	sta	WNDTOP
-	lda	statush
-	sta	WNDBTM
-	jsr	clrwin
-
-	lda	statush
-	sta	WNDTOP
+	jsr	sbar_home
 	lda	#24
 	sta	WNDBTM
+
+	ldy	statush
+	beq	filled		; no status bar
+
+rowloop
+	bit	col80
+	bpl	dospaces
+; faster 80-column path using CLREOL
+	lda	#29+128		; clreol
+	jsr	cout
+	lda	#$8d		; next line
+	jsr	cout
+	jmp	nextrow
+; We have to do it the hard way because the
+; 40-column path clears with non-inverted spaces
+dospaces
+	ldx	scrw
+sploop
+	lda	#$a0		; space
+	jsr	cout
+	dex
+	bne	sploop
+nextrow
+	dey
+	bne	rowloop
+filled
+	jsr	set_normal
+
+	lda	statush
+	sta	WNDTOP
 
 	; blank the row 0 buffer
 
@@ -923,7 +947,13 @@ notrow0
 	sta	WNDTOP
 	ldx	stxoffs
 	jsr	gotoxy
-	rts
+
+	; rows 1 and up go straight to the screen
+	; through cout, so inverse has to be on
+	; for them too.  io_scommit turns it back
+	; off when the bar is done.
+
+	jmp	set_inverse
 	.)
 
 io_sputc
@@ -982,13 +1012,7 @@ past
 
 io_scommit
 	.(
-	lda	#0
-	sta	WNDTOP
-
-	ldx	#0
-	ldy	#0
-	jsr	gotoxy
-	jsr	set_inverse
+	jsr	sbar_home
 
 	ldx	#0
 loop
@@ -1007,6 +1031,15 @@ loop
 	jsr	gotoxy
 	jsr	set_normal	; do we have to restore old value?
 	rts
+	.)
+
+sbar_home
+	.(
+	ldx	#0
+	stx	WNDTOP
+	ldy	#0
+	jsr	gotoxy
+	jmp	set_inverse
 	.)
 
 ; =====================================
