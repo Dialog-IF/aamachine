@@ -233,6 +233,7 @@ AUXUNDOBANK2	= $d0		; logical page from
 
 ; ---- frontend zero page ----
 
+nunread		= $05	; lines scrolled off since last clear
 ioparam		= $06	; word, used by the engine
 wrappos		= $08
 xpos		= $09
@@ -687,15 +688,74 @@ nocr
 	ldx	cury
 	cpx	#23
 	bcs	nobump
-
 	inc	cury
 nobump
+	inc	nunread
+	lda	nunread
+	clc
+	adc	statush
+	cmp	#23
+	bcs	moreprompt
+	rts
+	.)
+
+moreprompt
+	; Print the [MORE] prompt on the current
+	; line, wait for a key, and erase it
+	; again.  Only cout is used, so this can
+	; be called from io_mline_raw without
+	; recursing back into it.
+
+	.(
+	ldx	#0
+loop
+	lda	moretxt,x
+	beq	zterm
+	jsr	cout
+	inx
+	bne	loop
+zterm
+	; save the size of the prompt
+	; we'll use backspaces in a silly way
+	; because we have to be 80-column compatible
+	txa
+	pha
+	jsr	getkey
+	pla
+	tax
+erase
+	lda	#$88		; backspace
+	jsr	cout
+	lda	#$a0
+	jsr	cout
+	lda	#$88
+	jsr	cout
+	dex
+	bne	erase
+
+	ldx	#1
+	stx	nunread		; we wanna see the bottom line at the top
 	rts
 	.)
 
 io_mclear
 	.(
+	; on the c64, we stop for a [MORE] prompt
+	; before clearing the screen if there
+	; is any unread line
+	lda	nunread
+	beq	nomore
+
+	; do we need to issue a newline?
+	ldx	xpos
+	beq	atcol0
+	lda	#$8d
+	jsr	cout
+atcol0
+	jsr	moreprompt
+nomore
 	lda	#0
+	sta	nunread
 	sta	xpos
 	sta	pendspc
 	sta	wrappos
@@ -707,6 +767,13 @@ io_mclear
 	sta	cury
 	rts
 	.)
+
+	; on the //e the 80-column card uses
+	; characters 0-31 for control codes
+	; so only 32-63 work with II+ and //e
+	; in inverse mode
+moretxt
+	.asc	"<...>",0
 
 	; TODO some bugs in 80-column mode
 io_mstyle
@@ -951,6 +1018,9 @@ io_getc
 
 	.(
 	jsr	io_mflush
+	; c64 clears this in both gets and getc
+	lda	#0
+	sta	nunread
 	jmp	getkey
 	.)
 
@@ -1006,6 +1076,9 @@ backspace
 done
 	sty	f_temp2
 	jsr	io_mline_raw
+	; c64 clears this in both gets and getc
+	lda	#0
+	sta	nunread
 	ldy	f_temp2
 	rts
 	.)
@@ -2520,6 +2593,10 @@ NTRANS = trlo-trhi
 coldstart
 	.(
 
+	; so we don't get a [MORE] prompt before the banner
+	lda	#0
+	sta	nunread
+
 	jsr	initsystem
 
 	jsr	initengine0
@@ -2539,6 +2616,9 @@ coldstart
 #ifdef DEBUG
 	jsr	dumpvars
 #endif
+	; make sure we have no unread lines when we print the banner
+	lda	#0
+	sta	nunread
 	jsr	io_mclear
 	jmp	startengine
 	.)
