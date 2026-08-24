@@ -594,6 +594,7 @@ io_mputc
 
 	cmp	#$80
 	bcs	extended
+; entry point if we don't have an extended character
 plain
 	jsr	do_foldup
 	ldx	xpos
@@ -627,13 +628,20 @@ wrap
 extended
 	jsr	translit
 
+	; The only codepoints that transliterate
+	; to space are U+00A0 and U+202F, both
+	; non-breaking, so reenter at 'plain'
+	; to avoid line breaks.
+	; tr0 and tr1 are always < $80, so the
+	; extended test is not needed either.
+
 	lda	tr0
-	jsr	io_mputc	; always < $80
+	jsr	plain
 
 	lda	tr1
 	beq	done
 
-	jmp	io_mputc	; always < $80
+	jmp	plain
 done
 	rts
 	.)
