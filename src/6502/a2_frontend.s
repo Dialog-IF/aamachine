@@ -94,8 +94,6 @@
 ;   https://github.com/peterferrie/0boot
 ;
 ; TODO
-; - io_load flaky (hangs, inserting nop makes it say "Failed to *save* game state")
-;   and the savefiles differ at $300
 ; - SAVEFILE on first disk when running AAM.SYSTEM from Prodos?
 ; - run STORY file from subdirectory?
 ; - victim cache (move stale pages to aux)?
@@ -783,25 +781,10 @@ nomore
 moretxt
 	.asc	"<...>",0
 
-	; TODO some bugs in 80-column mode
+; HAVE_STYLE=0 for this port
 io_mstyle
 	rts
-	; input a = style bits
-	/*
-	.(
-	pha
-	jsr	io_mflush
-	pla
-	and	#6		; bold and italic
-	beq	normal
 
-	jmp	set_inverse
-normal
-	jmp	set_normal
-	.)
-	*/
-
-; TODO use MouseText?
 io_mprogress
 	; input x = progress
 	; input y = total
