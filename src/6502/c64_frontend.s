@@ -2996,7 +2996,7 @@ reusizemsb
 itxt_banner
 	.asc    CH_ARING,"-machine C64 interpreter v"
 	.asc	VERSION
-	.asc	10,"by Linus ",CH_ARING,"kesson",10,0
+	.asc	10,"by Linus ",CH_ARING,"kesson and the Dialog Team",10,0
 itxt_ldstory
 	.asc	"Preparing story...",10,0
 itxt_ldlangdict
