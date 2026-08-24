@@ -12,6 +12,11 @@
 # argument names an existing file its lines are sent as commands; otherwise it
 # is taken as a literal command string, one command per line.  With no third
 # argument, only the story's opening text is checked for the target.
+# A walkthrough line starting with "@" is sent without a trailing carriage
+# return (for stories that act on single keypresses, where CR would arrive as
+# a keypress of its own).
+# Whenever the interpreter's <...> paging prompt appears, a space is sent
+# automatically so walkthroughs do not have to step over full screens.
 # Everything after "--" is passed through to izconsole.
 #
 # Exit codes:  0 target string seen
@@ -53,6 +58,7 @@ spawn -noecho ~/bin/izconsole -speed full {*}$izflags $dsk
 expect {
   -timeout 10
   -exact $target { puts "TARGET FOUND in intro"; exit 0 }
+  -exact "<...>" { send -- " "; exp_continue }
   "> " { }
   eof   { puts "emulator exited before prompt"; exit 3 }
   timeout { puts "no prompt after $timeout s"; exit 3 }
@@ -63,7 +69,11 @@ set n 0
 foreach line $lines {
   if {[string trim $line] eq ""} { continue }
   incr n
-  send -- "$line\r"
+  if {[string index $line 0] eq "@"} {
+    send -- [string range $line 1 end]
+  } else {
+    send -- "$line\r"
+  }
   expect {
     -timeout 10
     -exact $target {
@@ -71,6 +81,7 @@ foreach line $lines {
       puts "TARGET FOUND (command $n: \"$line\")"
       break
     }
+    -exact "<...>" { send -- " "; exp_continue }
     "> " { }        ;# this command completed, keep going
     eof   { puts "*** emulator exited (command $n: \"$line\")"; exit 3 }
     timeout { puts "*** timed out after command $n: \"$line\""; exit 3 }
@@ -84,6 +95,7 @@ if {!$found} {
       set found 1
       puts "TARGET FOUND"
     }
+    -exact "<...>" { send -- " "; exp_continue }
     eof   { puts "*** emulator exited"; exit 3 }
     timeout { puts "*** timed out"; exit 3 }
   }

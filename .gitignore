@@ -19,3 +19,7 @@ src/6502/a2.system
 # Apple II test disks (built by test/apple2/Makefile)
 test/apple2/aa-exercise/
 test/apple2/gosling/
+# Bundled disks for the codepoint exercise (built by test/codepoints/Makefile)
+test/codepoints/codepoints/
+# Test out files
+test/*/*.out
