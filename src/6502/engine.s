@@ -8511,19 +8511,27 @@ ext0_clr_div
 ext0_clr_status ; This one could be implemented, but I don't know how
 	jmp	ldyfetchnext
 
-ext0_nbsp ; Copied from op_space; can't call it directly because ext0 clobbered the Y register so we have to jump to ldyfetchnext instead of fetchnext
+ext0_nbsp
+	; This engine has no non-breaking space
+	; state, so NBSP degrades to an ordinary
+	; space, which is what the spec calls for
+	; when an interpreter cannot provide one.
+
 	.(
 	lda	rcwl
 	bne	skip
 
-	lda	#SPC_NO
-	adc	#0
+	; op_space uses the dispatcher's carry flag
+	; but here it was clobbered by ext0.
+	; so we can't tell SPACE from NO_SPACE.
+	lda	#SPC_PENDING
 
 	cmp	rspc
 	bcc	skip
 
 	sta	rspc
 skip
+	; Y register was clobbered by ext0
 	jmp ldyfetchnext
 	.)
 

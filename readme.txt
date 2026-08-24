@@ -147,6 +147,9 @@ Release notes:
 		Aambundle: Stories without a title in their metadata are
 		named after the base name of the story file.
 
+		6502 engine: Fixed NBSP so that it properly degrades to a
+		breaking space instead of being ignored.
+
 	1.0.2:
 	
 		Cleaned up the specification and some dev tools.
