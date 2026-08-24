@@ -122,6 +122,11 @@ Project website:
 
 Release notes:
 
+	1.0.3:
+
+		6502 engine: Fixed some memory corruption issues, especially
+		involving save/restore/undo operations.
+
 	1.0.2:
 	
 		Cleaned up the specification and some dev tools.

@@ -113,6 +113,8 @@ bits	= $ff
 
 initdata = SAFEPG << 8
 
+SAVEMAXBYTES = $1000
+
 HEAPEND	= RAMEND-$300
 
 regs	= HEAPEND+$000	; 64 words, b-e
@@ -329,6 +331,12 @@ wrap2
 	jmp	postwrap2
 	.)
 
+puts_xy
+	.(
+	stx	phydata
+	sty	phydata+1
+	;jmp	puts
+	.)
 puts
 	; input phydata = string in ram
 
@@ -3134,11 +3142,9 @@ op_bad
 	ror
 	jsr	puthex
 
-	lda	#<text
-	sta	phydata
-	lda	#>text
-	sta	phydata+1
-	jsr	puts
+	ldx	#<text
+	ldy	#>text
+	jsr	puts_xy
 
 	lda	`pclsb
 	clc
@@ -6111,6 +6117,7 @@ err
 	lda	#7
 	jmp	error
 savegame
+#if SAVERESTORE
 	.(
 	sty	`pclsb
 
@@ -6120,11 +6127,67 @@ savegame
 	; buffers. Avoid putting the
 	; initial state in the part
 	; that we will overwrite.
+	;
+	; The cache has to reach past
+	; the reserved part, or the
+	; round robin in swapin would
+	; be left without a window to
+	; run in. A machine too small
+	; for that cannot save.
 
+	lda	#>(SAVEADDR+SAVEMAXBYTES)
+	cmp	endpg
+	bcc	roomok
+
+	jmp	failure
+roomok
 	lda	firstpg
 	pha
-	lda	#>(SAVEADDR+4096)
+	lda	#>(SAVEADDR+SAVEMAXBYTES)
 	sta	firstpg
+
+	; swapin only consults firstpg
+	; where the round robin wraps,
+	; so the cursor has to be
+	; moved into the new window as
+	; well. Otherwise pages would
+	; still be handed out below
+	; it, in the part we are about
+	; to overwrite.
+
+	sta	evict
+
+	; The image is about to be written over
+	; the bottom of the cache, but phypc is a
+	; physical page held outside the page
+	; table -- the round robin protects it,
+	; nothing else does. fetchcode further
+	; down still reads the current instruction
+	; through it, so if it sits in the part we
+	; overwrite it has to be moved up into the
+	; reserved window first. Otherwise the
+	; instruction pointer written into the
+	; savefile is whatever the image happened
+	; to leave behind, and restoring it later
+	; runs the engine off into nothing.
+
+	.(
+	lda	`phypc+1
+	cmp	#>SAVEADDR
+	bcc	safe
+
+	cmp	firstpg
+	bcs	safe
+
+	tax
+	jsr	evictx
+
+	ldy	pcmsb
+	ldx	pcbank
+	jsr	swapin
+	sta	`phypc+1
+safe
+	.)
 
 	jsr	cleanupmem
 	jsr	xorinit
@@ -6370,7 +6433,12 @@ ok
 	jmp	refetchnext
 	.)
 	.)
+#else // SAVERESTORE
+	jmp	failure
+#endif
+
 saveundo
+#if UNDO
 	jsr	fetchcode
 	sty	`pclsb
 
@@ -6407,6 +6475,28 @@ copy
 	jmp	failure
 ok
 	jmp	ldyfetchnext
+#else // UNDO
+	jmp	failure
+#endif
+	.)
+
+#if SAVERESTORE
+savefull
+	; The image outgrew the page cache.
+	; Drop the return address into savegame,
+	; put firstpg back from where savegame
+	; pushed it, and unxor the heap before
+	; failing. failure resets the stack, so
+	; whatever is left below does not matter.
+
+	.(
+	pla
+	pla
+
+	pla
+	sta	firstpg
+	jsr	xorinit
+	jmp	failure
 	.)
 
 putsavebyte
@@ -6414,6 +6504,8 @@ putsavebyte
 	; input/output phytmp
 	; (incremented)
 	; preserves y
+	; fails the save if the image would
+	; run past the end of the page cache
 
 	.(
 	ldx	#0
@@ -6426,8 +6518,12 @@ wrap
 	inc	phytmp+1
 
 	ldx	phytmp+1
+	cpx	endpg
+	bcs	savefull
+
 	;jmp	evictx
 	.)
+#endif
 
 evictx
 	; input x = physical page
@@ -6453,6 +6549,7 @@ evictx
 	rts
 	.)
 
+#if SAVERESTORE
 cleanupmem
 	.(
 	lda	rtop+0
@@ -6581,6 +6678,7 @@ no4
 done3
 	rts
 	.)
+#endif
 
 xorinit
 	.(
@@ -8001,7 +8099,11 @@ defnull
 	cmp	#$40 ; Undo
 	bne	cdone
 
+#if UNDO
 	jsr	io_undosupp
+#else
+	clc
+#endif
 	bcc	cdone
 yes
 	inc	result+1
@@ -8064,6 +8166,7 @@ ext0_restart
 	jmp	fetchinst
 
 ext0_restore
+#if SAVERESTORE
 	.(
 	jsr	io_load
 	bcc	err
@@ -8122,11 +8225,9 @@ chunkloop
 	jmp	fetchinst
 
 wronggame
-	lda	#<txt_wronggame
-	sta	phydata
-	lda	#>txt_wronggame
-	sta	phydata+1
-	jsr	puts
+	ldx	#<txt_wronggame
+	ldy	#>txt_wronggame
+	jsr	puts_xy
 	lda	#SPC_AUTO
 	sta	rspc
 	jsr	vio_line
@@ -8281,9 +8382,13 @@ notregs
 txt_wronggame
 	.asc	"Savefile doesn't match story.",0
 	.)
+#else // SAVERESTORE
+	jmp	failure
+#endif
 
 ext0_undo
 	.(
+#if UNDO
 	lda	inbase
 	sta	ioparam
 	lda	inbase+1
@@ -8309,6 +8414,7 @@ copy
 err
 	jmp	ldyfetchnext
 fail
+#endif // UNDO
 	jmp	failure
 	.)
 
@@ -9353,6 +9459,7 @@ loop
 	lda	#0
 	sta	ioparam
 	sta	ioparam+1
+	sta	evict		; no page table yet
 	ldx	#SAFEPG
 	stx	firstpg
 	lda	#SAFEPG+48
@@ -9436,6 +9543,8 @@ szloop
 	sbc	vtsize+1
 	sta	freeptr+1
 	sta	vtmsb
+
+	jsr	shrinkcache
 
 	.(
 	sta	vtptr+1
@@ -10312,6 +10421,81 @@ allocwords
 	sbc	phydata+1
 	sta	freeptr+1
 	tay
+
+	jsr	shrinkcache
+	rts
+	.)
+
+shrinkcache
+	; The page cache lives directly
+	; below the heap, so whenever the
+	; heap has grown downwards the
+	; cache window has to shrink to
+	; match. Any page that ends up
+	; outside it is marked
+	; out-of-core, because the heap
+	; is about to be written over it.
+	;
+	; preserves a, x, y
+
+	.(
+	pha
+	lda	freeptr+1
+	cmp	endpg
+	bcs	done	; cache still fits
+
+	txa
+	pha
+	tya
+	pha
+
+	; keep at least one page, or the
+	; round robin in fault would run
+	; off the end of the window
+
+	lda	freeptr+1
+	cmp	firstpg
+	bcs	haveroom
+
+	lda	firstpg
+haveroom
+	cmp	firstpg
+	bne	notlast
+
+	adc	#0	; carry is set
+notlast
+	ldx	endpg	; old end
+	sta	endpg
+
+	ldy	evict
+	beq	notyet	; no page table yet
+
+	.(
+loop
+	dex
+	cpx	endpg
+	bcc	evdone
+
+	jsr	evictx	; preserves x, y
+	jmp	loop
+evdone
+	.)
+
+	; keep the round robin inside
+	; the window
+
+	cpy	endpg
+	bcc	notyet
+
+	lda	firstpg
+	sta	evict
+notyet
+	pla
+	tay
+	pla
+	tax
+done
+	pla
 	rts
 	.)
 
@@ -10344,6 +10528,7 @@ loadchunk
 	sta	freeptr+1
 	sta	phydata+1
 
+	jsr	shrinkcache
 	jsr	readdatato
 
 	ldx	freeptr
