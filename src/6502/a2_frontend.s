@@ -968,6 +968,16 @@ io_sputc
 	; input a = char
 
 	.(
+	; extended characters? (check just like io_mputc)
+	cmp	#$80
+	bcc	one
+
+	jsr	translit
+	lda	tr0
+	jsr	one
+	lda	tr1
+	beq	skip
+one
 	jsr	do_foldup
 	ldy	strow
 	bpl	screen
