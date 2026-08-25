@@ -23,6 +23,9 @@
 #       ever sees them.)
 #       Everything after "--" is passed through to izconsole.
 #
+# The emulator is found via the IZCONSOLE environment variable if set,
+# otherwise ~/bin/izconsole is used.
+#
 # izconsole draws the emulated screen as a full repaint: 27 lines of text,
 # izconsole's own "Line:" prompt, then ESC[27A to move the cursor back to the
 # top for the next frame.  Inverse video is emitted as an ESC[7m/ESC[0m pair
@@ -172,7 +175,19 @@ proc await {target quiet limit {stale ""}} {
 }
 
 log_user 0
-spawn -noecho ~/bin/izconsole -speed full {*}$izflags $dsk
+if {[info exists env(IZCONSOLE)] && $env(IZCONSOLE) ne ""} {
+  set izconsole $env(IZCONSOLE)
+} else {
+  # autodetect: on PATH if installed there, otherwise ~/bin/izconsole
+  set izconsole "$env(HOME)/bin/izconsole"
+  if {![file executable $izconsole]} {
+    if {[catch {exec sh -c {command -v izconsole 2>/dev/null}} p] == 0
+	&& [file executable $p]} {
+      set izconsole $p
+    }
+  }
+}
+spawn -noecho $izconsole -speed full {*}$izflags $dsk
 
 # wait for the story to boot and settle (the target may be in the intro)
 switch [await $target 5 60] {

@@ -13,7 +13,11 @@
 #   go build -o izconsole ./frontend/console
 #   cp izconsole ~/bin/          # or anywhere on your PATH
 
-IZCONSOLE ?= $(HOME)/bin/izconsole
+# Autodetect: on PATH if installed there, otherwise ~/bin/izconsole.
+# Override with: make IZCONSOLE=/path/to/izconsole
+IZCONSOLE ?= $(shell command -v izconsole 2>/dev/null || echo "$$HOME/bin/izconsole")
+# Make sure a2test.exp (run via expect) sees it too.
+export IZCONSOLE
 
 DIR6502 = ../../src/6502
 # Add --verbose to trace commands and dump the emulated screen on failure.
@@ -32,8 +36,8 @@ test: check test.exercise test.gosling test.undo test.save test.save2
 # -- emulator and tool checks -------------------------------------------
 
 check:
-	@if [ ! -x "$(IZCONSOLE)" ] && ! command -v $(IZCONSOLE) >/dev/null 2>&1; then \
-	  echo "*** izconsole not found (looked for $(IZCONSOLE) and on PATH)."; \
+	@if [ ! -x "$(IZCONSOLE)" ]; then \
+	  echo "*** izconsole not found (looked for $(IZCONSOLE))."; \
 	  echo "*** The Apple II tests need the izapple2 console emulator."; \
 	  echo "*** Build and install it:"; \
 	  echo "***   git clone https://github.com/ivanizag/izapple2"; \
