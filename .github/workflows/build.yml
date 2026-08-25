@@ -20,6 +20,42 @@ jobs:
       run: sudo npm install -g @yao-pkg/pkg
     - name: make test
       run: make test
+
+  test-apple2:
+    runs-on: ubuntu-latest
+    env:
+      IZAPPLE2_SHA1: "1b563d7"
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v6
+    - name: install tools
+      run: |
+        sudo apt update
+        sudo apt install xa65 acme expect git
+    - uses: actions/cache@v4
+      id: izcache
+      with:
+        path: ~/bin/izconsole
+        key: izconsole-${{ runner.os }}-${{ env.IZAPPLE2_SHA1 }}
+    - uses: actions/setup-go@v6
+      if: steps.izcache.outputs.cache-hit != 'true'
+      with:
+        go-version: 'stable'
+    - name: build izconsole (izapple2)
+      if: steps.izcache.outputs.cache-hit != 'true'
+      run: |
+        git init /tmp/izapple2
+        cd /tmp/izapple2
+        git remote add origin https://github.com/ivanizag/izapple2
+        git fetch --depth 1 origin ${{ env.IZAPPLE2_SHA1 }}
+        git checkout FETCH_HEAD
+        mkdir -p "$HOME/bin"
+        go build -o "$HOME/bin/izconsole" ./frontend/console
+    - name: build aambundle
+      run: make --directory=./src aambundle
+    - name: make apple2 tests
+      timeout-minutes: 5
+      run: make --directory=./test apple2 -j 8
   
   build-manual:
     runs-on: ubuntu-latest
