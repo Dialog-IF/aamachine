@@ -1,0 +1,445 @@
+%% codepoints.dg -- Å-machine character set and status bar exercise.
+%%
+%% Several things are being exercised here which are invisible to the
+%% aambox and node frontends and have to be eyeballed on real hardware (or in
+%% an emulator):
+%%
+%%   * Word wrapping behavior -- different on every implementation.
+%%
+%%   * Every codepoint the 8-bit backends claim to handle.  The C64 draws
+%%     these from a custom font; the Apple II has no custom font in text mode
+%%     and transliterates them to ASCII through the table at the bottom of
+%%     src/6502/a2_frontend.s.  Page 6 is a negative control: those codepoints
+%%     are in neither backend and should come out as the interpreter's
+%%     "unknown character" glyph ('?' on the Apple II, a solid box on the C64).
+%%
+%%   * Status-bar edge cases: extended characters in row 0 (which goes
+%%     through the buffered wrapbuf/io_scommit path instead of cout), a row 0
+%%     too wide for the screen (the buffered path truncates instead of
+%%     wrapping), and a row 1+ too wide for the screen (the cout path wraps
+%%     it -- watch where the overflow lands).
+%%
+%%   * A wrap-buffer aliasing probe (press W): leaves a word pending in the
+%%     middle of a text line and redraws the status bar before the word is
+%%     flushed.  Row 0 of the status bar shares its buffer with the pending
+%%     word, so a stale or doubled word here means aliasing trouble.
+%%
+%% Page 8    fold straddling: two-character expansions split across a hard
+%%           fold must lose nothing (39-padded lines target 40 columns,
+%%           79-padded lines target 80), overlong words made of expanding
+%%           characters must hard-fold cleanly, transliterated spaces
+%%           landing exactly on the fold must not vanish, and lines and
+%%           paragraphs that fill the screen exactly -- notably right after
+%%           an em dash expansion -- must not leave a spurious blank line
+%%           (the firmware wraps by itself after the last column)
+%% Page 9    negative control 2, consecutive unknown codepoints: each must
+%%           become its own unknown-character glyph
+%%
+%%   * A status bar whose height changes at run time.  The Å-machine reads the
+%%     height of the top status area straight out of the style class, so a
+%%     variable-height bar means a set of classes -- one per height -- picked
+%%     at run time.  ('status bar $ with height $' is a Z-machine affordance
+%%     and is ignored by this backend.)  Rows 2 and up take a different code
+%%     path in the Apple II frontend than row 0 does: row 0 is buffered in
+%%     wrapbuf and committed by io_scommit, while the rest go straight to the
+%%     screen through cout.  Cycling the height exercises both, plus the
+%%     shrink case, where the bar has to give rows back to the text window.
+
+(story title)	Codepoint Exercise
+(story author)	Å-machine test suite
+(story noun)	Character set and status bar exercise
+(story release 1)
+
+(story ifid)
+		9C4F2E17-6B0A-4D3C-8E5F-1A72B9D0C384
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Style classes
+
+%% One class per status bar height.  Heights above 19 are clamped by the 6502
+%% engine, and a height of 0 is treated as 1.
+
+(style class @status1)
+	height: 1em;
+
+(style class @status2)
+	height: 2em;
+
+(style class @status3)
+	height: 3em;
+
+(style class @status4)
+	height: 4em;
+
+(style class @rightcol)
+	float: right;
+	width: 10ch;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% State
+
+(global variable (current page 1))
+(global variable (bar height 1))
+
+(last page 9)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% The status bar
+
+%% Each row is deliberately made of characters that need transliterating, so
+%% that a too-short bar (text missing) and a too-tall bar (leftover inverse
+%% rows) are both obvious at a glance.
+
+(draw bar)
+	(bar height $H)
+	(draw bar $H)
+
+(draw bar 1)
+	(status bar @status1) (bar contents)
+
+(draw bar 2)
+	(status bar @status2) (bar contents)
+
+(draw bar 3)
+	(status bar @status3) (bar contents)
+
+(draw bar 4)
+	(status bar @status4) (bar contents)
+
+%% Row 0 is deliberately given a long tail of expanding characters: it goes
+%% through the buffered wrapbuf path, which truncates at the screen width
+%% instead of wrapping, so both the transliteration and the truncation point
+%% (possibly splitting an expansion) are under test on every page.
+(bar contents)
+	(div @rightcol) {
+		(bar height $H)
+		h= $H
+	}
+	(current page $P) (last page $L)
+	Codepoints $P/$L \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014}
+	(bar height $H)
+	(if) ($H > 1) (then)
+		(line) 2 \x{00C4}\x{00E9}\x{00EE}\x{00F6}\x{00FC} \x{00C6}\x{0152}\x{00DF}
+	(endif)
+	(if) ($H > 2) (then)
+		(line) 3 \x{2018}q\x{2019} \x{201C}q\x{201D} \x{201E}q\x{201D} \x{2039}q\x{203A}
+	(endif)
+	(if) ($H > 3) (then)
+		(line) 4 \x{2022} \x{2013} \x{2014} \x{2026} \x{20AC} \x{00AB}\x{00BB} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF}
+	(endif)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Charts
+
+(chart 1)
+	(line) U+00A0 \[\x{00A0}\] no-break space
+	(line) U+00AB \[\x{00AB}\] left guillemet
+	(line) U+00BB \[\x{00BB}\] right guillemet
+	(line) U+00C0 \[\x{00C0}\] A grave
+	(line) U+00C2 \[\x{00C2}\] A circumflex
+	(line) U+00C4 \[\x{00C4}\] A diaeresis
+	(line) U+00C5 \[\x{00C5}\] A ring
+	(line) U+00C6 \[\x{00C6}\] AE ligature
+	(line) U+00C7 \[\x{00C7}\] C cedilla
+	(line) U+00C8 \[\x{00C8}\] E grave
+	(line) U+00C9 \[\x{00C9}\] E acute
+	(line) U+00CA \[\x{00CA}\] E circumflex
+	(line) U+00CB \[\x{00CB}\] E diaeresis
+	(line) U+00CE \[\x{00CE}\] I circumflex
+	(line) U+00CF \[\x{00CF}\] I diaeresis
+	(line) U+00D4 \[\x{00D4}\] O circumflex
+
+(chart 2)
+	(line) U+00D6 \[\x{00D6}\] O diaeresis
+	(line) U+00D8 \[\x{00D8}\] O stroke
+	(line) U+00D9 \[\x{00D9}\] U grave
+	(line) U+00DB \[\x{00DB}\] U circumflex
+	(line) U+00DC \[\x{00DC}\] U diaeresis
+	(line) U+00DF \[\x{00DF}\] sharp s
+	(line) U+00E0 \[\x{00E0}\] a grave
+	(line) U+00E1 \[\x{00E1}\] a acute
+	(line) U+00E2 \[\x{00E2}\] a circumflex
+	(line) U+00E4 \[\x{00E4}\] a diaeresis
+	(line) U+00E5 \[\x{00E5}\] a ring
+	(line) U+00E6 \[\x{00E6}\] ae ligature
+	(line) U+00E7 \[\x{00E7}\] c cedilla
+	(line) U+00E8 \[\x{00E8}\] e grave
+	(line) U+00E9 \[\x{00E9}\] e acute
+	(line) U+00EA \[\x{00EA}\] e circumflex
+
+(chart 3)
+	(line) U+00EB \[\x{00EB}\] e diaeresis
+	(line) U+00EE \[\x{00EE}\] i circumflex
+	(line) U+00EF \[\x{00EF}\] i diaeresis
+	(line) U+00F1 \[\x{00F1}\] n tilde
+	(line) U+00F4 \[\x{00F4}\] o circumflex
+	(line) U+00F6 \[\x{00F6}\] o diaeresis
+	(line) U+00F8 \[\x{00F8}\] o stroke
+	(line) U+00F9 \[\x{00F9}\] u grave
+	(line) U+00FB \[\x{00FB}\] u circumflex
+	(line) U+00FC \[\x{00FC}\] u diaeresis
+	(line) U+00FD \[\x{00FD}\] y acute
+	(line) U+00FF \[\x{00FF}\] y diaeresis
+	(line) U+0141 \[\x{0141}\] L stroke
+	(line) U+0142 \[\x{0142}\] l stroke
+	(line) U+0152 \[\x{0152}\] OE ligature
+	(line) U+0153 \[\x{0153}\] oe ligature
+
+(chart 4)
+	(line) U+0178 \[\x{0178}\] Y diaeresis
+	(line) U+1E9E \[\x{1E9E}\] capital sharp s
+	(line) U+2010 \[\x{2010}\] hyphen
+	(line) U+2013 \[\x{2013}\] en dash
+	(line) U+2014 \[\x{2014}\] em dash
+	(line) U+2018 \[\x{2018}\] left single quote
+	(line) U+2019 \[\x{2019}\] right single quote
+	(line) U+201C \[\x{201C}\] left double quote
+	(line) U+201D \[\x{201D}\] right double quote
+	(line) U+201E \[\x{201E}\] low double quote
+	(line) U+2022 \[\x{2022}\] bullet
+	(line) U+2026 \[\x{2026}\] ellipsis
+	(line) U+202F \[\x{202F}\] narrow no-break space
+	(line) U+2039 \[\x{2039}\] left single guillemet
+	(line) U+203A \[\x{203A}\] right single guillemet
+	(line) U+20AC \[\x{20AC}\] euro sign
+%% Page 5 puts the set that Dialog's Z-machine runtime has fallbacks for into
+%% running text, where the transliteration has to survive word wrapping too.
+%% The em dash and the ellipsis expand to two characters, so they are the ones
+%% most likely to overrun a line.
+
+(chart 5)
+	(line) Z-machine fallback set, in context:
+	(line)
+	(line) Dashes: an en\x{2013}dash, an em\x{2014}dash.
+	(line) Quotes: \x{201C}double\x{201D}, \x{201E}low\x{201D}, \x{2018}single\x{2019}.
+	(line) Bullet: \x{2022} first \x{2022} second \x{2022} third.
+	(line) Ellipsis: wait\x{2026} and then\x{2026}
+	(line)
+	(line) Progress bars:
+	(line) (progress bar 0 of 100)
+	(line) (progress bar 25 of 100)
+	(line) (progress bar 50 of 100)
+	(line) (progress bar 16 of 19)
+	(line) (progress bar 75 of 19)
+
+%% Line breaking.  Each run below is long enough to fold at the automated
+%% backends' 80-column width as well as on real 40-column hardware, so where
+%% the folds land is the whole test: if the character
+%% joining a pair is a break opportunity, some lines end in 'aa', and if it is
+%% not, every line ends in 'bb'.
+%%
+%% Three different things are being measured, and they are not all supposed to
+%% agree:
+%%
+%%   U+00A0   Dialog's tokenizer treats a literal no-break space as ordinary
+%%            whitespace and emits a plain space, so this run SHOULD break.
+%%            (nbsp) is Dialog's way to ask for a real non-breaking space.
+%%
+%%   (nbsp)   Should not break.  The JS engine has a distinct SP_NBSP spacing
+%%            state and an io.nbsp() that appends without flushing, so it
+%%            holds there.  The 6502 engine has no such state and degrades to
+%%            an ordinary space, which the spec allows, so this run does break
+%%            on the C64 and the Apple II.  Worth watching all the same: this
+%%            run is what caught ext0_nbsp setting SPC_NO instead of
+%%            SPC_PENDING, which dropped the space altogether and ran the two
+%%            words together as 'aabb'.
+%%
+%%   U+202F   Should not break on any backend.  It is a printable character,
+%%            not a spacing directive, so it belongs to the word it sits in.
+%%            The Apple II transliterates it to a space for display, which is
+%%            why io_mputc lays transliterated spaces down as ordinary
+%%            characters instead of routing them through its space branch.
+
+(chart 6)
+	(line) Line breaking. A run that breaks has
+	(line) lines ending in aa; one that holds
+	(line) together has every line ending in bb.
+	(line)
+	(line) U+00A0, should break:
+	(line) aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb aa\x{00A0}bb
+	(line)
+	(line) \(nbsp\), currently degrades to breaking space:
+	(line) aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb aa(nbsp)bb
+	(line)
+	(line) U+202F, should hold:
+	(line) aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb
+
+%% Page 7 is the negative control.  None of these are in the Apple II table or
+%% the C64 font, so every one of them should render as the interpreter's
+%% unknown-character glyph.  If one of them ever starts rendering correctly,
+%% either a table grew or something is reading past the end of one.
+
+(chart 7)
+	(line) Negative control. Every line below
+	(line) should show the unknown-character
+	(line) glyph \(? on the Apple II, a solid
+	(line) box on the C64\):
+	(line)
+	(line) U+00A9 \[\x{00A9}\] copyright sign
+	(line) U+00BF \[\x{00BF}\] inverted question mark
+	(line) U+0100 \[\x{0100}\] A macron
+	(line) U+0393 \[\x{0393}\] Greek capital gamma
+	(line) U+2190 \[\x{2190}\] leftwards arrow
+	(line) U+2264 \[\x{2264}\] less-than or equal
+	(line) U+2764 \[\x{2764}\] heavy black heart
+
+%% Page 8 targets the fold logic.  Every replacement in the Apple II table is
+%% at most two characters wide, and io_mputc feeds each half through its own
+%% margin check -- so an expansion can be split across a hard fold.  These
+%% lines are padded so that an expansion begins exactly on the last column:
+%% the 39-padded ones for 40-column screens, the 79-padded ones for
+%% 80-column ones.  On the other width they are ordinary mid-line expansions
+%% and should look unremarkable.
+(chart 8)
+	(line) Fold straddling. A two-char expansion
+	(line) split across a fold must lose nothing.
+	(line) 39-pad puts an expansion on col 40;
+	(line) 79-pad puts one on col 80.
+	(line) No blank lines should appear.
+	(line) ---
+	(line) Normal, 80 chars:
+	(line) 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+	(line) Word wrap at 40 chars:
+	(line) 1234567890123456789012345678901234567890 1234567890123456789012345678901234567890
+	(line) Em dash, 38-pad:
+	(line) 12345678901234567890123456789012345678\x{2014}123456789012345678901234567890123456789
+	(line) Ellipsis, 38-pad:
+	(line) 123456789 123456789 123456789 12345678\x{2026} 123456789 123456789 123456789 12345678
+	(line) Em dash, 39-pad:
+	(line) 123456789012345678901234567890123456789\x{2014}123456789012345678901234567890123456789
+	(line) Ellipsis, 39-pad:
+	(line) 123456789 123456789 123456789 123456789\x{2026} 123456789 123456789 123456789 12345678
+	(line) Em dash, 79-pad:
+	(line) 1234567890123456789012345678901234567890123456789012345678901234567890123456789\x{2014}X
+	(line) Ellipsis, 79-pad:
+	(line) 123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789\x{2026}X
+	(line) ---
+	(line) Overlong words of expanding characters
+	(line) must hard-fold without corruption:
+	(line) \x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF}\x{00DF} END
+	(line) \x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6}\x{00C6} END
+	(line) ---
+	(line) Transliterated space on the fold. It is
+	(line) laid down as an ordinary character, so
+	(line) if it wraps the next line starts with
+	(line) it \(watch for an indented Z\):
+	(line) NBSP, 39-pad:
+	(line) 123456789012345678901234567890123456789\x{00A0}Z
+	(line) NNBS, 39-pad:
+	(line) 123456789012345678901234567890123456789\x{202F}Z
+	(line) NBSP, 79-pad:
+	(line) 1234567890123456789012345678901234567890123456789012345678901234567890123456789\x{00A0}Z
+	(line) NNBS, 79-pad:
+	(line) 1234567890123456789012345678901234567890123456789012345678901234567890123456789\x{202F}Z
+	(line) ---
+	(line) Flowing paragraphs whose wrap point
+	(line) lands exactly after an em dash. No
+	(line) blank line may appear below:
+	(line)
+	123456789 123456789 123456789 123456789 123456789 123456789 12345678 abcdefghij\x{2014} zzz zzz zzz
+	(line)
+	123456789 123456789 123456789 1 abcdef\x{2014} qqq qqq qqq
+
+%% Page 9 is a second negative control, for consecutive unknown codepoints.
+%% Each one must become its own unknown-character glyph, including when they
+%% sit inside a word; if any of them starts rendering correctly, something is
+%% reading past the end of the transliteration table.
+(chart 9)
+	(line) Negative control 2. Consecutive
+	(line) unknowns -- each must become its
+	(line) own unknown-character glyph:
+	(line)
+	(line) \x{0393}\x{2190}\x{2764}
+	(line) \x{00A9}\x{00BF}\x{0100}\x{2264}
+	(line)
+	(line) Inside words:
+	(line) aa\x{0393}\x{2190}bb cc\x{2764}\x{0100}dd
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Main loop
+
+(program entry point)
+	(clear all)
+	(line) Codepoint Exercise
+	(line)
+	(line) SPACE/ENTER = next page
+	(line) B = back
+	(line) 1-4 = set status bar height
+	(line) W = probe the wrap buffer
+	(line) Q = quit
+	(line)
+	(show page)
+	(main loop)
+
+(main loop)
+	> (nbsp)
+	(get key $Key)
+	(if) (quit key $Key) (then)
+		(clear status bar)
+		(line) Done.
+	(else)
+		(handle $Key)
+		(show page)
+		(main loop)
+	(endif)
+
+(quit key @q)
+
+(show page)
+	(clear all)
+	(draw bar)
+	(current page $P)
+	(chart $P)
+
+%% Key handling.  Anything unrecognized just redraws, which is itself a useful
+%% thing to be able to do by hand on real hardware.
+
+(handle @\s)	(next page)
+(handle @\r)	(next page)
+(handle @\n)	(next page)
+(handle @n)	(next page)
+(handle @b)	(prev page)
+(handle @p)	(prev page)
+(handle @w)	(aliasing probe)
+(handle 1)	(now) (bar height 1)
+(handle 2)	(now) (bar height 2)
+(handle 3)	(now) (bar height 3)
+(handle 4)	(now) (bar height 4)
+(handle $)
+
+(next page)
+	(current page $P) (last page $L)
+	(if) ($P < $L) (then)
+		($P plus 1 into $Next)
+		(now) (current page $Next)
+	(else)
+		(now) (current page 1)
+	(endif)
+
+(prev page)
+	(current page $P) (last page $L)
+	(if) ($P > 1) (then)
+		($P minus 1 into $Prev)
+		(now) (current page $Prev)
+	(else)
+		(now) (current page $L)
+	(endif)
+
+%% Wrap-buffer aliasing probe.  Leaves a word pending in the middle of a text
+%% line, then forces a status bar redraw before the word is flushed.  Row 0
+%% of the bar shares its buffer (wrapbuf) with the pending word, so this is
+%% the sequence most likely to expose stale or doubled buffer contents.
+(aliasing probe)
+	(bar height $H)
+	(if) ($H = 1) (then)
+		(now) (bar height 2)
+	(else)
+		(now) (bar height 1)
+	(endif)
+	(line) Alias probe: alpha beta pending
+	(draw bar)
+	gamma delta resume.
+	(line)
+	(line) 'pending' must appear exactly once,
+	(line) and 'gamma delta resume.' must follow
+	(line) it on the same line.

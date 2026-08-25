@@ -1,5 +1,8 @@
 all: test clean
 
+apple2:
+	$(MAKE) -C apple2 test
+
 test:
 	## This one is a 0.x file using 67 ENTER_STATUS_0 and E7 LEAVE_STATUS
 	make -C gosling test
@@ -7,10 +10,13 @@ test:
 	make -C body_not_status test
 	## This one is whatever the latest version of Dialog produces (update periodically)
 	make -C impossible test
+	## Character set and status bar exercise; source is in the directory
+	make -C codepoints test
 
 clean:
 	$(MAKE) -C gosling clean
 	$(MAKE) -C body_not_status clean
 	$(MAKE) -C impossible clean
+	$(MAKE) -C codepoints clean
 
-.PHONY: all test clean
+.PHONY: all test apple2 clean

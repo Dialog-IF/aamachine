@@ -585,7 +585,7 @@ initengine5
 	.)
 
 	.(
-	lda	#>initsegment
+	lda	#>initsegment+$ff	; in case initsegment isn't on a page boundary
 	sta	firstpg
 	.)
 
@@ -2149,6 +2149,12 @@ listdone
 	sta	result+0
 	rts
 	.)
+
+#ifdef A2_ENGINE_HIMEM
+engine_reloc = *
+* = $d000
+himem_start = *
+#endif
 
 error
 	.(
@@ -8179,9 +8185,23 @@ ext0_restore
 	adc	SAVEADDR+6
 	sta	physize+1
 
+#ifdef A2_EVICT_MAX
+	; io_load may refill the whole
+	; SAVEMAXBYTES window whatever the image
+	; really weighs, so every page it can
+	; reach has to go, up to and including the
+	; one holding the last byte. That last one
+	; is a partial page unless SAVEADDR is
+	; page aligned, hence unmap1 rather than
+	; falling into the dex.
+
+	ldx	#>(SAVEADDR+SAVEMAXBYTES-1)
+	bne	unmap1		; always, page is nonzero
+#else
 	tax
 	lda	physize
 	bne	unmap1
+#endif
 unmap
 	dex
 unmap1
@@ -8491,19 +8511,27 @@ ext0_clr_div
 ext0_clr_status ; This one could be implemented, but I don't know how
 	jmp	ldyfetchnext
 
-ext0_nbsp ; Copied from op_space; can't call it directly because ext0 clobbered the Y register so we have to jump to ldyfetchnext instead of fetchnext
+ext0_nbsp
+	; This engine has no non-breaking space
+	; state, so NBSP degrades to an ordinary
+	; space, which is what the spec calls for
+	; when an interpreter cannot provide one.
+
 	.(
 	lda	rcwl
 	bne	skip
 
-	lda	#SPC_NO
-	adc	#0
+	; op_space uses the dispatcher's carry flag
+	; but here it was clobbered by ext0.
+	; so we can't tell SPACE from NO_SPACE.
+	lda	#SPC_PENDING
 
 	cmp	rspc
 	bcc	skip
 
 	sta	rspc
 skip
+	; Y register was clobbered by ext0
 	jmp ldyfetchnext
 	.)
 
@@ -9408,6 +9436,11 @@ optable
 	.word	op_trace	; 7f
 
 engine_footprint = *-engine_firstaddr
+
+#ifdef A2_ENGINE_HIMEM
+himem_end = *
+* = engine_reloc
+#endif
 
 ;======================================
 initsegment

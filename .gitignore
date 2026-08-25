@@ -11,3 +11,15 @@ aambox6502
 src/6502/cruncher
 src/6502/labels
 src/6502/mkfont
+src/6502/*.lst
+src/6502/*.rpt
+src/6502/*.sym
+src/6502/*.labels
+src/6502/a2.system
+# Apple II test disks (built by test/apple2/Makefile)
+test/apple2/aa-exercise/
+test/apple2/gosling/
+# Bundled disks for the codepoint exercise (built by test/codepoints/Makefile)
+test/codepoints/codepoints/
+# Test out files
+test/*/*.out
