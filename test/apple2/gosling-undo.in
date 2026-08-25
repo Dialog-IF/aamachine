@@ -1,0 +1,15 @@
+* *** Opening scene ***
+x watson
+x me
+north
+zxcvbn
+watson, north
+hughes, wait
+zxcvbn
+x zxcvbn
+sing zxcvbn
+* *** Undo ***
+watson, take ball
+drop ball
+undo
+inventory

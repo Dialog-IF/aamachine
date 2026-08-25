@@ -1,0 +1,17 @@
+* *** Opening scene ***
+x watson
+x me
+north
+zxcvbn
+watson, north
+hughes, wait
+zxcvbn
+x zxcvbn
+sing zxcvbn
+* *** Save, diverge, restore ***
+watson, take ball
+save
+drop ball
+x ball
+restore
+inventory

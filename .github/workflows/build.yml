@@ -14,12 +14,46 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v6
-    - name: install assembler
-      run: sudo apt install xa65
+    - name: install assemblers
+      run: sudo apt install xa65 acme
     - name: install node packager
       run: sudo npm install -g @yao-pkg/pkg
     - name: make test
       run: make test
+
+  test-apple2:
+    runs-on: ubuntu-latest
+    env:
+      IZAPPLE2_SHA1: "1b563d7"
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v6
+    - name: install tools
+      run: |
+        sudo apt update
+        sudo apt install xa65 acme expect git
+    - uses: actions/cache@v4
+      id: izcache
+      with:
+        path: ~/bin/izconsole
+        key: izconsole-${{ runner.os }}-${{ env.IZAPPLE2_SHA1 }}
+    - uses: actions/setup-go@v6
+      if: steps.izcache.outputs.cache-hit != 'true'
+      with:
+        go-version: 'stable'
+    - name: build izconsole (izapple2)
+      if: steps.izcache.outputs.cache-hit != 'true'
+      run: |
+        git clone https://github.com/ivanizag/izapple2 /tmp/izapple2
+        cd /tmp/izapple2
+        git checkout ${{ env.IZAPPLE2_SHA1 }}
+        mkdir -p "$HOME/bin"
+        go build -o "$HOME/bin/izconsole" ./frontend/console
+    - name: build aambundle
+      run: make --directory=./src aambundle
+    - name: make apple2 tests
+      timeout-minutes: 5
+      run: make --directory=./test apple2 -j 8
   
   build-manual:
     runs-on: ubuntu-latest
@@ -48,7 +82,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v6
     - name: install dependencies
-      run: sudo apt install gcc-mingw-w64 xa65
+      run: sudo apt install gcc-mingw-w64 xa65 acme
     - name: install node packager
       run: sudo npm install -g @yao-pkg/pkg
     - name: make (aamrun)
@@ -84,7 +118,7 @@ jobs:
     - name: install dependencies
       run: |
         brew update
-        brew install xa
+        brew install xa acme
     - name: install node packager
       run: sudo npm install -g @yao-pkg/pkg
     - name: make (aamrun)
