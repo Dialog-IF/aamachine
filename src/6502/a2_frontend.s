@@ -639,6 +639,7 @@ extended
 	lda	tr1
 	beq	done
 
+	inc	xpos	; we printed 1 more char
 	jmp	plain
 done
 	rts
@@ -864,8 +865,7 @@ rowloop
 	lda	#$8d		; next line
 	jsr	cout
 	jmp	nextrow
-; We have to do it the hard way because the
-; 40-column path clears with non-inverted spaces
+; slower 40-column path using spaces
 dospaces
 	ldx	scrw
 sploop
@@ -906,8 +906,7 @@ keep
 	sta	cury
 	tay
 	ldx	savedch
-	jsr	gotoxy
-	rts
+	jmp	gotoxy
 	.)
 
 io_slocate
@@ -962,22 +961,24 @@ io_sputc
 	beq	skip
 one
 	jsr	do_foldup
-	ldy	strow
-	bpl	screen
 
+	; prevent running off the right edge
 	ldy	stxoffs
 	cpy	scrw
 	bcs	skip
 
-	sta	wrapbuf,y
+	; first row is written to wrapbuf
+	; other rows are direct to screen
 	inc	stxoffs
+	bit	strow
+	bpl	screen
+
+	sta	wrapbuf,y
 skip
 	rts
 screen
 	ora	#$80
-	jsr	cout
-	inc	stxoffs
-	rts
+	jmp	cout
 	.)
 
 io_sprogress
@@ -1030,8 +1031,7 @@ loop
 	ldx	xpos
 	ldy	cury
 	jsr	gotoxy
-	jsr	set_normal	; do we have to restore old value?
-	rts
+	jmp	set_normal
 	.)
 
 sbar_home
