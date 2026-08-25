@@ -168,6 +168,9 @@ io_clearall
 
 io_mclear
 	.(
+	; flush in case we still have pending text
+	jsr	io_mflush
+
 	lda	nunread
 	beq	allread
 
@@ -506,27 +509,47 @@ io_mprogress
 	; where 0 <= x <= y
 	; and y =
 	; (width << PRSHIFT) - PREXTRA
-	; assume we're on a new line
 
 	.(
-	sty	f_temp
+	stx	f_temp
+	sty	f_temp2
+
+	jsr	io_mflush
+	; if the flushed text filled the line
+	; exactly, continue on a fresh one
+	lda	xoutpos
+	cmp	#DEFWIDTH
+	bcc	nowrap
+
+	jsr	io_mline_raw
+nowrap
+	ldy	xoutpos
+	sty	stxoffs
+
 	inc	1
+	ldy	stxoffs
 	lda	currfg
-	ldy	#39
 loop
 	sta	(iocram),y
-	dey
-	bpl	loop
-	dec	1
-
 	iny
-	sty	stxoffs
+	cpy	#40
+	bcc	loop
+	dec	1
 
 	lda	ioline
 	sta	stline
 	lda	ioline+1
 	sta	stline+1
-	ldy	f_temp
+
+	; the bar is drawn inline after any text,
+	; so make word wrap start over on the
+	; next line afterwards
+	lda	#DEFWIDTH
+	sta	xpos
+	sta	xoutpos
+
+	ldx	f_temp
+	ldy	f_temp2
 	jmp	io_sprogress
 	.)
 
