@@ -44,11 +44,9 @@ jobs:
     - name: build izconsole (izapple2)
       if: steps.izcache.outputs.cache-hit != 'true'
       run: |
-        git init /tmp/izapple2
+        git clone https://github.com/ivanizag/izapple2 /tmp/izapple2
         cd /tmp/izapple2
-        git remote add origin https://github.com/ivanizag/izapple2
-        git fetch --depth 1 origin ${{ env.IZAPPLE2_SHA1 }}
-        git checkout FETCH_HEAD
+        git checkout ${{ env.IZAPPLE2_SHA1 }}
         mkdir -p "$HOME/bin"
         go build -o "$HOME/bin/izconsole" ./frontend/console
     - name: build aambundle
