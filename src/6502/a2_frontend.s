@@ -731,12 +731,7 @@ zterm
 	pla
 	tax
 erase
-	lda	#$88		; backspace
-	jsr	cout
-	lda	#$a0
-	jsr	cout
-	lda	#$88
-	jsr	cout
+	jsr	erase_prev
 	dex
 	bne	erase
 
@@ -744,6 +739,17 @@ erase
 	stx	nunread		; we wanna see the bottom line at the top
 	rts
 	.)
+
+; Do a backspace, space, backspace to
+; clear the previous char (or cursor)
+erase_prev
+	lda	#$88
+	jsr	cout
+erase_curr
+	lda	#$a0
+	jsr	cout
+	lda	#$88
+	jmp	cout
 
 io_mclear
 	.(
@@ -786,6 +792,7 @@ moretxt
 io_mstyle
 	rts
 
+; TODO consider refactoring with sprogress?
 io_mprogress
 	; input x = progress
 	; input y = total
@@ -1099,12 +1106,7 @@ backspace
 	beq	loop
 
 	dey
-	lda	#$88
-	jsr	cout
-	lda	#$a0
-	jsr	cout
-	lda	#$88
-	jsr	cout
+	jsr	erase_prev
 	dec	xpos
 	jmp	loop
 done
@@ -1127,10 +1129,7 @@ getkey
 
 	.(
 	jsr	set_inverse
-	lda	#$a0
-	jsr	cout
-	lda	#$88
-	jsr	cout
+	jsr	erase_curr
 	jsr	set_normal
 wait
 	inc	seed+0
@@ -1145,10 +1144,7 @@ nohi
 	and	#$7f
 	pha
 
-	lda	#$a0
-	jsr	cout
-	lda	#$88
-	jsr	cout
+	jsr	erase_curr
 
 	pla
 	rts
