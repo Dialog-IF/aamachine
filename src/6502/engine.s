@@ -3804,7 +3804,7 @@ v1
 	pla
 	tay
 	plp ; Don't leave the flags lying around on the stack
-	jmp op_bstyle ; Version 1.x = body style
+;	jmp op_bstyle ; Version 1.x = body style
 	.)
 
 op_bstyle ; Currently does nothing except error if in a span
