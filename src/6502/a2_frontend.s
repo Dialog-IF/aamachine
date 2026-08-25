@@ -812,6 +812,8 @@ erase_curr
 
 io_mclear
 	.(
+	; flush in case we still have pending text
+	jsr	io_mflush
 	; on the c64, we stop for a [MORE] prompt
 	; before clearing the screen if there
 	; is any unread line
