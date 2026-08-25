@@ -863,10 +863,14 @@ io_mprogress
 	; (width << PRSHIFT) - PREXTRA
 
 	.(
-	jsr	io_mflush
 
 	stx	f_temp
 	sty	f_temp2
+
+	jsr	io_mflush
+	; so we know we already wrapped to the next line
+	lda	scrw
+	sta	xpos
 
 	lda	#$db		; '['
 	jsr	cout
