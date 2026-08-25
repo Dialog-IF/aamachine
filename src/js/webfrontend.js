@@ -164,7 +164,7 @@ var aaremote = {
 				dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
 				tstr = ("0" + now.getHours()).slice(-2) + ("0" + now.getMinutes()).slice(-2);
 				if(!this.logtag) {
-					this.logtag = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-");
+					this.logtag = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]/g, "-");
 				}
 				this.sessionid = this.logtag + "-" + dstr + "-" + tstr + "-" + Math.ceil(Math.random()*10000);
 				this.up = true;
@@ -1010,7 +1010,7 @@ window.run_game = function(story64, options) {
 			now = new Date();
 			dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
 			tstr = ("0" + now.getHours()).slice(-2) + ("0" + now.getMinutes()).slice(-2);
-			fname = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-") + "-" + dstr + "-" + tstr + ".aasave";
+			fname = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]/g, "-") + "-" + dstr + "-" + tstr + ".aasave";
 			downloaddata(fname, filedata, false);
 			return true;
 		},
@@ -1408,7 +1408,7 @@ window.run_game = function(story64, options) {
 		now = new Date();
 		dstr = now.getFullYear().toString().slice(2) + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
 		tstr = ("0" + now.getHours()).slice(-2) + ("0" + now.getMinutes()).slice(-2);
-		fname = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-") + "-" + dstr + "-" + tstr + ".txt";
+		fname = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]/g, "-") + "-" + dstr + "-" + tstr + ".txt";
 		for(i = 0; i < aatranscript.full.length; i++) {
 			ch = aatranscript.full.charCodeAt(i);
 			if(ch < 0x80) {
@@ -1431,7 +1431,7 @@ window.run_game = function(story64, options) {
 		var fname, elem;
 
 		document.getElementById("aamenu").style.display = "none";
-		fname = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]+/g, "-") + ".aastory";
+		fname = aaengine.get_metadata().title.replace(/[^a-zA-Z0-9]/g, "-") + ".aastory";
 		elem = document.createElement("a");
 		elem.href = 'resources/' + fname;
 		elem.setAttribute('download', fname);
