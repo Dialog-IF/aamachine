@@ -16,6 +16,7 @@
 IZCONSOLE ?= $(HOME)/bin/izconsole
 
 DIR6502 = ../../src/6502
+# Add --verbose to trace commands and dump the emulated screen on failure.
 A2TEST = ./a2test.exp
 AAMBUNDLE = ../../src/aambundle
 

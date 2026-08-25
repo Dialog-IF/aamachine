@@ -1,7 +1,7 @@
 #!/usr/bin/expect -f
 # a2test.exp -- feed commands into izconsole and wait for a target string.
 #
-# Usage:  ./a2test.exp "TARGET STRING" dsk [walkthrough-file | "command string"] [-- izconsole flags...]
+# Usage:  ./a2test.exp [--verbose] "TARGET STRING" dsk [walkthrough-file | "command string"] [-- izconsole flags...]
 #         ./a2test.exp "Intro Text" story.dsk
 #         ./a2test.exp "DARKNESS" story.dsk walk.txt
 #         ./a2test.exp "DARKNESS" story.dsk "open door
@@ -15,20 +15,46 @@
 # A walkthrough line starting with "@" is sent without a trailing carriage
 # return (for stories that act on single keypresses, where CR would arrive as
 # a keypress of its own).
-# Whenever the interpreter's <...> paging prompt appears, a space is sent
+# Whenever the interpreter's <...> paging prompt appears, a key is sent
 # automatically so walkthroughs do not have to step over full screens.
-# Everything after "--" is passed through to izconsole.
+#
+# Args: --verbose traces progress and dumps the last screen on failure.  (The
+#       spelling matters: expect grabs -d and -v for itself before the script
+#       ever sees them.)
+#       Everything after "--" is passed through to izconsole.
+#
+# izconsole draws the emulated screen as a full repaint: 27 lines of text,
+# izconsole's own "Line:" prompt, then ESC[27A to move the cursor back to the
+# top for the next frame.  Inverse video is emitted as an ESC[7m/ESC[0m pair
+# around every single character, so the text on screen is thoroughly diced up
+# by escape sequences.  We therefore chop the output into frames on the
+# cursor-up sequence, strip the remaining ANSI codes, and match the target
+# against the resulting plain text.
+#
+# A repaint is only terminated when the next one starts, so the screen we are
+# looking at is normally the unterminated tail of the output; it is inspected
+# as-is.  A plain "> " is no use for synchronizing (every repaint still shows
+# the previous prompts), but the interpreter draws its cursor as an
+# inverse-video cell right after the prompt, and that only happens while it
+# waits for input -- so a "> " followed by ESC[7m means the turn is over.  If
+# that never shows up we fall back on the emulator going quiet.
 #
 # Exit codes:  0 target string seen
 #              1 commands exhausted, target never seen
 #              2 usage error
 #              3 emulator died or hung before finishing
 
+set debug 0
+while {[llength $argv] > 0 && [lindex $argv 0] eq "--verbose"} {
+  set debug 1
+  set argv [lrange $argv 1 end]
+}
+
 set target [lindex $argv 0]
 set dsk    [lindex $argv 1]
 set arg3   [lindex $argv 2]
 if {$target eq "" || $dsk eq ""} {
-  puts stderr "usage: a2test.exp \"TARGET STRING\" dsk \[walkthrough-file | command string\] \[-- izconsole flags...\]"
+  puts stderr "usage: a2test.exp \[--verbose\] \"TARGET STRING\" dsk \[walkthrough-file | command string\] \[-- izconsole flags...\]"
   exit 2
 }
 
@@ -51,17 +77,108 @@ if {$dash >= 0} {
   set izflags {}
 }
 
+# ESC[<n>A: izconsole starts a new repaint by moving the cursor back up.
+set FRAMERE {\x1b\[[0-9]+A}
+# Everything else the frontend emits: ESC[7m, ESC[0m, ESC[K, ...
+set ANSIRE {\x1b\[[0-9;?]*[A-Za-z]}
+# The paging prompt.  The interpreter prints "<...>" in inverse video, which
+# izconsole's inverse character map renders as "[...]", so accept either.
+# (Matched against the scrubbed screen.)
+set PAGERRE {[<\[]\.\.\.[>\]]}
+# The input cursor: an inverse-video cell sitting right after the prompt.
+# (Matched against the raw screen -- the escapes are the whole point.)
+set PROMPTRE {> \x1b\[7m}
+
+set raw ""              ;# bytes read but not yet split into frames
+set text ""             ;# scrubbed text of all complete frames so far
+set lastframe ""        ;# most recent screen, scrubbed, for --verbose dumps
+
+proc dbg {msg} {
+  global debug
+  if {$debug} { puts stderr "# $msg" } else { puts -nonewline stderr "."; flush stderr }
+}
+
+proc message {msg} {
+  puts -nonewline stderr "\r\033\[K"
+  flush stderr
+  puts $msg
+}
+
+proc dumpscreen {} {
+  global debug lastframe
+  if {$debug && $lastframe ne ""} {
+    puts stderr "# --- last screen ---"
+    puts stderr $lastframe
+  }
+}
+
+# Remove ANSI escape sequences and carriage returns from a chunk of output.
+proc scrub {s} {
+  global ANSIRE
+  regsub -all $ANSIRE $s "" s
+  regsub -all "\r" $s "" s
+  return $s
+}
+
+# Move every complete frame out of the raw buffer into the accumulated text
+# and return what is left: the repaint currently on screen, ANSI codes and
+# all.
+proc harvest {} {
+  global raw text FRAMERE
+  while {[regexp -indices $FRAMERE $raw m]} {
+    lassign $m from to
+    append text [scrub [string range $raw 0 [expr {$from - 1}]]] "\n"
+    set raw [string range $raw [expr {$to + 1}] end]
+  }
+  # keep the accumulated text from growing without bound
+  if {[string length $text] > 200000} {
+    set text [string range $text end-100000 end]
+  }
+  return $raw
+}
+
+# Watch the screen until $target appears or the interpreter is waiting for
+# input again.  Paging prompts are answered as they show up.  While the
+# screen still reads exactly like $stale (i.e. nothing has happened since the
+# command was sent) the input cursor is ignored, so the prompt we are about
+# to overtype is not mistaken for the next one.  Gives up after $limit
+# seconds, or after $quiet seconds without a repaint.  Returns target,
+# prompt, idle, eof or timeout.
+proc await {target quiet limit {stale ""}} {
+  global raw text lastframe PAGERRE PROMPTRE
+  set deadline [expr {[clock seconds] + $limit}]
+  while 1 {
+    set screen [harvest]
+    set flat [scrub $screen]
+    if {$flat ne ""} { set lastframe $flat }
+    if {[string first $target $text] >= 0 || [string first $target $flat] >= 0} {
+      return target
+    }
+    if {[regexp $PAGERRE $flat]} {
+      dbg "answering paging prompt"
+      set raw ""              ;# so the same prompt is not answered twice
+      send -- "\r"
+    } elseif {$flat ne $stale && [regexp $PROMPTRE $screen]} {
+      return prompt
+    }
+    if {[clock seconds] >= $deadline} { return timeout }
+    expect {
+      -timeout $quiet
+      -re {(.|\n)+} { append raw $expect_out(buffer) }
+      eof { return eof }
+      timeout { return idle }
+    }
+  }
+}
+
 log_user 0
 spawn -noecho ~/bin/izconsole -speed full {*}$izflags $dsk
 
-# wait for the game prompt (or the target, which may appear in the intro)
-expect {
-  -timeout 10
-  -exact $target { puts "TARGET FOUND in intro"; exit 0 }
-  -exact "<...>" { send -- " "; exp_continue }
-  "> " { }
-  eof   { puts "emulator exited before prompt"; exit 3 }
-  timeout { puts "no prompt after $timeout s"; exit 3 }
+# wait for the story to boot and settle (the target may be in the intro)
+switch [await $target 5 60] {
+  target  { message "TARGET FOUND in intro"; exit 0 }
+  eof     { message "emulator exited before prompt"; dumpscreen; exit 3 }
+  timeout { message "no prompt after 60 s"; dumpscreen; exit 3 }
 }
 
 set found 0
@@ -69,38 +186,42 @@ set n 0
 foreach line $lines {
   if {[string trim $line] eq ""} { continue }
   incr n
+  dbg "command $n: \"$line\""
+  set stale $lastframe
   if {[string index $line 0] eq "@"} {
     send -- [string range $line 1 end]
   } else {
     send -- "$line\r"
   }
-  expect {
-    -timeout 10
-    -exact $target {
+  set raw ""            ;# drop the screen this command is answering
+  # prompt: the turn finished; idle: it finished without redrawing the prompt
+  switch [await $target 2 30 $stale] {
+    target {
       set found 1
-      puts "TARGET FOUND (command $n: \"$line\")"
+      message "TARGET FOUND (command $n: \"$line\")"
       break
     }
-    -exact "<...>" { send -- " "; exp_continue }
-    "> " { }        ;# this command completed, keep going
-    eof   { puts "*** emulator exited (command $n: \"$line\")"; exit 3 }
-    timeout { puts "*** timed out after command $n: \"$line\""; exit 3 }
+    prompt  { }
+    idle    { }
+    eof     { message "*** emulator exited (command $n: \"$line\")"; dumpscreen; exit 3 }
+    timeout { message "*** timed out after command $n: \"$line\""; dumpscreen; exit 3 }
   }
 }
 
 if {!$found} {
-  expect {
-    -timeout 60
-    -exact $target {
-      set found 1
-      puts "TARGET FOUND"
-    }
-    -exact "<...>" { send -- " "; exp_continue }
-    eof   { puts "*** emulator exited"; exit 3 }
-    timeout { puts "*** timed out"; exit 3 }
+  # the story may still be printing; give it a last chance to catch up
+  switch [await $target 5 60] {
+    target  { set found 1; message "TARGET FOUND" }
+    prompt  { }
+    idle    { }
+    eof     { message "*** emulator exited"; dumpscreen; exit 3 }
+    timeout { message "*** timed out"; dumpscreen; exit 3 }
   }
 }
 
-if {!$found} { puts "*** TARGET NOT FOUND after $n commands" }
+if {!$found} {
+  message "*** TARGET NOT FOUND after $n commands"
+  dumpscreen
+}
 close
 exit [expr {$found ? 0 : 1}]
