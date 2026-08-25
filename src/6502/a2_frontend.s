@@ -617,10 +617,7 @@ space
 	rts
 wrap
 	pha
-	jsr	io_mline_raw
-	ldx	wrappos
-	stx	xpos
-	jsr	io_mflush
+	jsr	io_mfold
 	pla
 	jmp	postwrap
 extended
@@ -679,17 +676,73 @@ done
 	rts
 	.)
 
+; Where the firmware thinks the cursor is.
+; xpos cannot answer this -- it counts every
+; character the frontend has taken in,
+; including a pending space and a pending
+; word still sitting in wrapbuf, none of
+; which has reached cout yet.  Returns the
+; column in a, with z set when it is zero.
+curcol
+	.(
+	bit	col80
+	bmi	is80
+
+	lda	CH
+	rts
+is80
+	lda	OURCH		; the 80-column firmware
+	rts			; keeps its own copy
+	.)
+
 io_mline
 	jsr	io_mflush
 io_mline_raw
 	.(
-	ldx	xpos
-	dex
-	cpx	scrw	; signed cmp
-	bpl	nocr	; don't CR if we filled entire line
+	lda	xpos
+	beq	docr	; nothing on this line at all, so
+			; this is a deliberate blank line
+	jsr	curcol
+	beq	done	; we filled the entire line and the
+			; firmware wrapped by itself after
+			; the last column
+docr
 	lda	#$8d
 	jsr	cout
-nocr
+done
+	jmp	io_mendline
+	.)
+
+io_mfold
+	; Break the line and carry the pending
+	; word across, for word wrap.
+	;
+	; Unlike io_mline the word has not been
+	; flushed yet, so the whole line so far
+	; can still be sitting in wrapbuf with the
+	; firmware cursor at column 0 -- and then
+	; there is no line to end.
+
+	.(
+	jsr	curcol
+	beq	atcol0
+
+	lda	#$8d
+	jsr	cout
+atcol0
+	jsr	io_mendline
+	jsr	io_mflush	; the pending word lands
+				; on the new line, which
+	jsr	curcol		; is where xpos has to
+	sta	xpos		; pick up again
+	rts
+	.)
+
+io_mendline
+	; Line-break bookkeeping, shared by
+	; io_mline_raw and io_mfold.
+
+	.(
 	lda	#0
 	sta	xpos
 	sta	pendspc
@@ -766,8 +819,9 @@ io_mclear
 	beq	nomore
 
 	; do we need to issue a newline?
-	ldx	xpos
+	jsr	curcol
 	beq	atcol0
+
 	lda	#$8d
 	jsr	cout
 atcol0
@@ -850,11 +904,7 @@ io_sprepare
 	sta	statush
 
 	; Save horizontal position
-	lda	CH
-	bit	col80
-	bpl	noourch
-	lda	OURCH		; 80 column mode uses another variable
-noourch
+	jsr	curcol
 	sta	savedch
 	; Save vertical position too
 	lda	cury
@@ -1041,7 +1091,9 @@ loop
 	lda	statush
 	sta	WNDTOP
 
-	ldx	xpos
+	ldx	savedch		; where io_sprepare found
+				; the cursor -- xpos counts
+				; the pending word too
 	ldy	cury
 	jsr	gotoxy
 	jmp	set_normal
