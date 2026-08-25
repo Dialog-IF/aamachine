@@ -625,6 +625,7 @@ wrap
 	jmp	postwrap
 extended
 	jsr	translit
+	bne	dualchar	; Z flag set in translit
 
 	; The only codepoints that transliterate
 	; to space are U+00A0 and U+202F, both
@@ -633,14 +634,19 @@ extended
 	; tr0 and tr1 are always < $80, so the
 	; extended test is not needed either.
 
+	; single char case
+	lda	tr0
+	jmp	plain
+dualchar
+	; wrap the two-char translit early
+	dec	scrw
+	dec	scrw
 	lda	tr0
 	jsr	plain
-
 	lda	tr1
-	beq	done
-
-	inc	xpos	; we printed 1 more char
-	jmp	plain
+	jsr	plain
+	inc	scrw
+	inc	scrw
 done
 	rts
 	.)
@@ -1156,8 +1162,8 @@ nohi
 
 translit
 	; input a = char code, >= $80
-	; output tr0, tr1
-	; tr1 is zero for a single character
+	; output tr0, tr1, Z
+	; tr1 is zero (and Z clear) for a single character
 
 	.(
 	jsr	lookupchar
