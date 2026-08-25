@@ -1272,7 +1272,7 @@ window.run_game = function(story64, options) {
 		} else if(status == aaengine.status.get_key) {
 			io.leave_inner();
 			io.after_text = true;
-			io.scroll_anchor = null;
+		//	io.scroll_anchor = null; // Why was this included?
 			if(!io.in_status) {
 				io.seen_index = io.mainarray.length;
 				io.seen_divs = io.divs.slice();
