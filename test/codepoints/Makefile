@@ -51,6 +51,11 @@ codepoints.aastory: codepoints.dg
 #	     the automated backends' width too; real hardware adds nothing
 #	     for this page but is still needed for pages 1-5 and 7)
 # Page 7    negative control, every line should be the unknown-char glyph
+# Page 10   [MORE] accounting across a line-input prompt.  The window is filled
+#           to exactly one line short of the pagination limit and then a line
+#           of input is read. Pressing RETURN there must not raise [MORE], and
+#           neither may the (clear all) that follows it.
+#           (Use +/- to nudge the status bar height for 24/25 row systems.)
 
 disks: codepoints.aastory $(AAMBUNDLE)
 	$(AAMBUNDLE) -t apple2 -o codepoints codepoints.aastory

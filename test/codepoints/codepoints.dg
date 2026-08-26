@@ -34,6 +34,9 @@
 %%           (the firmware wraps by itself after the last column)
 %% Page 9    negative control 2, consecutive unknown codepoints: each must
 %%           become its own unknown-character glyph
+%% Page 10   [MORE] accounting across a line-input prompt: the only page that
+%%           reads a line instead of a key, filling the window to exactly one
+%%           line short of the pagination limit first
 %%
 %%   * A status bar whose height changes at run time.  The Å-machine reads the
 %%     height of the top status area straight out of the style class, so a
@@ -81,7 +84,12 @@
 (global variable (current page 1))
 (global variable (bar height 1))
 
-(last page 9)
+(last page 10)
+
+%% Nudges page 10's line count for screens that are not 24 rows.  It is an
+%% unsigned 0-8 offset -- 4 is the 24-row Apple II value -- because the count
+%% feeds a countdown recursion that must never be handed a negative.
+(global variable (probe pad 4))
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% The status bar
@@ -355,6 +363,37 @@
 	(line) Inside words:
 	(line) aa\x{0393}\x{2190}bb cc\x{2764}\x{0100}dd
 
+
+%% Page 10 is the only page that reads a *line* instead of a key, because the
+%% [MORE] bug it looks for lives in io_gets and nothing else can reach it:
+%% io_getc clears nunread and never breaks a line, so (get key) is blind to it.
+%% The clear right after the input is the other half -- io_mclear reads any
+%% nonzero count as unread text, so io_gets must not leave one behind.
+%%
+%% Keys 1-4 move the bar height and the count follows it.  +/- nudge the count
+%% for screens that are not 24 rows.
+
+(chart 10)
+	(bar height $H)
+	(18 minus $H into $Base)
+	(probe pad $Pad)
+	($Base plus $Pad into $L)
+	(fill $L)
+	(line) Type a word then RETURN [pad $Pad]
+	(get input $)
+	(clear all)
+	(line) Neither RETURN nor this clear
+	(line) may have raised \[MORE\].
+
+%% Guarded so that a pad small enough to drive the count to zero stops here
+%% instead of counting down forever.
+(fill $L)
+	(if) ($L > 0) (then)
+		(line) fill $L
+		($L minus 1 into $Next)
+		(fill $Next)
+	(endif)
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Main loop
 
@@ -366,6 +405,7 @@
 	(line) B = back
 	(line) 1-4 = set status bar height
 	(line) W = probe the wrap buffer
+	(line) Plus/minus = nudge page 10's count
 	(line) Q = quit
 	(line)
 	(show page)
@@ -405,6 +445,9 @@
 (handle 2)	(now) (bar height 2)
 (handle 3)	(now) (bar height 3)
 (handle 4)	(now) (bar height 4)
+(handle @+)	(nudge pad up)
+(handle @-)	(nudge pad down)
+
 (handle $)
 
 (next page)
@@ -423,6 +466,20 @@
 		(now) (current page $Prev)
 	(else)
 		(now) (current page $L)
+	(endif)
+
+(nudge pad up)
+	(probe pad $P)
+	(if) ($P < 8) (then)
+		($P plus 1 into $N)
+		(now) (probe pad $N)
+	(endif)
+
+(nudge pad down)
+	(probe pad $P)
+	(if) ($P > 0) (then)
+		($P minus 1 into $N)
+		(now) (probe pad $N)
 	(endif)
 
 %% Wrap-buffer aliasing probe.  Leaves a word pending in the middle of a text

@@ -4,6 +4,7 @@ SPACE/ENTER = next page
 B = back
 1-4 = set status bar height
 W = probe the wrap buffer
+Plus/minus = nudge page 10's count
 Q = quit
 
 U+00A0 [] no-break space

@@ -1123,7 +1123,6 @@ io_getc
 
 	.(
 	jsr	io_mflush
-	; c64 clears this in both gets and getc
 	lda	#0
 	sta	nunread
 	jmp	getkey
@@ -1135,12 +1134,11 @@ io_gets
 	; output y = length
 
 	.(
-	jsr	io_mflush
-
 	ldy	#0
 loop
 	sty	f_temp2
-	jsr	getkey
+	; calls io_mflush and also resets nunread
+	jsr	io_getc
 	ldy	f_temp2
 
 	cmp	#13
@@ -1175,10 +1173,18 @@ backspace
 	jmp	loop
 done
 	sty	f_temp2
-	jsr	io_mline_raw
-	; c64 clears this in both gets and getc
+
+	; io_getc should have cleared nunread
+	; Otherwise a screen that is exactly full
+	; will issue [MORE]
+
+	jsr	io_mline_raw	; now, nunread is 1
+
+	; Clear it again afterwards
+	; in case we call io_mclear immediately
 	lda	#0
 	sta	nunread
+
 	ldy	f_temp2
 	rts
 	.)
