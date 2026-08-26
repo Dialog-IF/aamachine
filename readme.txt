@@ -150,6 +150,14 @@ Release notes:
 		6502 engine: Fixed NBSP so that it properly degrades to a
 		breaking space instead of being ignored.
 
+		6502 engine: Fixed blank lines when printing long words.
+
+		C64 interpreter: Added five glyphs (A with Acute, N with
+		Tilde, Hyphen, Ellipsis, NNBSP)
+
+		C64 interpreter: Fixed inline progress bars.
+
+
 	1.0.2:
 	
 		Cleaned up the specification and some dev tools.
