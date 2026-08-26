@@ -277,12 +277,34 @@ space
 	rts
 wrap
 	pha
-	jsr	io_mline_raw
-	ldx	wrappos
-	stx	xpos
-	jsr	io_mflush
+	jsr	io_mfold
 	pla
 	jmp	postwrap
+	.)
+
+io_mfold
+	; Break the line and carry the pending
+	; word across, for word wrap.
+	;
+	; Unlike io_mline the word has not been
+	; flushed yet, so the whole line so far
+	; can still be sitting in wrapbuf with
+	; xoutpos = 0 -- and then there is no
+	; line to end.
+
+	.(
+	lda	xoutpos
+	beq	atcol0
+
+	jsr	io_mline_raw
+atcol0
+	lda	#0
+	sta	pendspc
+	jsr	io_mflush	; the pending word lands
+				; on the new line, which
+	ldy	xoutpos		; is where xpos has to
+	sty	xpos		; pick up again
+	rts
 	.)
 
 io_mline
