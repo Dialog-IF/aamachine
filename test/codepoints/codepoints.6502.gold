@@ -3,7 +3,8 @@
 Codepoint Exercise
 SPACE/ENTER = next page
 B = back
-1-4 = set status bar height
+1-9 = set status bar height
+0,5,6,7 = height edge cases
 W = probe the wrap buffer
 Plus/minus = nudge page 10's count
 Q = quit
@@ -41,75 +42,8 @@ U+00CA [Ê] E circumflex
 U+00CB [Ë] E diaeresis
 U+00CE [Î] I circumflex
 U+00CF [Ï] I diaeresis
-U+00D4 [Ô] O circumflex> 2
+U+00D4 [Ô] O circumflex> 
 
-U+00A0 [] no-break space
-U+00AB [«] left guillemet
-U+00BB [»] right guillemet
-U+00C0 [À] A grave
-U+00C2 [Â] A circumflex
-U+00C4 [Ä] A diaeresis
-U+00C5 [Å] A ring
-U+00C6 [Æ] AE ligature
-U+00C7 [Ç] C cedilla
-U+00C8 [È] E grave
-U+00C9 [É] E acute
-U+00CA [Ê] E circumflex
-U+00CB [Ë] E diaeresis
-U+00CE [Î] I circumflex
-U+00CF [Ï] I diaeresis
-U+00D4 [Ô] O circumflex> 3
-
-U+00A0 [] no-break space
-U+00AB [«] left guillemet
-U+00BB [»] right guillemet
-U+00C0 [À] A grave
-U+00C2 [Â] A circumflex
-U+00C4 [Ä] A diaeresis
-U+00C5 [Å] A ring
-U+00C6 [Æ] AE ligature
-U+00C7 [Ç] C cedilla
-U+00C8 [È] E grave
-U+00C9 [É] E acute
-U+00CA [Ê] E circumflex
-U+00CB [Ë] E diaeresis
-U+00CE [Î] I circumflex
-U+00CF [Ï] I diaeresis
-U+00D4 [Ô] O circumflex> 4
-
-U+00A0 [] no-break space
-U+00AB [«] left guillemet
-U+00BB [»] right guillemet
-U+00C0 [À] A grave
-U+00C2 [Â] A circumflex
-U+00C4 [Ä] A diaeresis
-U+00C5 [Å] A ring
-U+00C6 [Æ] AE ligature
-U+00C7 [Ç] C cedilla
-U+00C8 [È] E grave
-U+00C9 [É] E acute
-U+00CA [Ê] E circumflex
-U+00CB [Ë] E diaeresis
-U+00CE [Î] I circumflex
-U+00CF [Ï] I diaeresis
-U+00D4 [Ô] O circumflex> h
-
-U+00A0 [] no-break space
-U+00AB [«] left guillemet
-U+00BB [»] right guillemet
-U+00C0 [À] A grave
-U+00C2 [Â] A circumflex
-U+00C4 [Ä] A diaeresis
-U+00C5 [Å] A ring
-U+00C6 [Æ] AE ligature
-U+00C7 [Ç] C cedilla
-U+00C8 [È] E grave
-U+00C9 [É] E acute
-U+00CA [Ê] E circumflex
-U+00CB [Ë] E diaeresis
-U+00CE [Î] I circumflex
-U+00CF [Ï] I diaeresis
-U+00D4 [Ô] O circumflex> n
 
 U+00D6 [Ö] O diaeresis
 U+00D8 [Ø] O stroke
@@ -126,7 +60,8 @@ U+00E6 [æ] ae ligature
 U+00E7 [ç] c cedilla
 U+00E8 [è] e grave
 U+00E9 [é] e acute
-U+00EA [ê] e circumflex> n
+U+00EA [ê] e circumflex> 
+
 
 U+00EB [ë] e diaeresis
 U+00EE [î] i circumflex
@@ -143,7 +78,8 @@ U+00FF [ÿ] y diaeresis
 U+0141 [Ł] L stroke
 U+0142 [ł] l stroke
 U+0152 [Œ] OE ligature
-U+0153 [œ] oe ligature> n
+U+0153 [œ] oe ligature> 
+
 
 U+0178 [Ÿ] Y diaeresis
 U+1E9E [᚞] capital sharp s
@@ -160,7 +96,8 @@ U+2026 […] ellipsis
 U+202F [ ] narrow no-break space
 U+2039 [‹] left single guillemet
 U+203A [›] right single guillemet
-U+20AC [€] euro sign> n
+U+20AC [€] euro sign> 
+
 
 Z-machine fallback set, in context:
 Dashes: an en–dash, an em—dash.
@@ -173,7 +110,8 @@ Progress bars:
 [=======================================                                       ]
 [=================================================================             ]
 [==============================================================================]
-> n
+> 
+
 
 Line breaking. A run that breaks has
 lines ending in aa; one that holds
@@ -186,7 +124,8 @@ aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa
 bb aa bb aa bb
 U+202F, should hold:
 aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa bb aa bb
-aa bb aa bb aa bb> n
+aa bb aa bb aa bb> 
+
 
 Negative control. Every line below
 should show the unknown-character
@@ -198,7 +137,8 @@ U+0100 [Ā] A macron
 U+0393 [Γ] Greek capital gamma
 U+2190 [←] leftwards arrow
 U+2264 [≤] less-than or equal
-U+2764 [❤] heavy black heart> n
+U+2764 [❤] heavy black heart> 
+
 
 Fold straddling. A two-char expansion
 split across a fold must lose nothing.
@@ -249,7 +189,8 @@ lands exactly after an em dash. No
 blank line may appear below:
 123456789 123456789 123456789 123456789 123456789 123456789 12345678 abcdefghij—
 zzz zzz zzz
-123456789 123456789 123456789 1 abcdef— qqq qqq qqq> n
+123456789 123456789 123456789 1 abcdef— qqq qqq qqq> 
+
 
 Negative control 2. Consecutive
 unknowns--each must become its
@@ -257,105 +198,100 @@ own unknown-character glyph:
 Γ←❤
 ©¿Ā≤
 Inside words:
-aaΓ←bb cc❤Ādd> w
-Alias probe: alpha beta pending
-gamma delta resume.
-'pending' must appear exactly once,
-and 'gamma delta resume.' must follow
-it on the same line.
+aaΓ←bb cc❤Ādd> 
 
-Negative control 2. Consecutive
-unknowns--each must become its
-own unknown-character glyph:
-Γ←❤
-©¿Ā≤
-Inside words:
-aaΓ←bb cc❤Ādd> 3
 
-Negative control 2. Consecutive
-unknowns--each must become its
-own unknown-character glyph:
-Γ←❤
-©¿Ā≤
-Inside words:
-aaΓ←bb cc❤Ādd> 4
+fill 21
+fill 20
+fill 19
+fill 18
+fill 17
+fill 16
+fill 15
+fill 14
+fill 13
+fill 12
+fill 11
+fill 10
+fill 9
+fill 8
+fill 7
+fill 6
+fill 5
+fill 4
+fill 3
+fill 2
+fill 1
+Type a word then RETURN [pad 4] 
 
-Negative control 2. Consecutive
-unknowns--each must become its
-own unknown-character glyph:
-Γ←❤
-©¿Ā≤
-Inside words:
-aaΓ←bb cc❤Ādd> h
 
-Negative control 2. Consecutive
-unknowns--each must become its
-own unknown-character glyph:
-Γ←❤
-©¿Ā≤
-Inside words:
-aaΓ←bb cc❤Ādd> b
+Neither RETURN nor this clear
+may have raised [MORE].> n
 
-Fold straddling. A two-char expansion
-split across a fold must lose nothing.
-39-pad puts an expansion on col 40;
-79-pad puts one on col 80.
-No blank lines should appear.
+CSS keywords. engine.s parses eight
+declarations--width, height, float,
+font-style, font-weight, font-family,
+margin-top, margin-bottom--and skips
+everything else in silence.
+width, float and height are status-area
+only: see the bar above, and keys 0-7.
 ---
-Normal, 80 chars:
-12345678901234567890123456789012345678901234567890123456789012345678901234567890
-Word wrap at 40 chars:
-1234567890123456789012345678901234567890
-1234567890123456789012345678901234567890
-Em dash, 38-pad:
-12345678901234567890123456789012345678—123456789012345678901234567890123456789
-Ellipsis, 38-pad:
-123456789 123456789 123456789 12345678… 123456789 123456789 123456789 12345678
-Em dash, 39-pad:
-123456789012345678901234567890123456789—123456789012345678901234567890123456789
-Ellipsis, 39-pad:
-123456789 123456789 123456789 123456789… 123456789 123456789 123456789 12345678
-Em dash, 79-pad:
-1234567890123456789012345678901234567890123456789012345678901234567890123456789—X
-Ellipsis, 79-pad:
-123456789 123456789 123456789 123456789 123456789 123456789 123456789
-123456789…X
----
-Overlong words of expanding characters
-must hard-fold without corruption:
-ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß END
-ÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆÆ END
----
-Transliterated space on the fold. It is
-laid down as an ordinary character, so
-if it wraps the next line starts with
-it (watch for an indented Z):
-NBSP, 39-pad:
-123456789012345678901234567890123456789 Z
-NNBS, 39-pad:
-123456789012345678901234567890123456789 Z
-NBSP, 79-pad:
-1234567890123456789012345678901234567890123456789012345678901234567890123456789
-Z
-NNBS, 79-pad:
-1234567890123456789012345678901234567890123456789012345678901234567890123456789 Z
----
-Flowing paragraphs whose wrap point
-lands exactly after an em dash. No
-blank line may appear below:
-123456789 123456789 123456789 123456789 123456789 123456789 12345678 abcdefghij—
-zzz zzz zzz
-123456789 123456789 123456789 1 abcdef— qqq qqq qqq> b
+Margins. The only part of this page the
+automated backends render.
+[before 2em + 3em]
 
-Negative control. Every line below
-should show the unknown-character
-glyph (? on the Apple II, a solid
-box on the C64):
-U+00A9 [©] copyright sign
-U+00BF [¿] inverted question mark
-U+0100 [Ā] A macron
-U+0393 [Γ] Greek capital gamma
-U+2190 [←] leftwards arrow
-U+2264 [≤] less-than or equal
-U+2764 [❤] heavy black heart> q
+
+Two blank lines above, three below.
+
+
+
+[after 2em + 3em]
+[before 2ch + 2en]
+
+
+Two above and two below on the 6502, none on the JS engine, whose frontend
+parses only 'em'. The two gold files must differ here.
+
+
+[after 2ch + 2en]
+[before relative]
+Relative margins are rejected outright, not read as 50. Nothing above or below.
+[after relative]
+[before unknown declarations]
+Five unknown declarations, then a margin-bottom: 1em that still works--one blank
+line below, none above.
+
+[after unknown declarations]
+---
+Text styling. Rendered on the C64 only;
+plain everywhere else.
+plain italic plain
+plain oblique plain
+plain bold plain
+plain bold italic plain
+plain monospace plain
+plain serif, so unstyled plain
+Nested: the inner class clears one bit
+and must leave the other alone.
+bold normal bold
+italic upright italic
+both italic only both
+---
+The deprecated SET_STYLE/RESET_STYLE
+opcodes, which bypass the CSS parser
+and reach rstyle directly. Reverse has
+no CSS spelling the parser understands,
+so this is its only route in.
+plain bold plain
+plain italic plain
+plain
+reverse
+let's try reverse text across a word wrap boundary
+how about two in a row?
+Print Codepoint Exercise and see no gaps.
+plain
+plain fixed plain
+A span inside the opcode path--both
+bits must be live in the middle:
+bold and italic still bold done.> q
 Done.

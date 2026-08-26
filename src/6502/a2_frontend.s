@@ -106,7 +106,7 @@ PREXTRA		= 2
 PRSHIFT		= 0
 HAVE_QUIT	= 1
 HAVE_STATUS	= 1
-HAVE_STYLE	= 0
+HAVE_STYLE	= 1
 SAVERESTORE	= 1
 UNDO		= 1
 
@@ -650,6 +650,8 @@ done
 
 io_mflush
 	.(
+	jsr	mstyle_enter
++io_mflush_nostyle
 	ldx	pendspc
 	beq	nospc
 spcloop
@@ -673,7 +675,7 @@ loop
 done
 	lda	#0
 	sta	wrappos
-	rts
+	jmp	mstyle_exit
 	.)
 
 coutwrap
@@ -879,9 +881,9 @@ nomore
 moretxt
 	.asc	"<...>",0
 
-; HAVE_STYLE=0 for this port
 io_mstyle
-	rts
+	; style bits are already in rstyle zp var in engine
+	jmp	io_mflush_nostyle
 
 ; TODO consider refactoring with sprogress?
 io_mprogress
@@ -1354,6 +1356,14 @@ gotoxy
 	ROMTAILCALL(VTAB)
 	.)
 
+mstyle_enter
+	.(
+	lda	`rstyle
+	lsr			; reverse style bit
+	bcc	set_inverse_rts
+	; fallthrough to set_inverse
+	.)
+
 set_inverse
 	.(
 	bit	col80
@@ -1361,12 +1371,14 @@ set_inverse
 
 	lda	#$3f
 	sta	INVFLG
++set_inverse_rts
 	rts
 firmware
 	lda	#$8f		; ctrl-O
 	jmp	cout
 	.)
 
+mstyle_exit
 set_normal
 	.(
 	bit	col80
@@ -1379,6 +1391,7 @@ firmware
 	lda	#$8e		; ctrl-N
 	jmp	cout
 	.)
+
 
 ; =====================================
 ; System
