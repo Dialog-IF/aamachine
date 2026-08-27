@@ -213,7 +213,7 @@ function prepare_styles(styles, style_data) {
 		
 		html += "." + name + " { ";
 		for(j in styles[i]) {
-			if(j.startsWith("aria-") || j.startsWith("data-") { // Copy aria-* and data-* declarations to a special array, since we want to assign these to the HTML tag, not just leave them in the CSS
+			if(j.startsWith("aria-") || j.startsWith("data-")) { // Copy aria-* and data-* declarations to a special array, since we want to assign these to the HTML tag, not just leave them in the CSS
 				if(j == "aria-role") { // The HTML name is simply "role", not "aria-role", though it is an ARIA attribute
 					style_data[i].attrs["role"] = styles[i][j];
 				} else {
