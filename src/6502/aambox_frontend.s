@@ -26,6 +26,9 @@ pendspc		= $02
 f_temp		= $03
 f_temp2		= $04
 ioparam		= $05	; word
+mcol		= $07	; output column -- xpos counts pending
+			; word and space too, so it cannot answer
+			; where the cursor really is
 
 wrapbuf		= $280
 
@@ -39,6 +42,7 @@ wrapbuf		= $280
 	sta	wrappos
 	sta	xpos
 	sta	pendspc
+	sta	mcol
 
 	jsr	initengine0
 	jsr	initengine1
@@ -77,10 +81,7 @@ space
 	rts
 wrap
 	pha
-	jsr	io_mline_raw
-	ldx	wrappos
-	stx	xpos
-	jsr	io_mflush
+	jsr	io_mfold
 	pla
 	jmp	postwrap
 	.)
@@ -90,11 +91,49 @@ io_mline
 	jsr	io_mflush
 io_mline_raw
 	.(
+	lda	xpos
+	beq	docr	; nothing on this line at all, so
+			; this is a deliberate blank line
+	lda	mcol
+	beq	done	; everything so far is still pending
+			; in wrapbuf -- there is no line to
+			; end, so no linefeed either
+docr
+	lda	#10
+	sta	$0200
+done
+	lda	#0
+	sta	mcol
+	sta	xpos
+	sta	pendspc
+	rts
+	.)
+
+io_mfold
+	; Break the line and carry the pending
+	; word across, for word wrap.
+	;
+	; Unlike io_mline the word has not been
+	; flushed yet, so the whole line so far
+	; can still be sitting in wrapbuf with
+	; the output column at 0 -- and then
+	; there is no line to end.
+
+	.(
+	lda	mcol
+	beq	nolf
+
 	lda	#10
 	sta	$0200
 	lda	#0
-	sta	xpos
+	sta	mcol
+nolf
+	lda	#0
 	sta	pendspc
+	jsr	io_mflush	; the pending word lands
+				; on the new line, which
+	lda	mcol		; is where xpos has to
+	sta	xpos		; pick up again
 	rts
 	.)
 
@@ -146,6 +185,7 @@ common
 noext
 	sta	$0200
 skip
+	inc	mcol
 	inx
 	cpx	wrappos
 	bne	loop
@@ -194,6 +234,7 @@ io_mprogress
 
 	.(
 	lda	#'['
+	inc	mcol
 	sta	$0200
 	stx	f_temp
 	sty	f_temp2
@@ -206,11 +247,13 @@ loop
 	lda	#$3d
 past
 	sta	$0200
+	inc	mcol
 	inx
 	cpx	f_temp2
 	bcc	loop
 
 	lda	#']'
+	inc	mcol
 	sta	$0200
 	rts
 	.)
@@ -292,8 +335,9 @@ loop
 	jmp	loop
 done
 	lda	#0
-	sta	xpos
-	sta	pendspc
+	sta	mcol		; the terminal echoed what
+	sta	xpos		; we typed, ending with a
+	sta	pendspc		; linefeed
 	rts
 	.)
 
