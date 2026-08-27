@@ -213,7 +213,7 @@ function prepare_styles(styles, style_data) {
 		
 		html += "." + name + " { ";
 		for(j in styles[i]) {
-			if(j.startsWith("aria-") || j.startsWith("data-") { // Copy aria-* and data-* declarations to a special array, since we want to assign these to the HTML tag, not just leave them in the CSS
+			if(j.startsWith("aria-") || j.startsWith("data-")) { // Copy aria-* and data-* declarations to a special array, since we want to assign these to the HTML tag, not just leave them in the CSS
 				if(j == "aria-role") { // The HTML name is simply "role", not "aria-role", though it is an ARIA attribute
 					style_data[i].attrs["role"] = styles[i][j];
 				} else {
@@ -1272,7 +1272,7 @@ window.run_game = function(story64, options) {
 		} else if(status == aaengine.status.get_key) {
 			io.leave_inner();
 			io.after_text = true;
-			io.scroll_anchor = null;
+		//	io.scroll_anchor = null; // Why was this included?
 			if(!io.in_status) {
 				io.seen_index = io.mainarray.length;
 				io.seen_divs = io.divs.slice();
