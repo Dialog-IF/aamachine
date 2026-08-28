@@ -1279,6 +1279,15 @@ translit
 	lda	(ioparam),y
 	sta	f_temp2
 
+	; The table is sorted by codepoint, so
+	; the entries below U+0100 are exactly
+	; 0..TRLOW-1 and trhi covers only what
+	; follows them.
+
+	ldx	#TRLOW-1
+	lda	f_temp
+	beq	loloop		; hi byte = 0
+	; scan TRLOW..NTRANS-1
 	ldx	#NTRANS-1
 loop
 	lda	trhi,x
@@ -1290,7 +1299,16 @@ loop
 	beq	found
 next
 	dex
-	bpl	loop
+	cpx	#TRLOW
+	bcs	loop
+	bcc	unknown		; always
+	; scan 0..TRLOW-1
+loloop
+	lda	trlo,x
+	cmp	f_temp2
+	beq	found
+	dex
+	bpl	loloop
 unknown
 	lda	#'?'
 	sta	tr0
@@ -1300,7 +1318,24 @@ unknown
 found
 	lda	trc0,x
 	sta	tr0
-	lda	trc1,x
+
+	; Second characters are uncommon so they
+	; are a sparse list of (index, char).
+	; Both exits leave Z reflecting
+	; tr1, which is the caller's dual-char test.
+
+	txa			; no cpx abs,y on 6502
+	ldy	#NTR2-1
+tr2loop
+	cmp	tr2idx,y
+	beq	got2
+	dey
+	bpl	tr2loop
+	lda	#0		; single character
+	beq	settr1		; always
+got2
+	lda	tr2ch,y
+settr1
 	sta	tr1
 	rts
 	.)
@@ -2696,10 +2731,9 @@ halt
 ; ASCII has to be approximated.  Codepoints
 ; are BMP only, and the replacement is at
 ; most two characters wide.
+; NTRANS, TRLOW and NTR2 come from mkfont too.
 
 #include "translit.s"
-
-NTRANS = trlo-trhi
 
 ; =====================================
 ; Cold start
