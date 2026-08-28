@@ -34,6 +34,17 @@
 %%           (the firmware wraps by itself after the last column)
 %% Page 9    negative control 2, consecutive unknown codepoints: each must
 %%           become its own unknown-character glyph
+%% Page 10   [MORE] accounting across a line-input prompt: the only page that
+%%           reads a line instead of a key, filling the window to exactly one
+%%           line short of the pagination limit first
+%% Page 11   every declaration engine.s's CSS parser understands.  Its
+%%           keyword table (csskeywords, src/6502/engine.s) holds exactly
+%%           eight -- width, height, float, font-style, font-weight,
+%%           font-family, margin-top, margin-bottom -- and skips anything
+%%           else in silence.  Only the two margin keywords are visible to
+%%           the automated backends; width/float/height live in the status
+%%           bar, and the three font keywords only reach io_mstyle, which
+%%           aambox and the node frontend both stub out.
 %%
 %%   * A status bar whose height changes at run time.  The Å-machine reads the
 %%     height of the top status area straight out of the style class, so a
@@ -71,9 +82,125 @@
 (style class @status4)
 	height: 4em;
 
+%% Height edge cases, on keys 0 and 5-7.  op_status (engine.s, the
+%% STY_HEIGHT/STYF_RELH block) turns 0 and any relative height into 1 and
+%% clamps anything from 20 up to 19, so between them these four probe both
+%% ends of the clamp and the units css_abs_rel accepts for an absolute
+%% value ('em', 'en' and 'ch'; '%' is what makes a value relative, and
+%% anything else parses as absolute 0).  (bar rows) below records what each
+%% one should actually come out as.
+
+(style class @status0)
+	height: 0em;
+
+(style class @status5)
+	height: 50%;
+
+(style class @status6)
+	height: 2en;
+
+(style class @status7)
+	height: 30em;
+
+%% Floats.  width and float only reach the layout code inside a status area
+%% -- op_en_lv_div tests stflag before it looks at STY_FLAGS at all -- so all
+%% three float classes live in the bar.  @leftcol is the only STYF_FLOATL
+%% user in the suite, and @pctcol is the only relative width, resolved
+%% against the full bar width at run time; both are drawn only on page 10,
+%% nested inside the same bar as @rightcol so the float stack has to push and
+%% pop stleft/stendx/stfullw more than once.
+
 (style class @rightcol)
 	float: right;
 	width: 10ch;
+
+(style class @leftcol)
+	float: left;
+	width: 12ch;
+
+(style class @pctcol)
+	float: right;
+	width: 25%;
+
+%% Text styling.  engine.s folds font-style/font-weight/font-family into the
+%% STY_STYON/STY_STYOFF bitmasks that unstyle hands to io_mstyle -- italic
+%% and oblique both set bit 2, bold sets bit 1, and font-family sets bit 3
+%% only if the value contains the word 'monospace'.  'normal' is the only
+%% value that goes into STY_STYOFF, which is what makes the nested cases on
+%% page 10 worth having: the inner class has to clear one bit and leave the
+%% other alone.
+%%
+%% None of this is visible to the automated backends (aambox and the node
+%% frontend both stub io_mstyle), and the Apple II renders reverse only, so
+%% these are a C64 inspection -- there io_mstyle maps bits 1-2 onto its
+%% palette table.
+
+(style class @italic)
+	font-style: italic;
+
+(style class @oblique)
+	font-style: oblique;
+
+(style class @roman)
+	font-style: normal;
+
+(style class @bold)
+	font-weight: bold;
+
+(style class @unbold)
+	font-weight: normal;
+
+(style class @bolditalic)
+	font-weight: bold;
+	font-style: italic;
+
+(style class @fixed)
+	font-family: monospace;
+
+%% A font-family that is not monospace must set no bit at all.  The name is
+%% deliberately one that contains neither 'm' nor a substring of 'monospace',
+%% since the matcher scans for the word rather than comparing the whole value.
+
+(style class @propfont)
+	font-family: Georgia, serif;
+
+%% Margins are the one part of page 10 the automated backends do render, as
+%% blank lines.  The two engines get there by different routes: the node
+%% frontend reads margin-top/margin-bottom out of the raw CSS itself
+%% (parse_em, nodefrontend.js), while engine.s parses them into
+%% STY_MTOP/STY_MBOTTOM.  They do not agree on units -- parse_em's regexp
+%% takes 'em' only, css_abs_rel also takes 'en' and 'ch' -- so @marginch is a
+%% deliberate divergence between codepoints.js.gold and codepoints.6502.gold,
+%% and the one case here where the two gold files must NOT match.  A relative
+%% margin is rejected outright by engine.s (css_abs_rel returns carry set and
+%% the margin branch drops the value), and by parse_em for want of an 'em'.
+
+(style class @margins)
+	margin-top: 2em;
+	margin-bottom: 3em;
+
+(style class @marginch)
+	margin-top: 2ch;
+	margin-bottom: 2en;
+
+(style class @marginpct)
+	margin-top: 50%;
+	margin-bottom: 50%;
+
+%% Negative control for the parser.  Not one of these is in csskeywords, so
+%% each must be skipped without disturbing the declarations around it -- the
+%% trailing margin-bottom is the canary, since it is the thing that stops
+%% working if an unknown declaration ever desynchronises the parse.  Note
+%% that text-decoration is how the Dialog compiler spells (reverse) in a
+%% class, so reverse-as-CSS is unimplemented rather than merely untested.
+
+(style class @ignoredcss)
+	color: red;
+	background-color: black;
+	text-decoration: reverse;
+	text-align: center;
+	font-size: 200%;
+	margin-bottom: 1em;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% State
@@ -81,7 +208,12 @@
 (global variable (current page 1))
 (global variable (bar height 1))
 
-(last page 9)
+(last page 11)
+
+%% Nudges page 10's line count for screens that are not 24 rows.  It is an
+%% unsigned 0-8 offset -- 4 is the 24-row Apple II value -- because the count
+%% feeds a countdown recursion that must never be handed a negative.
+(global variable (probe pad 4))
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% The status bar
@@ -106,27 +238,72 @@
 (draw bar 4)
 	(status bar @status4) (bar contents)
 
+(draw bar 0)
+	(status bar @status0) (bar contents)
+
+(draw bar 5)
+	(status bar @status5) (bar contents)
+
+(draw bar 6)
+	(status bar @status6) (bar contents)
+
+(draw bar 7)
+	(status bar @status7) (bar contents)
+
+%% How many rows each class should actually produce once engine.s has clamped
+%% the parsed height.  The bar draws its rows from this rather than from the
+%% key that was pressed, so a bar that comes out the wrong height leaves
+%% either blank rows at the bottom or text spilling past it -- both obvious.
+
+(bar rows 0 1)		%% height: 0em  -- zero becomes 1
+(bar rows 1 1)
+(bar rows 2 2)
+(bar rows 3 3)
+(bar rows 4 4)
+(bar rows 5 1)		%% height: 50%  -- relative becomes 1
+(bar rows 6 2)		%% height: 2en  -- 'en' is an absolute unit
+(bar rows 7 19)		%% height: 30em -- clamped down to 19
+
 %% Row 0 is deliberately given a long tail of expanding characters: it goes
 %% through the buffered wrapbuf path, which truncates at the screen width
 %% instead of wrapping, so both the transliteration and the truncation point
 %% (possibly splitting an expansion) are under test on every page.
 (bar contents)
+	(bar height $H) (bar rows $H $N)
+	%% Page 11 adds the other two floats, so that bar has a left float and
+	%% two nested right floats to lay out instead of just the one.
+	(if) (current page 10) (then)
+		(div @leftcol) { L 12ch }
+		(div @pctcol) { R 25% }
+	(endif)
 	(div @rightcol) {
-		(bar height $H)
-		h= $H
+		h= $H/$N
 	}
 	(current page $P) (last page $L)
 	Codepoints $P/$L \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014} \x{00E9}\x{00DF}\x{2014}
-	(bar height $H)
-	(if) ($H > 1) (then)
+	(if) ($N > 1) (then)
 		(line) 2 \x{00C4}\x{00E9}\x{00EE}\x{00F6}\x{00FC} \x{00C6}\x{0152}\x{00DF}
 	(endif)
-	(if) ($H > 2) (then)
+	(if) ($N > 2) (then)
 		(line) 3 \x{2018}q\x{2019} \x{201C}q\x{201D} \x{201E}q\x{201D} \x{2039}q\x{203A}
 	(endif)
-	(if) ($H > 3) (then)
+	(if) ($N > 4) (then)
+		(fill bar rows $N from 5)
+	(endif)
+	(if) ($N > 3) (then)
 		(line) 4 \x{2022} \x{2013} \x{2014} \x{2026} \x{20AC} \x{00AB}\x{00BB} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF} \x{00E9}\x{00DF}
 	(endif)
+
+%% Rows 5 and up only ever appear under the 30em class, whose whole point is
+%% the clamp -- so they are numbered, and the last one has to read 19.
+
+(fill bar rows $N from $I)
+	($I > $N)
+
+(fill bar rows $N from $I)
+	(line) $I \x{00E9}\x{00DF}\x{2014} filler
+	($I plus 1 into $Next)
+	(fill bar rows $N from $Next)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Charts
@@ -355,6 +532,144 @@
 	(line) Inside words:
 	(line) aa\x{0393}\x{2190}bb cc\x{2764}\x{0100}dd
 
+%% Page 10 is the only page that reads a *line* instead of a key, because the
+%% [MORE] bug it looks for lives in io_gets and nothing else can reach it:
+%% io_getc clears nunread and never breaks a line, so (get key) is blind to it.
+%% The clear right after the input is the other half -- io_mclear reads any
+%% nonzero count as unread text, so io_gets must not leave one behind.
+%%
+%% Keys 1-9 move the bar height and the count follows it.  +/- nudge the count
+%% for screens that are not 24 rows.
+
+(chart 10)
+	(bar height $H)
+	(18 minus $H into $Base)
+	(probe pad $Pad)
+	($Base plus $Pad into $L)
+	(fill $L)
+	(line) Type a word then RETURN [pad $Pad]
+	(get input $)
+	(clear all)
+	(line) Neither RETURN nor this clear
+	(line) may have raised \[MORE\].
+
+%% Guarded so that a pad small enough to drive the count to zero stops here
+%% instead of counting down forever.
+(fill $L)
+	(if) ($L > 0) (then)
+		(line) fill $L
+		($L minus 1 into $Next)
+		(fill $Next)
+	(endif)
+
+%% Page 11 is the CSS parser's page.  engine.s parses the story's style
+%% classes itself, at init, into the per-class records described at
+%% STY_WIDTH..STY_FLAGS, and its keyword table knows exactly eight
+%% declarations.  Coverage is split three ways, because the three groups are
+%% observable in three different places:
+%%
+%%   width, float, height   Status area only -- op_en_lv_div checks stflag
+%%                          before it looks at a float at all, and the height
+%%                          is read by op_status.  Neither automated backend
+%%                          renders a status area, so these are in the bar
+%%                          above (keys 0-7 for the heights, page 10 for the
+%%                          two extra floats) and have to be eyeballed on the
+%%                          C64 or the Apple II.
+%%
+%%   font-style,            Reach io_mstyle and nothing else.  aambox and the
+%%   font-weight,           node frontend both stub io_mstyle out, and the
+%%   font-family            Apple II renders reverse only, so the section
+%%                          below is a C64 inspection -- the four bit
+%%                          combinations should land on four palette entries.
+%%
+%%   margin-top,            Vertical space in the main window, so these ARE
+%%   margin-bottom          in both gold files and are what `make test`
+%%                          actually checks on this page.
+%%
+%% The negative controls matter as much as the positives here: an unknown
+%% declaration must be skipped without disturbing its neighbours, a
+%% font-family that is not monospace must set no bit, and a relative margin
+%% must be dropped rather than parsed as its bare number.
+
+(chart 11)
+	(line) CSS keywords. engine.s parses eight
+	(line) declarations -- width, height, float,
+	(line) font-style, font-weight, font-family,
+	(line) margin-top, margin-bottom -- and skips
+	(line) everything else in silence.
+	(line)
+	(line) width, float and height are status-area
+	(line) only: see the bar above, and keys 0-7.
+	(line) ---
+	(line) Margins. The only part of this page the
+	(line) automated backends render.
+	(line)
+	(line) [before 2em + 3em]
+	(div @margins) {
+		Two blank lines above, three below.
+	}
+	(line) [after 2em + 3em]
+	(line)
+	(line) [before 2ch + 2en]
+	(div @marginch) {
+		Two above and two below on the 6502,
+		none on the JS engine, whose frontend
+		parses only 'em'. The two gold files
+		must differ here.
+	}
+	(line) [after 2ch + 2en]
+	(line)
+	(line) [before relative]
+	(div @marginpct) {
+		Relative margins are rejected outright,
+		not read as 50. Nothing above or below.
+	}
+	(line) [after relative]
+	(line)
+	(line) [before unknown declarations]
+	(div @ignoredcss) {
+		Five unknown declarations, then a
+		margin-bottom: 1em that still works --
+		one blank line below, none above.
+	}
+	(line) [after unknown declarations]
+	(line) ---
+	(line) Text styling. Rendered on the C64 only;
+	(line) plain everywhere else.
+	(line)
+	(line) plain (span @italic) { italic } plain
+	(line) plain (span @oblique) { oblique } plain
+	(line) plain (span @bold) { bold } plain
+	(line) plain (span @bolditalic) { bold italic } plain
+	(line) plain (span @fixed) { monospace } plain
+	(line) plain (span @propfont) { serif, so unstyled } plain
+	(line)
+	(line) Nested: the inner class clears one bit
+	(line) and must leave the other alone.
+	(line) (span @bold) { bold (span @unbold) { normal } bold }
+	(line) (span @italic) { italic (span @roman) { upright } italic }
+	(line) (span @bolditalic) { both (span @unbold) { italic only } both }
+	(line) ---
+	(line) The deprecated SET_STYLE/RESET_STYLE
+	(line) opcodes, which bypass the CSS parser
+	(line) and reach rstyle directly. Reverse has
+	(line) no CSS spelling the parser understands,
+	(line) so this is its only route in.
+	(line)
+	(line) plain (bold) bold (roman) plain
+	(line) plain (italic) italic (roman) plain
+	(line) plain
+	(line) (reverse) reverse (roman)
+	(line) (reverse) let's try reverse text across a word wrap boundary (roman)
+	(line) how about (reverse)two(roman) in a (reverse) row?
+	(line) (reverse) Print (story title) and see no gaps.
+	(line) (roman) plain
+	(line) plain (fixed pitch) fixed (roman) plain
+	(line)
+	(line) A span inside the opcode path -- both
+	(line) bits must be live in the middle:
+	(line) (bold) bold (span @italic) { and italic } still bold (roman) done.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Main loop
 
@@ -364,8 +679,10 @@
 	(line)
 	(line) SPACE/ENTER = next page
 	(line) B = back
-	(line) 1-4 = set status bar height
+	(line) 1-9 = set status bar height
+	(line) 0,5,6,7 = height edge cases
 	(line) W = probe the wrap buffer
+	(line) Plus/minus = nudge page 10's count
 	(line) Q = quit
 	(line)
 	(show page)
@@ -401,10 +718,16 @@
 (handle @b)	(prev page)
 (handle @p)	(prev page)
 (handle @w)	(aliasing probe)
+(handle @+)	(nudge pad up)
+(handle @-)	(nudge pad down)
+(handle 0)	(now) (bar height 0)
 (handle 1)	(now) (bar height 1)
 (handle 2)	(now) (bar height 2)
 (handle 3)	(now) (bar height 3)
 (handle 4)	(now) (bar height 4)
+(handle 5)	(now) (bar height 5)
+(handle 6)	(now) (bar height 6)
+(handle 7)	(now) (bar height 7)
 (handle $)
 
 (next page)
@@ -423,6 +746,20 @@
 		(now) (current page $Prev)
 	(else)
 		(now) (current page $L)
+	(endif)
+
+(nudge pad up)
+	(probe pad $P)
+	(if) ($P < 8) (then)
+		($P plus 1 into $N)
+		(now) (probe pad $N)
+	(endif)
+
+(nudge pad down)
+	(probe pad $P)
+	(if) ($P > 0) (then)
+		($P minus 1 into $N)
+		(now) (probe pad $N)
 	(endif)
 
 %% Wrap-buffer aliasing probe.  Leaves a word pending in the middle of a text

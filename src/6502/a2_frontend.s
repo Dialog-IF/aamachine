@@ -106,7 +106,7 @@ PREXTRA		= 2
 PRSHIFT		= 0
 HAVE_QUIT	= 1
 HAVE_STATUS	= 1
-HAVE_STYLE	= 0
+HAVE_STYLE	= 0	; reverse alone is not enough to qualify
 SAVERESTORE	= 1
 UNDO		= 1
 
@@ -650,11 +650,13 @@ done
 
 io_mflush
 	.(
+	jsr	mstyle_enter
++io_mflush_nostyle
 	ldx	pendspc
 	beq	nospc
 spcloop
 	lda	#$a0
-	jsr	cout
+	jsr	coutwrap
 	dex
 	bne	spcloop
 
@@ -666,13 +668,57 @@ nospc
 loop
 	lda	wrapbuf,x
 	ora	#$80
-	jsr	cout
+	jsr	coutwrap
 	inx
 	cpx	wrappos
 	bne	loop
 done
 	lda	#0
 	sta	wrappos
+	jmp	mstyle_exit
+	.)
+
+coutwrap
+	; Emit one character of main window text
+	; and check to see if we wrapped or otherwise
+	; end up at column 0 (e.g. CR)
+	; If so, count the row:
+	; * inc nunread
+	; * inc ypos
+	; * check for [MORE] prompt
+	;
+	; Preserves x and y, as cout does.
+
+	.(
+	jsr	cout
+	jsr	curcol
+	bne	done
+	; the cursor is in the first column, so count the row.
+	; we have to save x/y on the stack in case of moreprompt recursion
+	txa
+	pha
+	tya
+	pha
+	; Update counters and check for [MORE]
+	ldx	cury
+	cpx	#23
+	bcs	nobump
+	inc	cury
+nobump
+	inc	nunread
+	lda	nunread
+	clc
+	adc	statush
+	cmp	#23
+	bcc	nomore
+	jsr	moreprompt
+nomore
+	; restore x and y from the stack
+	pla
+	tay
+	pla
+	tax
+done
 	rts
 	.)
 
@@ -702,15 +748,37 @@ io_mline_raw
 	lda	xpos
 	beq	docr	; nothing on this line at all, so
 			; this is a deliberate blank line
++io_mline_next
 	jsr	curcol
-	beq	done	; we filled the entire line and the
+	beq	atcol0	; we filled the entire line and the
 			; firmware wrapped by itself after
 			; the last column
 docr
 	lda	#$8d
-	jsr	cout
-done
-	jmp	io_mendline
+	jsr	coutwrap	; curcol is 0 after a CR,
+				; so this always counts the row
+atcol0
+	; falls through into io_mendline -- do not
+	; put anything between the two labels
+	.)
+
+io_mendline
+	; Line state shared by io_mline_raw and
+	; io_mfold. Does not count rows, though.
+	; That happens in coutwrap.
+	;
+	; Returns with a = 0, which io_mclear and
+	; io_restart both go on to store.
+
+	.(
+	lda	#0
+	sta	xpos
+	sta	pendspc
+
+	; wrappos is deliberately preserved --
+	; word-wrap path carries a pending word
+	; across the line break.
+	rts
 	.)
 
 io_mfold
@@ -724,44 +792,11 @@ io_mfold
 	; there is no line to end.
 
 	.(
-	jsr	curcol
-	beq	atcol0
-
-	lda	#$8d
-	jsr	cout
-atcol0
-	jsr	io_mendline
+	jsr	io_mline_next	; issue CR unless already at column 0
 	jsr	io_mflush	; the pending word lands
 				; on the new line, which
 	jsr	curcol		; is where xpos has to
 	sta	xpos		; pick up again
-	rts
-	.)
-
-io_mendline
-	; Line-break bookkeeping, shared by
-	; io_mline_raw and io_mfold.
-
-	.(
-	lda	#0
-	sta	xpos
-	sta	pendspc
-
-	; wrappos is deliberately preserved --
-	; word-wrap path carries a pending word
-	; across the line break.
-
-	ldx	cury
-	cpx	#23
-	bcs	nobump
-	inc	cury
-nobump
-	inc	nunread
-	lda	nunread
-	clc
-	adc	statush
-	cmp	#23
-	bcs	moreprompt
 	rts
 	.)
 
@@ -794,8 +829,8 @@ erase
 	dex
 	bne	erase
 
-	ldx	#1
-	stx	nunread		; we wanna see the bottom line at the top
+	ldx	#0
+	stx	nunread		; reset nunread counter
 	rts
 	.)
 
@@ -820,20 +855,16 @@ io_mclear
 	lda	nunread
 	beq	nomore
 
-	; do we need to issue a newline?
-	jsr	curcol
-	beq	atcol0
+	; do we need to issue a newline first?
+	jsr	io_mline_next	; may raise [MORE] on its own,
+	lda	nunread		; and if it did, nunread is 0
+	beq	nomore		; and a second prompt would be wrong
 
-	lda	#$8d
-	jsr	cout
-atcol0
+	; issue the [MORE]
 	jsr	moreprompt
 nomore
-	lda	#0
-	sta	nunread
-	sta	xpos
-	sta	pendspc
-	sta	wrappos
+	jsr	io_mendline
+	sta	wrappos		; A still has 0
 
 	jsr	clrwin		; clears the window
 				; only, so the status
@@ -850,9 +881,9 @@ nomore
 moretxt
 	.asc	"<...>",0
 
-; HAVE_STYLE=0 for this port
 io_mstyle
-	rts
+	; style bits are already in rstyle zp var in engine
+	jmp	io_mflush_nostyle
 
 ; TODO consider refactoring with sprogress?
 io_mprogress
@@ -1123,7 +1154,6 @@ io_getc
 
 	.(
 	jsr	io_mflush
-	; c64 clears this in both gets and getc
 	lda	#0
 	sta	nunread
 	jmp	getkey
@@ -1135,12 +1165,11 @@ io_gets
 	; output y = length
 
 	.(
-	jsr	io_mflush
-
 	ldy	#0
 loop
 	sty	f_temp2
-	jsr	getkey
+	; calls io_mflush and also resets nunread
+	jsr	io_getc
 	ldy	f_temp2
 
 	cmp	#13
@@ -1175,10 +1204,18 @@ backspace
 	jmp	loop
 done
 	sty	f_temp2
-	jsr	io_mline_raw
-	; c64 clears this in both gets and getc
+
+	; io_getc should have cleared nunread
+	; Otherwise a screen that is exactly full
+	; will issue [MORE]
+
+	jsr	io_mline_raw	; now, nunread is 1
+
+	; Clear it again afterwards
+	; in case we call io_mclear immediately
 	lda	#0
 	sta	nunread
+
 	ldy	f_temp2
 	rts
 	.)
@@ -1278,6 +1315,7 @@ cout
 	stx	coutx
 	sty	couty
 	ROMCALL(COUT)
++restore_coutxy
 	ldx	coutx
 	ldy	couty
 	rts
@@ -1289,9 +1327,7 @@ prbyte
 	stx	coutx
 	sty	couty
 	ROMCALL(PRBYTE)
-	ldx	coutx
-	ldy	couty
-	rts
+	jmp	restore_coutxy
 	.)
 #endif
 
@@ -1320,6 +1356,14 @@ gotoxy
 	ROMTAILCALL(VTAB)
 	.)
 
+mstyle_enter
+	.(
+	lda	`rstyle
+	lsr			; reverse style bit
+	bcc	set_inverse_rts
+	; fallthrough to set_inverse
+	.)
+
 set_inverse
 	.(
 	bit	col80
@@ -1327,12 +1371,14 @@ set_inverse
 
 	lda	#$3f
 	sta	INVFLG
++set_inverse_rts
 	rts
 firmware
 	lda	#$8f		; ctrl-O
 	jmp	cout
 	.)
 
+mstyle_exit
 set_normal
 	.(
 	bit	col80
@@ -1345,6 +1391,7 @@ firmware
 	lda	#$8e		; ctrl-N
 	jmp	cout
 	.)
+
 
 ; =====================================
 ; System
@@ -3011,10 +3058,9 @@ auxclrlp
 	dex
 	bne	auxclrlp
 
-	lda	#0
+	jsr	io_mendline
+	; A still has 0
 	sta	wrappos
-	sta	xpos
-	sta	pendspc
 	sta	statush
 	sta	stxoffs
 	sta	cury
@@ -3477,3 +3523,7 @@ prorwts2_init = * + $2000 - $800 + boothdrlen + himem_end - himem_start
 ; Make sure the engine fits in the language card area
 .assert himem_start == $d000, "A2_ENGINE_HIMEM: engine code must start at $d000"
 .assert himem_end <= $f800, "A2_ENGINE_HIMEM: engine code exceeds LC RAM"
+
+; Discourage programmers from expanding the resident code yet another 256 bytes
+.assert SAVEADDR <= $1a00, "HEY! The Apple II port is getting big! Either optimize some code (cool) or add $100 to this value (uncool)"
+
