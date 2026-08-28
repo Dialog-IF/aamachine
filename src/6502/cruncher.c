@@ -7,10 +7,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAXSIZE (20*1024)
+#define MAXSIZE (24*1024)
 
 #define TARGET_ADDR 0x1100
 #define DECR_ADDR 0x8000
+
+/* The decrunched image runs from TARGET_ADDR upwards and must stay clear of
+   the crunched data waiting at DECR_ADDR. */
+
+#define MAXPAYLOAD (DECR_ADDR - TARGET_ADDR)
 
 uint8_t data[MAXSIZE];
 int datasz;
@@ -50,7 +55,23 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 	datasz = fread(data, 1, MAXSIZE, f);
+	if(datasz == MAXSIZE && fgetc(f) != EOF) {
+		fprintf(stderr,
+			"%s: larger than the %d-byte payload buffer; "
+			"raise MAXSIZE in cruncher.c\n",
+			argv[1], MAXSIZE);
+		exit(1);
+	}
 	fclose(f);
+
+	if(datasz > MAXPAYLOAD) {
+		fprintf(stderr,
+			"%s: %d bytes decrunches to $%04x, past the crunched "
+			"data at $%04x; the payload must be at most %d bytes\n",
+			argv[1], datasz, TARGET_ADDR + datasz, DECR_ADDR,
+			MAXPAYLOAD);
+		exit(1);
+	}
 
 	for(i = 1; i <= datasz; i++) {
 		// We've already decrunched all data from i to datasz,
