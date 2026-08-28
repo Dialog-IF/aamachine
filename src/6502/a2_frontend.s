@@ -106,7 +106,7 @@ PREXTRA		= 2
 PRSHIFT		= 0
 HAVE_QUIT	= 1
 HAVE_STATUS	= 1
-HAVE_STYLE	= 1
+HAVE_STYLE	= 0	; reverse alone is not enough to qualify
 SAVERESTORE	= 1
 UNDO		= 1
 
