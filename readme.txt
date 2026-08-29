@@ -152,6 +152,8 @@ Release notes:
 
 		6502 engine: Fixed blank lines when printing long words.
 
+		C64 interpreter: Added "reverse" (red) styling
+
 		C64 interpreter: Added five glyphs (A with Acute, N with
 		Tilde, Hyphen, Ellipsis, NNBSP)
 
