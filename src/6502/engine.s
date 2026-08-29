@@ -10197,6 +10197,30 @@ nofixed
 	jmp	attrsloop
 noffamily
 	dey
+	bne noifrev
+
+	ldy #cssparam_reverse
+	jsr css_check_param
+	bcc noreverse
+
+	ldy	#STY_STYON
+	lda	(phytmp),y
+	ora	#1
+	sta	(phytmp),y
+	jmp	attrsloop
+noreverse
+	ldy #cssparam_normal
+	jsr css_check_param
+	bcc nounreverse
+
+	ldy	#STY_STYOFF
+	lda	(phytmp),y
+	ora	#1
+	sta	(phytmp),y
+nounreverse
+	jmp	attrsloop
+noifrev
+	dey
 	bne	nomtop
 
 	jsr	css_abs_rel
@@ -10412,6 +10436,7 @@ csskeywords
 	.byt	"font-style",0
 	.byt	"font-weight",0
 	.byt	"font-family",0
+	.byt	"-iftf-reverse-video",0
 	.byt	"margin-top",0
 	.byt	"margin-bottom",0
 
@@ -10428,6 +10453,10 @@ cssparam_normal	= * - cssparams
 	.byt	"normal",0
 cssparam_bold	= * - cssparams
 	.byt	"bold",0
+cssparam_reverse	= * - cssparams
+	.byt	"reverse",0
+cssparam_none	= * - cssparams
+	.byt	"none",0
 
 css_monospace
 	.byt	"monospace"
