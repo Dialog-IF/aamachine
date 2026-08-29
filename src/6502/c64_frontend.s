@@ -507,22 +507,28 @@ done
 
 io_mstyle
 	; input a = style bits
+	; 1 reverse, 2 bold, 4 italic
+	; Or on C64:
+	; 1 red, 2 lighter, 4 blue
 
 	.(
 	pha
 	jsr	io_mflush
 	pla
-	lsr
-	and	#3
+	and	#7
 	tax
 	lda	palette,x
 	sta	currfg
 	rts
 palette
-	.byt	$0	; normal
-	.byt	$b	; bold
-	.byt	$6	; italic
-	.byt	$e	; italic bold
+	.byt	$0	; normal = black
+	.byt	$2	; reverse = red
+	.byt	$b	; bold = dark gray
+	.byt	$8	; bold reverse = orange (light + red)
+	.byt	$6	; italic = blue
+	.byt	$4	; italic reverse = purple (blue + red)
+	.byt	$e	; italic bold = light blue (blue + light)
+	.byt	$a	; italic bold reverse = pink (blue + light + red)
 	.)
 
 io_mprogress
