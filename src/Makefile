@@ -54,7 +54,8 @@ aambundle: aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c \
 	table_engine.h \
 	table_front.h \
 	table_jquery.h \
-	table_play.h
+	table_play.h \
+	tables_6502font.h
 	${CC} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c
 
 aamrun.linux:	js/nodefrontend.js js/engine.js
@@ -86,8 +87,12 @@ aambundle.exe: aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c \
 	table_engine.h \
 	table_front.h \
 	table_jquery.h \
-	table_play.h
+	table_play.h \
+	tables_6502font.h
 	${MINGW32} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c
+
+tables_6502font.h:	6502/fontdef.txt mkfontdata
+			./mkfontdata <6502/fontdef.txt >tables_6502font.h
 
 table_a2terp.h:		6502 6502/a2.system mkheader
 			./mkheader table_a2terp <6502/a2.system >$@

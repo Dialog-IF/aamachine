@@ -63,7 +63,7 @@ static int name_from_filename(char *storyname, int storynamesize) {
 	return snamelen;
 }
 
-void visit_chunks(char *storyname, int storynamesize, file_visitor_t file_visitor) {
+void visit_chunks(char *storyname, int storynamesize, chunk_visitor_t chunk_visitor) {
 	uint32_t pos = 12, size;
 	uint8_t *chunk;
 	char head[5], ch;
@@ -93,10 +93,10 @@ void visit_chunks(char *storyname, int storynamesize, file_visitor_t file_visito
 					while(*chunk++);
 				}
 			}
-		} else if(!strcmp(head, "FILE")) {
-			if(file_visitor) {
-				file_visitor(dirname, chunk, size);
-			}
+		}
+		
+		if(chunk_visitor) { // Backend-specific chunk handling
+			chunk_visitor(head, dirname, chunk, size);
 		}
 		pos += (8 + size + 1) & ~1;
 	}
@@ -106,6 +106,55 @@ void visit_chunks(char *storyname, int storynamesize, file_visitor_t file_visito
 	}
 	if(!snamelen) {
 		snprintf(storyname, storynamesize, "story");
+	}
+}
+
+static uint8_t unicode_buffer[5];
+uint8_t *unicode_to_utf8(const uint32_t ch) { // Encodes a single Unicode character to a UTF-8 string for printing
+	uint8_t *dest = unicode_buffer;
+	if(ch < 0x80) {
+		*dest++ = ch;
+		*dest = 0;
+	} else if(ch < 0x800) {
+		*dest++ = 0xc0 |  (ch >>  6); // 11000000
+		*dest++ = 0x80 | ((ch >>  0) & 0x3f);
+		*dest = 0;
+	} else if(ch < 0x10000) {
+		*dest++ = 0xe0 |  (ch >> 12); // 11100000
+		*dest++ = 0x80 | ((ch >>  6) & 0x3f);
+		*dest++ = 0x80 | ((ch >>  0) & 0x3f);
+		*dest = 0;
+	} else if(ch < 0x110000) {
+		*dest++ = 0xf0 |  (ch >> 18); // 11110000
+		*dest++ = 0x80 | ((ch >> 12) & 0x3f);
+		*dest++ = 0x80 | ((ch >>  6) & 0x3f);
+		*dest++ = 0x80 | ((ch >>  0) & 0x3f);
+		*dest = 0;
+	}
+	return unicode_buffer;
+}
+
+// This expects to be passed the DICT and LANG chunks
+void warn_about_nonascii(uint8_t *dict, uint32_t dictsize, uint8_t *lang, uint32_t langsize) {
+	uint32_t offset = (dict[0] << 8) | dict[1];
+	// offset now contains the number of dict words
+	offset = 10 + (3 * offset); // each word: 0 length 1-2 start of characters
+	uint32_t exttable = (lang[2] << 8) | lang[3];
+	exttable++; // Skip past number of extended characters
+	uint32_t unichar;
+	uint8_t aachar;
+	for(uint32_t i = offset; i < dictsize; i++) {
+		if(dict[i] > 0x7f) {
+			// We need to figure out what this character actually *is* to report it
+			aachar = dict[i];
+			aachar &= 0x7f;
+			unichar = (
+				(lang[exttable+5*aachar+2] << 16) |
+				(lang[exttable+5*aachar+3] << 8) |
+				(lang[exttable+5*aachar+4])
+			);
+			fprintf(stderr, "Warning: Extended character %d (%s, U+%04x) found in dictionary. This character will not be recognized in user input.\n", dict[i], unicode_to_utf8(unichar), unichar);
+		}
 	}
 }
 

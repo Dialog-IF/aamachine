@@ -11,6 +11,7 @@
 #include "table_a2sboot.h"
 #include "table_a2license.h"
 #include "table_a2terp.h"
+#include "tables_6502font.h"
 
 /* Apple II bundling.
  *
@@ -492,6 +493,51 @@ static int build_disk(char *dirname, const char *leaf, const char *volname, int 
 	return 0;
 }
 
+static inline int does_font_have_translit(uint32_t unicode) {
+	for(const uint32_t *pointer = unicode_has_translit; *pointer; pointer++) {
+		if(*pointer == unicode) return 1;
+	}
+	return 0;
+}
+
+void check_font_has_translit(uint8_t *lang, uint32_t size) { // Expects the LANG chunk
+	uint32_t exttable = (lang[2] << 8) | lang[3];
+	uint8_t n_ext = lang[exttable++];
+	uint32_t unichar;
+	for(uint8_t i=0; i<n_ext; i++) {
+		unichar = (
+			(lang[exttable+5*i+2] << 16) |
+			(lang[exttable+5*i+3] << 8) |
+			(lang[exttable+5*i+4])
+		);
+		if(!does_font_have_translit(unichar)) {
+			fprintf(stderr, "Warning: Extended character %d (%s, U+%04x) has no Apple II transliteration. It will display as '?'.\n", 0x80|i, unicode_to_utf8(unichar), unichar);
+		}
+	}
+}
+
+static uint8_t *langchunk;
+static uint32_t langsize;
+static uint8_t *dictchunk;
+static uint32_t dictsize;
+
+void apple2_chunk_visitor(char *head, char *dirname, uint8_t *chunk, uint32_t size) {
+	if(!strcmp(head, "LANG")) {
+		langchunk = chunk;
+		langsize = size;
+		check_font_has_translit(chunk, size);
+	} else if(!strcmp(head, "DICT")) {
+		dictchunk = chunk;
+		dictsize = size;
+	} else {
+		return;
+	}
+	
+	if(langchunk && dictchunk) {
+		warn_about_nonascii(dictchunk, dictsize, langchunk, langsize);
+	}
+}
+
 /* ---------------------------------------------------------------- readme */
 
 enum {
@@ -819,7 +865,7 @@ void bundle_apple2(char *dirname) {
 	uint32_t paddedsize;
 	int mode;
 
-	visit_chunks(storyname, sizeof(storyname), 0);
+	visit_chunks(storyname, sizeof(storyname), apple2_chunk_visitor);
 	trim_chunks(1);
 
 	writefile(dirname, "AAM.SYSTEM", table_a2terp, sizeof(table_a2terp));
