@@ -10209,7 +10209,7 @@ noffamily
 	sta	(phytmp),y
 	jmp	attrsloop
 noreverse
-	ldy #cssparam_normal
+	ldy #cssparam_none
 	jsr css_check_param
 	bcc nounreverse
 
