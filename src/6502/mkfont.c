@@ -270,8 +270,7 @@ int main(int argc, char **argv) {
 				exit(1);
 			}
 			if (glyph >= 0x80 && !e->translit[0]) {
-				fprintf(stderr, "U+%04X: missing transliteration\n", e->glyph);
-				exit(1);
+				fprintf(stderr, "Warning: U+%04X: missing transliteration\n", e->glyph);
 			}
 		} else if((buf[0] == '.' || buf[0] == '#') && e && y < 8) {
 			for(x = 0; x < 8; x++) {
