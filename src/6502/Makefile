@@ -36,6 +36,9 @@ c64_frontend.bin:	c64_frontend.s engine.s font.bin | check_xa
 font.bin:		fontdef.txt mkfont
 			./mkfont <$< >$@
 
+translit.s:		fontdef.txt mkfont
+			./mkfont -t $@ <$<
+
 c64_drivecode.bin:	c64_drivecode.s | check_xa
 			xa -o $@ $<
 
@@ -57,7 +60,7 @@ a2_sboot.bin:		a2_sboot.s a2.system | check_xa
 a2_prorwts2.bin:	a2_prorwts2.acme a2_frontend.bin | check_acme
 			acme -DPRORWTS_ORG=$$(($$(wc -c < a2_frontend.bin) + 8192)) -l a2_prorwts2.sym -r a2_prorwts2.rpt $<
 
-a2_frontend.bin:	a2_frontend.s engine.s | check_xa
+a2_frontend.bin:	a2_frontend.s engine.s translit.s | check_xa
 			xa -l a2.labels -P a2_frontend.lst -o $@ $< -DPRODOS=0 -DPRORWTS=1 -DVERSION=\"$(VERSION)\"
 
 a2.system:		a2_frontend.bin a2_prorwts2.bin

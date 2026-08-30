@@ -43,15 +43,18 @@ codepoints.aastory: codepoints.dg
 #   make disks && x64sc -truedrive codepoints/Codepoint-Exercise.d64
 #   make disks && ~/bin/izconsole codepoints/Codepoint-Exercise.dsk
 #
-# Page 1-4  the transliteration table, one codepoint per line
-# Page 5    the Z-machine fallback set in running text
-# Page 6    line breaking: a run that breaks ends lines in 'aa', one that
+# Page 1-6  the transliteration table, one codepoint per line.  Generated
+#           from src/6502/fontdef.txt -- every codepoint with a translit
+#           there appears exactly once here, and pages 9 and 11 must hold
+#           none of them
+# Page 7    the Z-machine fallback set in running text
+# Page 8    line breaking: a run that breaks ends lines in 'aa', one that
 #           holds ends every line in 'bb'
 #	    (the runs exceed 80 columns, so `make test` exercises them at
 #	     the automated backends' width too; real hardware adds nothing
-#	     for this page but is still needed for pages 1-5 and 7)
-# Page 7    negative control, every line should be the unknown-char glyph
-# Page 10   [MORE] accounting across a line-input prompt.  The window is filled
+#	     for this page but is still needed for pages 1-7 and 9)
+# Page 9    negative control, every line should be the unknown-char glyph
+# Page 12   [MORE] accounting across a line-input prompt.  The window is filled
 #           to exactly one line short of the pagination limit and then a line
 #           of input is read. Pressing RETURN there must not raise [MORE], and
 #           neither may the (clear all) that follows it.

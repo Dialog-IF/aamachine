@@ -2906,6 +2906,11 @@ found
 	adc	#0
 	sta	stline+1
 put
+	; bail out if more then 128 extended characters in story
+	lda	mod_putdest+2
+	cmp	#$10
+	bcs	done
+
 	ldy	#7
 putloop
 	lda	(stline),y
