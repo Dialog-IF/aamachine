@@ -13,10 +13,6 @@ needs to read it: it stops at the closing quote, or treats a leading `;` as
 script refuses to write any annotated line that would not fit (max is 63
 bytes including the newline).
 
-C0 control rows (U+0000, U+0009, U+0019..U+001F) have no Unicode name in
-unicodedata and must not get a raw control byte embedded in the file, so they
-get a name-only annotation: `; U+001B ESCAPE`.
-
 Bytes: the file gains no BOM and is written back UTF-8; its syntax-level
 content stays pure ASCII, which is exactly what the C parser scans.
 
@@ -24,27 +20,10 @@ Idempotent: re-running leaves lines that already carry the annotation alone.
 """
 import argparse, os, re, sys, tempfile, unicodedata
 
-# Official Unicode names for the C0 controls present in this font; unicodedata
-# returns nothing usable for chr(0)..chr(0x1f).
-C0_NAMES = {
-    0x00: "NULL",
-    0x09: "CHARACTER TABULATION",
-    0x19: "END OF MEDIUM",
-    0x1A: "SUBSTITUTE",
-    0x1B: "ESCAPE",
-    0x1C: "FILE SEPARATOR",
-    0x1D: "GROUP SEPARATOR",
-    0x1E: "RECORD SEPARATOR",
-    0x1F: "UNIT SEPARATOR",
-}
-
 MAXLINE = 63  # mkfont.c reads lines with fgets(buf, 64, stdin)
-
 
 def annotation_for(cp):
     """Return the text to append (leading space included), or None unmappable."""
-    if cp in C0_NAMES:
-        return f" ; U+{cp:04X} {C0_NAMES[cp]}"
     try:
         name = unicodedata.name(chr(cp))
     except ValueError:
@@ -115,7 +94,7 @@ def main():
 
     changed, skipped, missing = update_fontdef(args.fontdef, args.check)
     print(f"{args.fontdef}: {changed} line(s) annotated, {skipped} already done, "
-          f"{missing} unnameable" + (" [check only, no changes]" if args.check else ""))
+          f"{missing} skipped" + (" [check only, no changes]" if args.check else ""))
 
 
 if __name__ == "__main__":

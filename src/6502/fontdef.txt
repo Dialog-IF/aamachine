@@ -9,7 +9,7 @@
 .######.
 ........
 
-+0009 ; U+0009 CHARACTER TABULATION
++0009 ; U+0009 AA-MACHINE LOGO
 
 ..####..
 .##..##.
@@ -20,7 +20,7 @@
 .##..##.
 ........
 
-+0019 ; U+0019 END OF MEDIUM
++0019 ; U+0019 PROGRESS BAR START
 
 ........
 .......#
@@ -31,7 +31,7 @@
 .......#
 ........
 
-+001a ; U+001A SUBSTITUTE
++001a ; U+001A PROGRESS BAR END
 
 ........
 #.......
@@ -42,7 +42,7 @@
 #.......
 ........
 
-+001b ; U+001B ESCAPE
++001b ; U+001B PROGRESS BAR 0/4
 
 ........
 ########
@@ -53,7 +53,7 @@
 ########
 ........
 
-+001c ; U+001C FILE SEPARATOR
++001c ; U+001C PROGRESS BAR 1/4
 
 ........
 ########
@@ -64,7 +64,7 @@
 ########
 ........
 
-+001d ; U+001D GROUP SEPARATOR
++001d ; U+001D PROGRESS BAR 2/4
 
 ........
 ########
@@ -75,7 +75,7 @@
 ########
 ........
 
-+001e ; U+001E RECORD SEPARATOR
++001e ; U+001E PROGRESS BAR 3/4
 
 ........
 ########
@@ -87,7 +87,7 @@
 ........
 
 
-+001f ; U+001F UNIT SEPARATOR
++001f ; U+001F PROGRESS BAR 4/4
 
 ........
 ########
