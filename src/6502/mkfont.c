@@ -6,7 +6,7 @@
 
 struct entry {
 	uint32_t	glyph;
-	int		nrow;
+	int		nrow;	// 0 = no glyph, 8 = glyph
 	uint8_t		row[8];
 	char		translit[3];
 };
@@ -272,9 +272,9 @@ int main(int argc, char **argv) {
 			if (glyph >= 0x80 && !e->translit[0]) {
 				fprintf(stderr, "Warning: U+%04X: missing transliteration\n", e->glyph);
 			}
-		} else if((buf[0] == '.' || buf[0] == '#') && e && y < 8) {
+		} else if((buf[0] == '.' || buf[0] == '#') && e) {
 			for(x = 0; x < 8; x++) {
-				if(buf[x] == '#') {
+				if(buf[x] == '#' && y < 8) {
 					e->row[y] |= 0x80 >> x;
 				}
 			}
@@ -327,6 +327,11 @@ int main(int argc, char **argv) {
 
 	for(i = 0; i < nentry; i++) {
 		e = &entries[i];
+		if(e->nrow && e->nrow != 8) {
+			fprintf(stderr, "U+%04X should have exactly 8 rows "
+				"if a glyph is present", e->glyph);
+			return 1;
+		}
 		if(e->glyph >= 128 && e->nrow) {
 			if(e->glyph > 0xffff) {
 				fprintf(stderr, "U+%04X is outside the BMP, "
