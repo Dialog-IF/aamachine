@@ -1,5 +1,8 @@
-DIALOGC=../../../Dialog/src/dialogc
+DIALOGC ?= dialogc
 AAMBUNDLE=../../src/aambundle
+
+$(AAMBUNDLE):
+	$(MAKE) -C ../../src aambundle
 
 sourcefiles = familiar.dg world.dg interface.dg markov.dg soliloquy.dg nudge.dg automap.dg actions.dg
 files = $(sourcefiles) stdlib.dg
@@ -12,7 +15,7 @@ test: web
 $(outname).aastory: $(files) hints.html
 	$(DIALOGC) -vv -t aa -o familiar.aastory $(files)
 
-web: $(outname).aastory
+web: $(outname).aastory $(AAMBUNDLE)
 	rm -rf web
 	$(AAMBUNDLE) -o web $(outname).aastory
 	mv web/play.html web/index.html

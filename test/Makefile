@@ -1,22 +1,33 @@
-all: test clean
+## Tests:
+##   gosling         - 0.x file using 67 ENTER_STATUS_0 and E7 LEAVE_STATUS
+##   body_not_status - 1.x file using 67 BODY_STYLE and EF LEAVE_STATUS
+##   impossible      - whatever the latest version of Dialog produces (update periodically)
+##   codepoints      - Character set and status bar exercise; source is in the directory
 
+TESTDIRS = gosling body_not_status impossible codepoints
+
+TESTS  = $(addprefix test-,$(TESTDIRS))
+CLEANS = $(addprefix clean-,$(TESTDIRS))
+
+# Transcripts (.out files) are left in place so a second `make` only re-diffs;
+# `make clean` (or deleting the .out files) forces a full re-run.
+all: test
+
+test: $(TESTS)
+
+# Static pattern rules (not plain pattern rules): the targets are named
+# explicitly, so they can be declared .PHONY without make refusing to apply
+# the rule -- implicit-rule search is skipped for phony targets.
+$(TESTS): test-%:
+	$(MAKE) -C $* test
+
+# Tests for Apple II interpreter (not run by make test)
 apple2:
 	$(MAKE) -C apple2 test
 
-test:
-	## This one is a 0.x file using 67 ENTER_STATUS_0 and E7 LEAVE_STATUS
-	make -C gosling test
-	## This one is a 1.x file using 67 BODY_STYLE and EF LEAVE_STATUS
-	make -C body_not_status test
-	## This one is whatever the latest version of Dialog produces (update periodically)
-	make -C impossible test
-	## Character set and status bar exercise; source is in the directory
-	make -C codepoints test
+clean: $(CLEANS)
 
-clean:
-	$(MAKE) -C gosling clean
-	$(MAKE) -C body_not_status clean
-	$(MAKE) -C impossible clean
-	$(MAKE) -C codepoints clean
+$(CLEANS): clean-%:
+	$(MAKE) -C $* clean
 
-.PHONY: all test apple2 clean
+.PHONY: all test apple2 clean $(TESTS) $(CLEANS)

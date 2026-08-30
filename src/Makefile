@@ -9,12 +9,23 @@ endif
 MINGW32		= i686-w64-mingw32-gcc
 INSTALLDIR	= /usr/local/bin
 
-all: aamshow aambundle
-
-windows: aamrun.exe aamshow.exe aambundle.exe
+# The C tools embed binary blobs produced by the 6502 sub-make (table_*.h).
+# GNU make caches a file's timestamp before it runs a sub-make, so a single
+# pass cannot tell whether the sub-make actually refreshed a blob.  Build the
+# 6502 side first, then re-enter make: the second pass stats the blobs fresh
+# and regenerates only the headers that really changed.
+all: 6502
+	$(MAKE) tools
 
 6502:
 	$(MAKE) -C 6502
+
+tools: aamshow aambundle
+
+windows: 6502
+	$(MAKE) windows-tools
+
+windows-tools: aamrun.exe aamshow.exe aambundle.exe
 
 tidy:
 	rm -f *.o
@@ -23,7 +34,7 @@ clean: tidy
 	rm -f aamshow aambundle aamrun aamshow.exe aambundle.exe aamrun.exe
 	$(MAKE) -C 6502 clean
 
-install: aamshow aambundle
+install: all
 	cp aamshow $(INSTALLDIR)
 	cp aambundle $(INSTALLDIR)
 
@@ -91,31 +102,34 @@ aambundle.exe: aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c \
 	tables_6502font.h
 	${MINGW32} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c
 
+mkheader: mkheader.c
+	${CC} ${CFLAGS} -o $@ mkheader.c
+
 tables_6502font.h:	6502/fontdef.txt mkfontdata
 			./mkfontdata <6502/fontdef.txt >tables_6502font.h
 
-table_a2terp.h:		6502 6502/a2.system mkheader
+table_a2terp.h:		6502/a2.system mkheader
 			./mkheader table_a2terp <6502/a2.system >$@
 
-table_a20boot.h:	6502 6502/a2_0boot.bin mkheader
+table_a20boot.h:	6502/a2_0boot.bin mkheader
 			./mkheader table_a20boot <6502/a2_0boot.bin >$@
 
-table_a2sboot.h:	6502 6502/a2_sboot.bin mkheader
+table_a2sboot.h:	6502/a2_sboot.bin mkheader
 			./mkheader table_a2sboot <6502/a2_sboot.bin >$@
 
-table_a2license.h:	6502 6502/license.txt 6502/a2_thirdparty_license.txt mkheader
+table_a2license.h:	6502/license.txt 6502/a2_thirdparty_license.txt mkheader
 			cat 6502/license.txt 6502/a2_thirdparty_license.txt | ./mkheader table_a2license >$@
 
-table_c64license.h:	6502 6502/license.txt mkheader
+table_c64license.h:	6502/license.txt mkheader
 			./mkheader table_c64license <6502/license.txt >$@
 
-table_c64drive.h:	6502 6502/c64_drivecode.bin mkheader
+table_c64drive.h:	6502/c64_drivecode.bin mkheader
 			./mkheader table_c64drive <6502/c64_drivecode.bin >$@
 
-table_c64load.h:	6502 6502/c64_loader.prg mkheader
+table_c64load.h:	6502/c64_loader.prg mkheader
 			./mkheader table_c64load <6502/c64_loader.prg >$@
 
-table_c64terp.h:	6502 6502/c64_crunched.bin mkheader
+table_c64terp.h:	6502/c64_crunched.bin mkheader
 			./mkheader table_c64terp <6502/c64_crunched.bin >$@
 
 table_weblicense.h:	js/license.txt mkheader
@@ -136,4 +150,4 @@ table_jquery.h:		js/jquery-3.4.1.min.js mkheader
 table_play.h:		js/webfrontend.html mkheader
 			./mkheader table_play <$< >$@
 
-.PHONY:	all clean tidy install uninstall distclean windows 6502
+.PHONY:	all tools windows windows-tools clean tidy install uninstall distclean 6502
