@@ -64,6 +64,9 @@ void parse_translit(struct entry *e, const char *s) {
 
 	while(*s == '+' || isxdigit((uint8_t) *s)) s++;
 	while(*s == ' ' || *s == '\t') s++;
+	if(*s == ';') {		// annotation comment, e.g. `; é LATIN SMALL LETTER E WITH ACUTE`
+		return;
+	}
 	if(*s != '"') {
 		if(*s && *s != '\n' && *s != '\r') {
 			fprintf(stderr, "U+%04X: expected a quoted transliteration\n", e->glyph);
