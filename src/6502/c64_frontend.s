@@ -522,13 +522,13 @@ io_mstyle
 	rts
 palette
 	.byt	$0	; normal = black
-	.byt	$2	; reverse = red
-	.byt	$b	; bold = dark gray
-	.byt	$a	; bold reverse = pink (light + red)
-	.byt	$6	; italic = blue
-	.byt	$8	; italic reverse = orange (blue + red)
-	.byt	$e	; italic bold = light blue (blue + light)
-	.byt	$4	; italic bold reverse = purple (blue + light + red)
+	.byt	$8	; reverse = orange (warm)
+	.byt	$b	; bold = dark gray (light)
+	.byt	$7	; bold reverse = yellow (light + warm)
+	.byt	$6	; italic = blue (saturated)
+	.byt	$2	; italic reverse = red (warm + saturated)
+	.byt	$e	; italic bold = light blue (saturated + light)
+	.byt	$a	; italic bold reverse = pink (warm + saturated + light)
 	.)
 
 io_mprogress
