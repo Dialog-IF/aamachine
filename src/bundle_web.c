@@ -50,6 +50,12 @@ void file_visitor(char *dirname, uint8_t *chunk, uint32_t size) {
 	fclose(f);
 }
 
+void web_chunk_visitor(char *head, char *dirname, uint8_t *chunk, uint32_t size) {
+	if(!strcmp(head, "FILE")) {
+		file_visitor(dirname, chunk, size);
+	}
+}
+
 void bundle_web(char *dirname) {
 	char *filename;
 	int fnsize, i;
@@ -78,7 +84,7 @@ void bundle_web(char *dirname) {
 		fclose(outf);
 	}
 
-	visit_chunks(storyname, sizeof(storyname), file_visitor);
+	visit_chunks(storyname, sizeof(storyname), web_chunk_visitor);
 
 	snprintf(filename, fnsize, "%s/resources/%s.aastory", dirname, storyname);
 	if(!(outf = fopen(filename, "wb"))) {
