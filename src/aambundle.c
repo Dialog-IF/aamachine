@@ -134,26 +134,51 @@ uint8_t *unicode_to_utf8(const uint32_t ch) { // Encodes a single Unicode charac
 	return unicode_buffer;
 }
 
+static char dictionary_word_buffer[256]; // Maximum length of a dictionary word, plus terminator
+char* print_n_characters_from(uint8_t *chunk, uint32_t offset, uint8_t number) {
+	for(uint8_t i=0; i<number; i++) {
+		if(chunk[offset+i] > 0x7f) {
+			dictionary_word_buffer[i] = 'X';
+		} else {
+			dictionary_word_buffer[i] = chunk[offset+i];
+		}
+	}
+	dictionary_word_buffer[number] = 0;
+	return dictionary_word_buffer;
+}
+
 // This expects to be passed the DICT and LANG chunks
 void warn_about_nonascii(uint8_t *dict, uint32_t dictsize, uint8_t *lang, uint32_t langsize) {
-	uint32_t offset = (dict[0] << 8) | dict[1];
-	// offset now contains the number of dict words
-	offset = 10 + (3 * offset); // each word: 0 length 1-2 start of characters
+	uint16_t nword = (dict[0] << 8) | dict[1];
+	uint32_t wordstart; // Offset in chunk
+	uint8_t wordlength;
+	uint32_t pointer;
 	uint32_t exttable = (lang[2] << 8) | lang[3];
 	exttable++; // Skip past number of extended characters
 	uint32_t unichar;
 	uint8_t aachar;
-	for(uint32_t i = offset; i < dictsize; i++) {
-		if(dict[i] > 0x7f) {
-			// We need to figure out what this character actually *is* to report it
-			aachar = dict[i];
-			aachar &= 0x7f;
-			unichar = (
-				(lang[exttable+5*aachar+2] << 16) |
-				(lang[exttable+5*aachar+3] << 8) |
-				(lang[exttable+5*aachar+4])
-			);
-			fprintf(stderr, "Warning: Extended character %d (%s, U+%04x) found in dictionary. This character will not be recognized in user input.\n", dict[i], unicode_to_utf8(unichar), unichar);
+	
+	for(uint16_t i = 0; i < nword; i++) {
+		pointer = 2 + 3*i; // 2 bytes for number of words, then each word is 1 byte length, 2 bytes starting position
+		wordlength = dict[pointer];
+		wordstart = (dict[pointer+1] << 8) | dict[pointer+2];
+		
+		for(uint32_t j = wordstart; j < wordstart+wordlength; j++) {
+			if(dict[j] > 0x7f) { // Problem!
+				// We need to figure out what this character actually *is* to report it
+				aachar = dict[j] & 0x7f;
+				unichar = (
+					(lang[exttable+5*aachar+2] << 16) |
+					(lang[exttable+5*aachar+3] << 8) |
+					(lang[exttable+5*aachar+4])
+				);
+				fprintf(stderr, "Warning: Extended character %d (%s, U+%04x) found in dictionary word '%s'. This word will not be recognized in user input.\n",
+					dict[j],
+					unicode_to_utf8(unichar),
+					unichar,
+					print_n_characters_from(dict, wordstart, wordlength)
+				);
+			}
 		}
 	}
 }
