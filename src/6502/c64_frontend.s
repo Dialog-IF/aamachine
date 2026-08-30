@@ -524,11 +524,11 @@ palette
 	.byt	$0	; normal = black
 	.byt	$2	; reverse = red
 	.byt	$b	; bold = dark gray
-	.byt	$8	; bold reverse = orange (light + red)
+	.byt	$a	; bold reverse = pink (light + red)
 	.byt	$6	; italic = blue
-	.byt	$4	; italic reverse = purple (blue + red)
+	.byt	$8	; italic reverse = orange (blue + red)
 	.byt	$e	; italic bold = light blue (blue + light)
-	.byt	$a	; italic bold reverse = pink (blue + light + red)
+	.byt	$4	; italic bold reverse = purple (blue + light + red)
 	.)
 
 io_mprogress

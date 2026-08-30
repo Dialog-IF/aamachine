@@ -804,7 +804,6 @@ and the word at heap address 2 will be fetched and used instead.
 <<opcodes,Semantics below.>>
 
 * 0x: Execution flow
-
 * 1x: Live data manipulation, stoppable environments
 * 2x: Random access data manipulation
 * 3x: Conditional branches
