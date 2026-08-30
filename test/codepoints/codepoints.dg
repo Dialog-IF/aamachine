@@ -6,12 +6,14 @@
 %%
 %%   * Word wrapping behavior -- different on every implementation.
 %%
-%%   * Every codepoint the 8-bit backends claim to handle.  The C64 draws
-%%     these from a custom font; the Apple II has no custom font in text mode
-%%     and transliterates them to ASCII through the table at the bottom of
-%%     src/6502/a2_frontend.s.  Page 6 is a negative control: those codepoints
-%%     are in neither backend and should come out as the interpreter's
-%%     "unknown character" glyph ('?' on the Apple II, a solid box on the C64).
+%%   * Every codepoint the 8-bit backends claim to handle, on pages 1-6.
+%%     Both backends are driven by src/6502/fontdef.txt -- the C64 draws the
+%%     glyphs mkfont packs into font.bin, and the Apple II, which has no
+%%     custom font in text mode, transliterates through the table mkfont
+%%     writes to src/6502/translit.s.  Page 9 is a negative control: those
+%%     codepoints are in neither backend and should come out as the
+%%     interpreter's "unknown character" glyph ('?' on the Apple II, a solid
+%%     box on the C64).
 %%
 %%   * Status-bar edge cases: extended characters in row 0 (which goes
 %%     through the buffered wrapbuf/io_scommit path instead of cout), a row 0
@@ -24,7 +26,7 @@
 %%     flushed.  Row 0 of the status bar shares its buffer with the pending
 %%     word, so a stale or doubled word here means aliasing trouble.
 %%
-%% Page 8    fold straddling: two-character expansions split across a hard
+%% Page 10   fold straddling: two-character expansions split across a hard
 %%           fold must lose nothing (39-padded lines target 40 columns,
 %%           79-padded lines target 80), overlong words made of expanding
 %%           characters must hard-fold cleanly, transliterated spaces
@@ -32,12 +34,12 @@
 %%           paragraphs that fill the screen exactly -- notably right after
 %%           an em dash expansion -- must not leave a spurious blank line
 %%           (the firmware wraps by itself after the last column)
-%% Page 9    negative control 2, consecutive unknown codepoints: each must
+%% Page 11   negative control 2, consecutive unknown codepoints: each must
 %%           become its own unknown-character glyph
-%% Page 10   [MORE] accounting across a line-input prompt: the only page that
+%% Page 12   [MORE] accounting across a line-input prompt: the only page that
 %%           reads a line instead of a key, filling the window to exactly one
 %%           line short of the pagination limit first
-%% Page 11   every declaration engine.s's CSS parser understands.  Its
+%% Page 13   every declaration engine.s's CSS parser understands.  Its
 %%           keyword table (csskeywords, src/6502/engine.s) holds exactly
 %%           eight -- width, height, float, font-style, font-weight,
 %%           font-family, margin-top, margin-bottom -- and skips anything
@@ -106,7 +108,7 @@
 %% -- op_en_lv_div tests stflag before it looks at STY_FLAGS at all -- so all
 %% three float classes live in the bar.  @leftcol is the only STYF_FLOATL
 %% user in the suite, and @pctcol is the only relative width, resolved
-%% against the full bar width at run time; both are drawn only on page 10,
+%% against the full bar width at run time; both are drawn only on page 12,
 %% nested inside the same bar as @rightcol so the float stack has to push and
 %% pop stleft/stendx/stfullw more than once.
 
@@ -127,7 +129,7 @@
 %% and oblique both set bit 2, bold sets bit 1, and font-family sets bit 3
 %% only if the value contains the word 'monospace'.  'normal' is the only
 %% value that goes into STY_STYOFF, which is what makes the nested cases on
-%% page 10 worth having: the inner class has to clear one bit and leave the
+%% page 13 worth having: the inner class has to clear one bit and leave the
 %% other alone.
 %%
 %% None of this is visible to the automated backends (aambox and the node
@@ -170,7 +172,7 @@
 (style class @propfont)
 	font-family: Georgia, serif;
 
-%% Margins are the one part of page 10 the automated backends do render, as
+%% Margins are the one part of page 12 the automated backends do render, as
 %% blank lines.  The two engines get there by different routes: the node
 %% frontend reads margin-top/margin-bottom out of the raw CSS itself
 %% (parse_em, nodefrontend.js), while engine.s parses them into
@@ -214,9 +216,9 @@
 (global variable (current page 1))
 (global variable (bar height 1))
 
-(last page 11)
+(last page 13)
 
-%% Nudges page 10's line count for screens that are not 24 rows.  It is an
+%% Nudges page 12's line count for screens that are not 24 rows.  It is an
 %% unsigned 0-8 offset -- 4 is the 24-row Apple II value -- because the count
 %% feeds a countdown recursion that must never be handed a negative.
 (global variable (probe pad 4))
@@ -276,9 +278,9 @@
 %% (possibly splitting an expansion) are under test on every page.
 (bar contents)
 	(bar height $H) (bar rows $H $N)
-	%% Page 11 adds the other two floats, so that bar has a left float and
+	%% Page 12 adds the other two floats, so that bar has a left float and
 	%% two nested right floats to lay out instead of just the one.
-	(if) (current page 10) (then)
+	(if) (current page 12) (then)
 		(div @leftcol) { L 12ch }
 		(div @pctcol) { R 25% }
 	(endif)
@@ -316,61 +318,89 @@
 
 (chart 1)
 	(line) U+00A0 \[\x{00A0}\] no-break space
+	(line) U+00A1 \[\x{00A1}\] inverted exclamation
+	(line) U+00A3 \[\x{00A3}\] pound sign
 	(line) U+00AB \[\x{00AB}\] left guillemet
 	(line) U+00BB \[\x{00BB}\] right guillemet
+	(line) U+00BF \[\x{00BF}\] inverted question mark
 	(line) U+00C0 \[\x{00C0}\] A grave
+	(line) U+00C1 \[\x{00C1}\] A acute
 	(line) U+00C2 \[\x{00C2}\] A circumflex
+	(line) U+00C3 \[\x{00C3}\] A tilde
 	(line) U+00C4 \[\x{00C4}\] A diaeresis
 	(line) U+00C5 \[\x{00C5}\] A ring
 	(line) U+00C6 \[\x{00C6}\] AE ligature
 	(line) U+00C7 \[\x{00C7}\] C cedilla
 	(line) U+00C8 \[\x{00C8}\] E grave
+
+(chart 2)
 	(line) U+00C9 \[\x{00C9}\] E acute
 	(line) U+00CA \[\x{00CA}\] E circumflex
 	(line) U+00CB \[\x{00CB}\] E diaeresis
+	(line) U+00CC \[\x{00CC}\] I grave
+	(line) U+00CD \[\x{00CD}\] I acute
 	(line) U+00CE \[\x{00CE}\] I circumflex
 	(line) U+00CF \[\x{00CF}\] I diaeresis
+	(line) U+00D0 \[\x{00D0}\] capital eth
+	(line) U+00D1 \[\x{00D1}\] N tilde
+	(line) U+00D2 \[\x{00D2}\] O grave
+	(line) U+00D3 \[\x{00D3}\] O acute
 	(line) U+00D4 \[\x{00D4}\] O circumflex
-
-(chart 2)
+	(line) U+00D5 \[\x{00D5}\] O tilde
 	(line) U+00D6 \[\x{00D6}\] O diaeresis
 	(line) U+00D8 \[\x{00D8}\] O stroke
+
+(chart 3)
 	(line) U+00D9 \[\x{00D9}\] U grave
+	(line) U+00DA \[\x{00DA}\] U acute
 	(line) U+00DB \[\x{00DB}\] U circumflex
 	(line) U+00DC \[\x{00DC}\] U diaeresis
+	(line) U+00DD \[\x{00DD}\] Y acute
+	(line) U+00DE \[\x{00DE}\] capital thorn
 	(line) U+00DF \[\x{00DF}\] sharp s
 	(line) U+00E0 \[\x{00E0}\] a grave
 	(line) U+00E1 \[\x{00E1}\] a acute
 	(line) U+00E2 \[\x{00E2}\] a circumflex
+	(line) U+00E3 \[\x{00E3}\] a tilde
 	(line) U+00E4 \[\x{00E4}\] a diaeresis
 	(line) U+00E5 \[\x{00E5}\] a ring
 	(line) U+00E6 \[\x{00E6}\] ae ligature
 	(line) U+00E7 \[\x{00E7}\] c cedilla
+
+(chart 4)
 	(line) U+00E8 \[\x{00E8}\] e grave
 	(line) U+00E9 \[\x{00E9}\] e acute
 	(line) U+00EA \[\x{00EA}\] e circumflex
-
-(chart 3)
 	(line) U+00EB \[\x{00EB}\] e diaeresis
+	(line) U+00EC \[\x{00EC}\] i grave
+	(line) U+00ED \[\x{00ED}\] i acute
 	(line) U+00EE \[\x{00EE}\] i circumflex
 	(line) U+00EF \[\x{00EF}\] i diaeresis
+	(line) U+00F0 \[\x{00F0}\] eth
 	(line) U+00F1 \[\x{00F1}\] n tilde
+	(line) U+00F2 \[\x{00F2}\] o grave
+	(line) U+00F3 \[\x{00F3}\] o acute
 	(line) U+00F4 \[\x{00F4}\] o circumflex
+	(line) U+00F5 \[\x{00F5}\] o tilde
 	(line) U+00F6 \[\x{00F6}\] o diaeresis
+
+(chart 5)
 	(line) U+00F8 \[\x{00F8}\] o stroke
 	(line) U+00F9 \[\x{00F9}\] u grave
+	(line) U+00FA \[\x{00FA}\] u acute
 	(line) U+00FB \[\x{00FB}\] u circumflex
 	(line) U+00FC \[\x{00FC}\] u diaeresis
 	(line) U+00FD \[\x{00FD}\] y acute
+	(line) U+00FE \[\x{00FE}\] thorn
 	(line) U+00FF \[\x{00FF}\] y diaeresis
 	(line) U+0141 \[\x{0141}\] L stroke
 	(line) U+0142 \[\x{0142}\] l stroke
 	(line) U+0152 \[\x{0152}\] OE ligature
 	(line) U+0153 \[\x{0153}\] oe ligature
-
-(chart 4)
 	(line) U+0178 \[\x{0178}\] Y diaeresis
 	(line) U+1E9E \[\x{1E9E}\] capital sharp s
+
+(chart 6)
 	(line) U+2010 \[\x{2010}\] hyphen
 	(line) U+2013 \[\x{2013}\] en dash
 	(line) U+2014 \[\x{2014}\] em dash
@@ -385,12 +415,13 @@
 	(line) U+2039 \[\x{2039}\] left single guillemet
 	(line) U+203A \[\x{203A}\] right single guillemet
 	(line) U+20AC \[\x{20AC}\] euro sign
-%% Page 5 puts the set that Dialog's Z-machine runtime has fallbacks for into
+
+%% Page 7 puts the set that Dialog's Z-machine runtime has fallbacks for into
 %% running text, where the transliteration has to survive word wrapping too.
 %% The em dash and the ellipsis expand to two characters, so they are the ones
 %% most likely to overrun a line.
 
-(chart 5)
+(chart 7)
 	(line) Z-machine fallback set, in context:
 	(line)
 	(line) Dashes: an en\x{2013}dash, an em\x{2014}dash.
@@ -433,7 +464,7 @@
 %%            why io_mputc lays transliterated spaces down as ordinary
 %%            characters instead of routing them through its space branch.
 
-(chart 6)
+(chart 8)
 	(line) Line breaking. A run that breaks has
 	(line) lines ending in aa; one that holds
 	(line) together has every line ending in bb.
@@ -447,33 +478,33 @@
 	(line) U+202F, should hold:
 	(line) aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb aa\x{202F}bb
 
-%% Page 7 is the negative control.  None of these are in the Apple II table or
+%% Page 9 is the negative control.  None of these are in the Apple II table or
 %% the C64 font, so every one of them should render as the interpreter's
 %% unknown-character glyph.  If one of them ever starts rendering correctly,
 %% either a table grew or something is reading past the end of one.
 
-(chart 7)
+(chart 9)
 	(line) Negative control. Every line below
 	(line) should show the unknown-character
 	(line) glyph \(? on the Apple II, a solid
 	(line) box on the C64\):
 	(line)
 	(line) U+00A9 \[\x{00A9}\] copyright sign
-	(line) U+00BF \[\x{00BF}\] inverted question mark
+	(line) U+00AE \[\x{00AE}\] registered sign
 	(line) U+0100 \[\x{0100}\] A macron
 	(line) U+0393 \[\x{0393}\] Greek capital gamma
 	(line) U+2190 \[\x{2190}\] leftwards arrow
 	(line) U+2264 \[\x{2264}\] less-than or equal
 	(line) U+2764 \[\x{2764}\] heavy black heart
 
-%% Page 8 targets the fold logic.  Every replacement in the Apple II table is
+%% Page 10 targets the fold logic.  Every replacement in the Apple II table is
 %% at most two characters wide, and io_mputc feeds each half through its own
 %% margin check -- so an expansion can be split across a hard fold.  These
 %% lines are padded so that an expansion begins exactly on the last column:
 %% the 39-padded ones for 40-column screens, the 79-padded ones for
 %% 80-column ones.  On the other width they are ordinary mid-line expansions
 %% and should look unremarkable.
-(chart 8)
+(chart 10)
 	(line) Fold straddling. A two-char expansion
 	(line) split across a fold must lose nothing.
 	(line) 39-pad puts an expansion on col 40;
@@ -523,22 +554,22 @@
 	(line)
 	123456789 123456789 123456789 1 abcdef\x{2014} qqq qqq qqq
 
-%% Page 9 is a second negative control, for consecutive unknown codepoints.
+%% Page 11 is a second negative control, for consecutive unknown codepoints.
 %% Each one must become its own unknown-character glyph, including when they
 %% sit inside a word; if any of them starts rendering correctly, something is
 %% reading past the end of the transliteration table.
-(chart 9)
+(chart 11)
 	(line) Negative control 2. Consecutive
 	(line) unknowns -- each must become its
 	(line) own unknown-character glyph:
 	(line)
 	(line) \x{0393}\x{2190}\x{2764}
-	(line) \x{00A9}\x{00BF}\x{0100}\x{2264}
+	(line) \x{00A9}\x{00AE}\x{0100}\x{2264}
 	(line)
 	(line) Inside words:
 	(line) aa\x{0393}\x{2190}bb cc\x{2764}\x{0100}dd
 
-%% Page 10 is the only page that reads a *line* instead of a key, because the
+%% Page 12 is the only page that reads a *line* instead of a key, because the
 %% [MORE] bug it looks for lives in io_gets and nothing else can reach it:
 %% io_getc clears nunread and never breaks a line, so (get key) is blind to it.
 %% The clear right after the input is the other half -- io_mclear reads any
@@ -547,7 +578,7 @@
 %% Keys 1-9 move the bar height and the count follows it.  +/- nudge the count
 %% for screens that are not 24 rows.
 
-(chart 10)
+(chart 12)
 	(bar height $H)
 	(18 minus $H into $Base)
 	(probe pad $Pad)
@@ -568,7 +599,7 @@
 		(fill $Next)
 	(endif)
 
-%% Page 11 is the CSS parser's page.  engine.s parses the story's style
+%% Page 13 is the CSS parser's page.  engine.s parses the story's style
 %% classes itself, at init, into the per-class records described at
 %% STY_WIDTH..STY_FLAGS, and its keyword table knows exactly eight
 %% declarations.  Coverage is split three ways, because the three groups are
@@ -578,7 +609,7 @@
 %%                          before it looks at a float at all, and the height
 %%                          is read by op_status.  Neither automated backend
 %%                          renders a status area, so these are in the bar
-%%                          above (keys 0-7 for the heights, page 10 for the
+%%                          above (keys 0-7 for the heights, page 12 for the
 %%                          two extra floats) and have to be eyeballed on the
 %%                          C64 or the Apple II.
 %%
@@ -597,7 +628,7 @@
 %% font-family that is not monospace must set no bit, and a relative margin
 %% must be dropped rather than parsed as its bare number.
 
-(chart 11)
+(chart 13)
 	(line) CSS keywords. engine.s parses eight
 	(line) declarations -- width, height, float,
 	(line) font-style, font-weight, font-family,
@@ -689,7 +720,7 @@
 	(line) 1-9 = set status bar height
 	(line) 0,5,6,7 = height edge cases
 	(line) W = probe the wrap buffer
-	(line) Plus/minus = nudge page 10's count
+	(line) Plus/minus = nudge page 12's count
 	(line) Q = quit
 	(line)
 	(show page)
