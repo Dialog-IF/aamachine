@@ -1279,6 +1279,15 @@ translit
 	lda	(ioparam),y
 	sta	f_temp2
 
+	; The table is sorted by codepoint, so
+	; the entries below U+0100 are exactly
+	; 0..TRLOW-1 and trhi covers only what
+	; follows them.
+
+	ldx	#TRLOW-1
+	lda	f_temp
+	beq	loloop		; hi byte = 0
+	; scan TRLOW..NTRANS-1
 	ldx	#NTRANS-1
 loop
 	lda	trhi,x
@@ -1290,7 +1299,16 @@ loop
 	beq	found
 next
 	dex
-	bpl	loop
+	cpx	#TRLOW
+	bcs	loop
+	bcc	unknown		; always
+	; scan 0..TRLOW-1
+loloop
+	lda	trlo,x
+	cmp	f_temp2
+	beq	found
+	dex
+	bpl	loloop
 unknown
 	lda	#'?'
 	sta	tr0
@@ -1300,7 +1318,24 @@ unknown
 found
 	lda	trc0,x
 	sta	tr0
-	lda	trc1,x
+
+	; Second characters are uncommon so they
+	; are a sparse list of (index, char).
+	; Both exits leave Z reflecting
+	; tr1, which is the caller's dual-char test.
+
+	txa			; no cpx abs,y on 6502
+	ldy	#NTR2-1
+tr2loop
+	cmp	tr2idx,y
+	beq	got2
+	dey
+	bpl	tr2loop
+	lda	#0		; single character
+	beq	settr1		; always
+got2
+	lda	tr2ch,y
+settr1
 	sta	tr1
 	rts
 	.)
@@ -2696,45 +2731,9 @@ halt
 ; ASCII has to be approximated.  Codepoints
 ; are BMP only, and the replacement is at
 ; most two characters wide.
+; NTRANS, TRLOW and NTR2 come from mkfont too.
 
-trhi
-	.byt	$00,$00,$00,$00,$00,$00,$00,$00
-	.byt	$00,$00,$00,$00,$00,$00,$00,$00
-	.byt	$00,$00,$00,$00,$00,$00,$00,$00
-	.byt	$00,$00,$00,$00,$00,$00,$00,$00
-	.byt	$00,$00,$00,$00,$00,$00,$00,$00
-	.byt	$00,$00,$00,$00,$01,$01,$01,$01
-	.byt	$01,$1e,$20,$20,$20,$20,$20,$20
-	.byt	$20,$20,$20,$20,$20,$20,$20,$20
-trlo
-	.byt	$a0,$ab,$bb,$c0,$c2,$c4,$c5,$c6
-	.byt	$c7,$c8,$c9,$ca,$cb,$ce,$cf,$d4
-	.byt	$d6,$d8,$d9,$db,$dc,$df,$e0,$e1
-	.byt	$e2,$e4,$e5,$e6,$e7,$e8,$e9,$ea
-	.byt	$eb,$ee,$ef,$f1,$f4,$f6,$f8,$f9
-	.byt	$fb,$fc,$fd,$ff,$41,$42,$52,$53
-	.byt	$78,$9e,$10,$13,$14,$18,$19,$1c
-	.byt	$1d,$1e,$22,$26,$2f,$39,$3a,$ac
-trc0
-	.byt	' ','"','"','A','A','A','A','A'
-	.byt	'C','E','E','E','E','I','I','O'
-	.byt	'O','O','U','U','U','s','a','a'
-	.byt	'a','a','a','a','c','e','e','e'
-	.byt	'e','i','i','n','o','o','o','u'
-	.byt	'u','u','y','y','L','l','O','o'
-	.byt	'Y','S','-','-','-',$27,$27,$22
-	.byt	$22,$22,'*','.',' ',$27,$27,'E'
-trc1
-	.byt	0,0,0,0,0,0,0,'E'
-	.byt	0,0,0,0,0,0,0,0
-	.byt	0,0,0,0,0,'s',0,0
-	.byt	0,0,0,'e',0,0,0,0
-	.byt	0,0,0,0,0,0,0,0
-	.byt	0,0,0,0,0,0,'E','e'
-	.byt	0,'S',0,0,'-',0,0,0
-	.byt	0,0,0,'.',0,0,0,0
-
-NTRANS = trlo-trhi
+#include "translit.s"
 
 ; =====================================
 ; Cold start

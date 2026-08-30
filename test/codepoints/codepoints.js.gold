@@ -5,82 +5,109 @@ B = back
 1-9 = set status bar height
 0,5,6,7 = height edge cases
 W = probe the wrap buffer
-Plus/minus = nudge page 10's count
+Plus/minus = nudge page 12's count
 Q = quit
 
 U+00A0 [] no-break space
+U+00A1 [¡] inverted exclamation
+U+00A3 [£] pound sign
 U+00AB [«] left guillemet
 U+00BB [»] right guillemet
+U+00BF [¿] inverted question mark
 U+00C0 [À] A grave
+U+00C1 [Á] A acute
 U+00C2 [Â] A circumflex
+U+00C3 [Ã] A tilde
 U+00C4 [Ä] A diaeresis
 U+00C5 [Å] A ring
 U+00C6 [Æ] AE ligature
 U+00C7 [Ç] C cedilla
-U+00C8 [È] E grave
-U+00C9 [É] E acute
-U+00CA [Ê] E circumflex
-U+00CB [Ë] E diaeresis
-U+00CE [Î] I circumflex
-U+00CF [Ï] I diaeresis
-U+00D4 [Ô] O circumflex> 1
+U+00C8 [È] E grave> 1
 
 
 U+00A0 [] no-break space
+U+00A1 [¡] inverted exclamation
+U+00A3 [£] pound sign
 U+00AB [«] left guillemet
 U+00BB [»] right guillemet
+U+00BF [¿] inverted question mark
 U+00C0 [À] A grave
+U+00C1 [Á] A acute
 U+00C2 [Â] A circumflex
+U+00C3 [Ã] A tilde
 U+00C4 [Ä] A diaeresis
 U+00C5 [Å] A ring
 U+00C6 [Æ] AE ligature
 U+00C7 [Ç] C cedilla
-U+00C8 [È] E grave
+U+00C8 [È] E grave> 
+
 U+00C9 [É] E acute
 U+00CA [Ê] E circumflex
 U+00CB [Ë] E diaeresis
+U+00CC [Ì] I grave
+U+00CD [Í] I acute
 U+00CE [Î] I circumflex
 U+00CF [Ï] I diaeresis
-U+00D4 [Ô] O circumflex> 
-
+U+00D0 [Ð] capital eth
+U+00D1 [Ñ] N tilde
+U+00D2 [Ò] O grave
+U+00D3 [Ó] O acute
+U+00D4 [Ô] O circumflex
+U+00D5 [Õ] O tilde
 U+00D6 [Ö] O diaeresis
-U+00D8 [Ø] O stroke
+U+00D8 [Ø] O stroke> 
+
+
 U+00D9 [Ù] U grave
+U+00DA [Ú] U acute
 U+00DB [Û] U circumflex
 U+00DC [Ü] U diaeresis
+U+00DD [Ý] Y acute
+U+00DE [Þ] capital thorn
 U+00DF [ß] sharp s
 U+00E0 [à] a grave
 U+00E1 [á] a acute
 U+00E2 [â] a circumflex
+U+00E3 [ã] a tilde
 U+00E4 [ä] a diaeresis
 U+00E5 [å] a ring
 U+00E6 [æ] ae ligature
-U+00E7 [ç] c cedilla
+U+00E7 [ç] c cedilla> 
+
+
 U+00E8 [è] e grave
 U+00E9 [é] e acute
-U+00EA [ê] e circumflex> 
-
-
+U+00EA [ê] e circumflex
 U+00EB [ë] e diaeresis
+U+00EC [ì] i grave
+U+00ED [í] i acute
 U+00EE [î] i circumflex
 U+00EF [ï] i diaeresis
+U+00F0 [ð] eth
 U+00F1 [ñ] n tilde
+U+00F2 [ò] o grave
+U+00F3 [ó] o acute
 U+00F4 [ô] o circumflex
-U+00F6 [ö] o diaeresis
+U+00F5 [õ] o tilde
+U+00F6 [ö] o diaeresis> 
+
+
 U+00F8 [ø] o stroke
 U+00F9 [ù] u grave
+U+00FA [ú] u acute
 U+00FB [û] u circumflex
 U+00FC [ü] u diaeresis
 U+00FD [ý] y acute
+U+00FE [þ] thorn
 U+00FF [ÿ] y diaeresis
 U+0141 [Ł] L stroke
 U+0142 [ł] l stroke
 U+0152 [Œ] OE ligature
-U+0153 [œ] oe ligature> 
-
-
+U+0153 [œ] oe ligature
 U+0178 [Ÿ] Y diaeresis
-U+1E9E [ẞ] capital sharp s
+U+1E9E [ẞ] capital sharp s> 
+
+
 U+2010 [‐] hyphen
 U+2013 [–] en dash
 U+2014 [—] em dash
@@ -130,7 +157,7 @@ should show the unknown-character
 glyph (? on the Apple II, a solid
 box on the C64):
 U+00A9 [©] copyright sign
-U+00BF [¿] inverted question mark
+U+00AE [®] registered sign
 U+0100 [Ā] A macron
 U+0393 [Γ] Greek capital gamma
 U+2190 [←] leftwards arrow
@@ -194,7 +221,7 @@ Negative control 2. Consecutive
 unknowns--each must become its
 own unknown-character glyph:
 Γ←❤
-©¿Ā≤
+©®Ā≤
 Inside words:
 aaΓ←bb cc❤Ādd> 
 

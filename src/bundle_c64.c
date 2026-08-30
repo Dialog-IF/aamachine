@@ -12,6 +12,8 @@
 #include "table_c64load.h"
 #include "table_c64terp.h"
 
+#include "tables_6502font.h"
+
 #define INTERLEAVE 11
 
 static char storyname[48];
@@ -99,6 +101,51 @@ void write_bam() {
 	fprintf(stderr, "%d blocks free\n", nfree);
 }
 
+static uint8_t *langchunk;
+static uint32_t langsize;
+static uint8_t *dictchunk;
+static uint32_t dictsize;
+
+static inline int does_font_have_glyph(uint32_t unicode) {
+	for(const uint32_t *pointer = unicode_in_font; *pointer; pointer++) {
+		if(*pointer == unicode) return 1;
+	}
+	return 0;
+}
+
+void check_font_has_glyphs(uint8_t *lang, uint32_t size) { // Expects the LANG chunk
+	uint32_t exttable = (lang[2] << 8) | lang[3];
+	uint8_t n_ext = lang[exttable++];
+	uint32_t unichar;
+	for(uint8_t i=0; i<n_ext; i++) {
+		unichar = (
+			(lang[exttable+5*i+2] << 16) |
+			(lang[exttable+5*i+3] << 8) |
+			(lang[exttable+5*i+4])
+		);
+		if(!does_font_have_glyph(unichar)) {
+			fprintf(stderr, "Warning: Extended character %d (%s, U+%04x) has no font entry. It will display as '�'.\n", 0x80|i, unicode_to_utf8(unichar), unichar);
+		}
+	}
+}
+
+void c64_chunk_visitor(char *head, char *dirname, uint8_t *chunk, uint32_t size) {
+	if(!strcmp(head, "LANG")) {
+		langchunk = chunk;
+		langsize = size;
+		check_font_has_glyphs(chunk, size);
+	} else if(!strcmp(head, "DICT")) {
+		dictchunk = chunk;
+		dictsize = size;
+	} else {
+		return;
+	}
+	
+	if(langchunk && dictchunk) {
+		warn_about_nonascii(dictchunk, dictsize, langchunk, langsize);
+	}
+}
+
 void bundle_c64(char *dirname) {
 	char *filename, ch;
 	int fnsize, size;
@@ -114,7 +161,7 @@ void bundle_c64(char *dirname) {
 	assert(j == 683);
 	memset(available, 1, j);
 
-	visit_chunks(storyname, sizeof(storyname), 0);
+	visit_chunks(storyname, sizeof(storyname), c64_chunk_visitor);
 	trim_chunks(1);
 
 	fnsize = strlen(dirname) + strlen(storyname) + 64;
