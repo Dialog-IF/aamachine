@@ -157,6 +157,12 @@
 (style class @fixed)
 	font-family: monospace;
 
+(style class @reverse)
+	-iftf-reverse-video: reverse;
+
+(style class @unreverse)
+	-iftf-reverse-video: none;
+
 %% A font-family that is not monospace must set no bit at all.  The name is
 %% deliberately one that contains neither 'm' nor a substring of 'monospace',
 %% since the matcher scans for the word rather than comparing the whole value.
@@ -649,6 +655,7 @@
 	(line) (span @bold) { bold (span @unbold) { normal } bold }
 	(line) (span @italic) { italic (span @roman) { upright } italic }
 	(line) (span @bolditalic) { both (span @unbold) { italic only } both }
+	(line) (span @reverse) { reverse (span @unreverse) { normal } reverse }
 	(line) ---
 	(line) The deprecated SET_STYLE/RESET_STYLE
 	(line) opcodes, which bypass the CSS parser
