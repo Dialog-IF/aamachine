@@ -269,6 +269,7 @@ and must leave the other alone.
 bold normal bold
 italic upright italic
 both italic only both
+reverse normal reverse
 ---
 The deprecated SET_STYLE/RESET_STYLE
 opcodes, which bypass the CSS parser
