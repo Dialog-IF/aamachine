@@ -3778,6 +3778,11 @@ op_en_lv_span
 	stx	divsp
 
 	inc	nspan
+	; ENTER_SPAN emits a pending AUTO/PENDING
+	; space before entering the span,
+	; so the space has the outer style.
+	; op_style does the same thing.
+	jsr	syncspace
 done
 	jsr	unstyle
 skip

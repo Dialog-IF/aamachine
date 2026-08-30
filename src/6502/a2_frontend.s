@@ -231,6 +231,7 @@ AUXUNDOBANK2	= $d0		; logical page from
 
 ; ---- frontend zero page ----
 
+curstyle	= $04	; last style bits set by io_mstyle
 nunread		= $05	; lines scrolled off since last clear
 ioparam		= $06	; word, used by the engine
 wrappos		= $08
@@ -882,8 +883,11 @@ moretxt
 	.asc	"<...>",0
 
 io_mstyle
-	; style bits are already in rstyle zp var in engine
-	jmp	io_mflush_nostyle
+	pha
+	jsr	io_mflush
+	pla
+	sta	curstyle
+	rts
 
 ; TODO consider refactoring with sprogress?
 io_mprogress
@@ -1358,7 +1362,7 @@ gotoxy
 
 mstyle_enter
 	.(
-	lda	`rstyle
+	lda	curstyle
 	lsr			; reverse style bit
 	bcc	set_inverse_rts
 	; fallthrough to set_inverse
@@ -3065,6 +3069,7 @@ auxclrlp
 	sta	stxoffs
 	sta	cury
 	sta	strow
+	sta	curstyle
 #if UNDO
 	sta	u_ready
 	sta	u_count
