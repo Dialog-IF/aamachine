@@ -522,14 +522,19 @@ io_mstyle
 	rts
 palette
 	.byt	$0	; normal = black
-	.byt	$8	; reverse = orange (warm)
+	.byt	$2	; reverse = red (warm)
 	.byt	$b	; bold = dark gray (light)
-	.byt	$7	; bold reverse = yellow (light + warm)
+	.byt	$a	; bold reverse = pink (light + warm)
 	.byt	$6	; italic = blue (saturated)
-	.byt	$2	; italic reverse = red (warm + saturated)
+	.byt	$8	; italic reverse = orange (warm + saturated)
 	.byt	$e	; italic bold = light blue (saturated + light)
-	.byt	$a	; italic bold reverse = pink (warm + saturated + light)
+	.byt	$7	; italic bold reverse = yellow (warm + saturated + light)
 	.)
+; available colors:
+; 0 black 1 white 2 red 3 cyan
+; 4 purple 5 green 6 blue 7 yellow
+; 8 orange 9 brown a pink b dark gray
+; c gray d light green e light blue f light gray
 
 io_mprogress
 	; input x = progress
