@@ -1,6 +1,8 @@
 *.o
 table_*.h
+tables_*.h
 mkheader
+mkfontdata
 aambundle
 aamshow
 *.aastory
