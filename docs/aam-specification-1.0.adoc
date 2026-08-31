@@ -540,6 +540,11 @@ From lower to higher heap index:
 * `LONG`: Saved CONT
 * `WORD[]`: Local variables
 
+Note that a LONG is the size of two WORDs in a 16-bit story file, but one
+WORD in a 32-bit story file. This means that the size of an env frame is
+four words (plus one for each local) in a 16-bit file, but only three words
+(plus one for each local) in a 32-bit file.
+
 === Choice frame format
 
 From lower to higher heap index:
@@ -552,6 +557,11 @@ From lower to higher heap index:
 * `WORD`: Saved TOP
 * `WORD`: Saved TRL
 * `WORD[]`: Saved arguments
+
+Note that a LONG is the size of two WORDs in a 16-bit story file, but one
+WORD in a 32-bit story file. This means that the size of a choice frame is
+nine words (plus one for each argument) in a 16-bit file, but only seven
+words (plus one for each argument) in a 32-bit file.
 
 === Stop frame format
 
@@ -1544,8 +1554,16 @@ Do nothing.
 
  fail
 
+==== 16-bit
+
  def fail:
  	INST = (heap[CHO + 4] << BITS_PER_WORD) | heap[CHO + 5]
+ 	leave recursive unify/push/pop/(de)serialize operation
+
+==== 32-bit
+
+ def fail:
+ 	INST = heap[CHO + 3]
  	leave recursive unify/push/pop/(de)serialize operation
 
 [[SET_CONT]]
@@ -1636,28 +1654,57 @@ frame to SIM if there is no existing cutting choice point.
 
 *BYTE/0*
 
+==== 16-bit
+
  local variable addr = min(ENV, CHO) - 4 - arg
  if(addr < TOP) runtime_error(1)
 
  heap[addr + 0] = ENV
  heap[addr + 1] = SIM
  heap[addr + 2] = CONT >> BITS_PER_WORD
- heap[addr + 3] = CONT & 0xffff(ffff)
+ heap[addr + 3] = CONT & 0xffff
+
+ ENV = addr
+
+==== 32-bit
+
+ local variable addr = min(ENV, CHO) - 3 - arg
+ if(addr < TOP) runtime_error(1)
+
+ heap[addr + 0] = ENV
+ heap[addr + 1] = SIM
+ heap[addr + 2] = CONT
 
  ENV = addr
 
 [[POP_ENV]]
 === POP_ENV
 
+==== 16-bit
+
  CONT = (heap[ENV + 2] << BITS_PER_WORD) | heap[ENV + 3]
+ SIM = heap[ENV + 1]
+ ENV = heap[ENV + 0]
+
+==== 32-bit
+
+ CONT = heap[ENV + 2]
  SIM = heap[ENV + 1]
  ENV = heap[ENV + 0]
 
 [[POP_ENV_PROCEED]]
 === POP_ENV_PROCEED
 
+==== 16-bit
+
  INST = (heap[ENV + 2] << BITS_PER_WORD) | heap[ENV + 3]
- if(heap[ENV + 1] < 0x8000(0000)) CHO = heap[ENV + 1]
+ if(heap[ENV + 1] < 0x8000) CHO = heap[ENV + 1]
+ ENV = heap[ENV + 0]
+
+==== 32-bit
+
+ INST = heap[ENV+2]
+ if(heap[ENV + 1] < 0x80000000) CHO = heap[ENV + 1]
  ENV = heap[ENV + 0]
 
 [[PUSH_CHOICE]]
@@ -1667,15 +1714,17 @@ frame to SIM if there is no existing cutting choice point.
 
  push_choice(arg1, arg2)
 
+==== 16-bit
+
  def push_choice(narg, next):
  	local variable addr = min(ENV, CHO) - 9 - narg
  	if(addr < TOP) runtime_error(1)
  	heap[addr + 0] = ENV
  	heap[addr + 1] = SIM
  	heap[addr + 2] = CONT >> BITS_PER_WORD
- 	heap[addr + 3] = CONT & 0xffff(ffff)
+ 	heap[addr + 3] = CONT & 0xffff
  	heap[addr + 4] = next >> BITS_PER_WORD
- 	heap[addr + 5] = next & 0xffff(ffff)
+ 	heap[addr + 5] = next & 0xffff
  	heap[addr + 6] = CHO
  	heap[addr + 7] = TOP
  	heap[addr + 8] = TRL
@@ -1684,10 +1733,29 @@ frame to SIM if there is no existing cutting choice point.
  	}
  	CHO = addr
 
+==== 32-bit
+
+ def push_choice(narg, next):
+ 	local variable addr = min(ENV, CHO) - 9 - narg
+ 	if(addr < TOP) runtime_error(1)
+ 	heap[addr + 0] = ENV
+ 	heap[addr + 1] = SIM
+ 	heap[addr + 2] = CONT
+ 	heap[addr + 3] = next
+ 	heap[addr + 4] = CHO
+ 	heap[addr + 5] = TOP
+ 	heap[addr + 6] = TRL
+ 	for(local variable i = 0; i < narg; i++) {
+ 		heap[addr + 7 + i] = R[i] // register R00..
+ 	}
+ 	CHO = addr
+
 [[POP_CHOICE]]
 === POP_CHOICE
 
 *BYTE/0*
+
+==== 16-bit
 
  for(local variable i = 0; i < arg; i++) {
  	R[i] = heap[CHO + 9 + i]
@@ -1701,13 +1769,29 @@ frame to SIM if there is no existing cutting choice point.
  ENV = heap[CHO + 0]
  CHO = heap[CHO + 6]
 
+==== 32-bit
+
+ for(local variable i = 0; i < arg; i++) {
+ 	R[i] = heap[CHO + 7 + i]
+ }
+ while(TRL < heap[CHO + 6]) {
+ 	heap[aux[TRL++]] = 0
+ }
+ TOP = heap[CHO + 5]
+ CONT = heap[CHO + 2]
+ SIM = heap[CHO + 1]
+ ENV = heap[CHO + 0]
+ CHO = heap[CHO + 4]
+
 [[POP_PUSH_CHOICE]]
 === POP_PUSH_CHOICE
 
 *BYTE/0 CODE*
 
+==== 16-bit
+
  heap[CHO + 4] = arg2 >> BITS_PER_WORD
- heap[CHO + 5] = arg2 & 0xffff(ffff)
+ heap[CHO + 5] = arg2 & 0xffff
  for(local variable i = 0; i < arg1; i++) {
  	R[i] = heap[CHO + 9 + i]
  }
@@ -1719,10 +1803,30 @@ frame to SIM if there is no existing cutting choice point.
  SIM = heap[CHO + 1]
  ENV = heap[CHO + 0]
 
+==== 32-bit
+
+ heap[CHO + 3] = arg2
+ for(local variable i = 0; i < arg1; i++) {
+ 	R[i] = heap[CHO + 7 + i]
+ }
+ while(TRL < heap[CHO + 6]) {
+ 	heap[aux[TRL++]] = 0
+ }
+ TOP = heap[CHO + 5]
+ CONT = heap[CHO + 2]
+ SIM = heap[CHO + 1]
+ ENV = heap[CHO + 0]
+
 [[CUT_CHOICE]]
 === CUT_CHOICE
 
+==== 16-bit
+
  CHO = heap[CHO + 6]
+
+==== 32-bit
+
+ CHO = heap[CHO + 4]
 
 [[GET_CHO]]
 === GET_CHO
@@ -1937,11 +2041,11 @@ is nevertheless used by <<AUX_POP_LIST>>.
  		heap[addr + 0] = pop_serialized()
  		heap[addr + 1] = pop_serialized()
  		v = <extdict, addr>
- 	} else if(wordsz == 2 && (v & 0xc000) == 0xc000) {
+ 	} else if(wordsz == 2 && (v & 0xc000) == 0xc000) { // tag c-d or e-f
  		local variable count = v & 0x1fff
- 		if(v & 0x2000) {
+ 		if(v & 0x2000) { // tag e-f
  			v = pop_serialized()
- 		} else {
+ 		} else { // tag c-d
  			v = empty_list
  		}
  		while(count--) {
@@ -1952,11 +2056,11 @@ is nevertheless used by <<AUX_POP_LIST>>.
  			heap[addr + 1] = v
  			v = <pair, addr>
  		}
- 	} else if(wordsz == 4 && (v & 0xa000_0000) == 0xa000_0000) {
+ 	} else if(wordsz == 4 && (v & 0xa000_0000) == 0xa000_0000) { // tag a or b
  		local variable count = v & 0x0fff_ffff
- 		if(v & 0x1000_0000) {
+ 		if(v & 0x1000_0000) { // tag b
  			v = pop_serialized()
- 		} else {
+ 		} else { // tag a
  			v = empty_list
  		}
  		while(count--) {
@@ -2252,11 +2356,11 @@ of 0 (lowest byte).
  		heap[addr + 0] = pop_longterm()
  		heap[addr + 1] = pop_longterm()
  		v = <extdict, addr>
- 	} else if(wordsz == 2 && (v & 0xc000) == 0xc000) {
+ 	} else if(wordsz == 2 && (v & 0xc000) == 0xc000) { // tag c-d or e-f
  		local variable count = v & 0x1fff
- 		if(v & 0x2000) {
+ 		if(v & 0x2000) { // tag e-f
  			v = pop_longterm()
- 		} else {
+ 		} else { // tag c-d
  			v = empty_list
  		}
  		while(count--) {
@@ -2267,11 +2371,11 @@ of 0 (lowest byte).
  			heap[addr + 1] = v
  			v = <pair, addr>
  		}
- 	} else if(wordsz == 4 && (v & 0xa000_0000) == 0xa000_0000) {
+ 	} else if(wordsz == 4 && (v & 0xa000_0000) == 0xa000_0000) { // tag a or b
  		local variable count = v & 0x0fff_ffff
- 		if(v & 0x1000_0000) {
+ 		if(v & 0x1000_0000) { // tag b
  			v = pop_longterm()
- 		} else {
+ 		} else { // tag a
  			v = empty_list
  		}
  		while(count--) {
@@ -2408,6 +2512,8 @@ For 32-bit story files:
  ram[field_addr(arg2 / BITS_PER_WORD, deref(arg1))] |=
  	(1 << (BITS_PER_WORD - 1)) >> (arg2 % BITS_PER_WORD)
 
+See <<IF_FLAG>>.
+
 [[RESET_FLAG]]
 === RESET_FLAG
 
@@ -2418,6 +2524,8 @@ For 32-bit story files:
  	ram[field_addr(arg2 / BITS_PER_WORD, arg1)] &=
  		~((1 << (BITS_PER_WORD - 1)) >> (arg2 % BITS_PER_WORD))
  }
+
+See <<IF_FLAG>>.
 
 It's legal to reset a flag for an invalid object (but it will have
 no effect).
@@ -2711,6 +2819,11 @@ no effect).
  	INST = arg3
  }
 
+In other words, this reads field number (arg2 / BITS_PER_WORD) of the
+object (or null) given in arg1, then extracts the (arg2 % BITS_PER_WORD)th
+bit from it, where bit 0 is the most significant. This latter convention
+is the reason for the awkward pseudocode.
+
 [[IFN_FLAG]]
 === IFN_FLAG
 
@@ -2721,6 +2834,8 @@ no effect).
  {
  	INST = arg3
  }
+
+See <<IF_FLAG>>.
 
 [[IF_CWL]]
 === IF_CWL
@@ -2771,7 +2886,7 @@ For 32-bit story files, where sign extension is needed:
 
  def box_int(v):
  	if(v & 0xf000_0000 != 0 &&
- 	v & 0xf000_0000 != 0xf000_0000) {
+ 	   v & 0xf000_0000 != 0xf000_0000) {
  		fail
  	}
  	return <number, v>
@@ -2808,6 +2923,8 @@ bits are not 0000 or 1111; or, equivalently, if it is less than
  }
  arg3 <- box_int(result)
 
+TODO: THIS SECTION NEEDS REVISING ONCE THE MULTIPLICATION PR MERGES
+
 [[DIV_NUM]]
 === DIV_NUM
 
@@ -2816,6 +2933,10 @@ bits are not 0000 or 1111; or, equivalently, if it is less than
  if(unbox_int(arg2) == 0) fail
  local variable result = unbox_int(arg1) / unbox_int(arg2)
  arg3 <- box_int(result)
+
+Division is rounded toward negative infinity, not toward zero ("floored
+division" rather than "truncated division"). In other words, -5 / 2 = -3,
+not -2.
 
 [[MOD_NUM]]
 === MOD_NUM
@@ -2826,8 +2947,10 @@ bits are not 0000 or 1111; or, equivalently, if it is less than
  local variable result = unbox_int(arg1) % unbox_int(arg2)
  arg3 <- box_int(result)
 
-The result should have the sign of arg1. In other words, this is a
-floored modulo, not a truncated remainder.
+This is the value such that ((P/Q) * Q) + (P % Q) = P. Since division rounds
+toward negative infinity, that means P % Q has the sign of Q, not the sign
+of P - this is a modulo operation, not a remainder operation. In other words,
+-5 % 2 = 1, not -1 (but 5 % -2 = -1).
 
 [[RAND_NUM]]
 === RAND_NUM
@@ -3239,10 +3362,11 @@ This opcode is deprecated, but still supported for now.
 
 *BYTE*
 
- // 1 = reverse, 2 = bold, 4 = italic, 8 = fixed
  if(CWL == 0) {
  	output_resetstyle(arg)
  }
+
+See <<SET_STYLE>>.
 
 This opcode is deprecated, but still supported for now.
 
