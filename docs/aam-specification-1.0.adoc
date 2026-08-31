@@ -779,7 +779,7 @@ The following fields are present if the storyfile version is
 * `WORD[]`: Stop characters, a null-terminated set of characters that will be treated as separate words when parsing player input.
 
 The following fields are present if the storyfile version is
-0.4 or more.
+0.4 or more. (Which, for a 32-bit file, it always will be.)
 
 * `WORD[]`: Null-terminated subset of stop characters that will inhibit whitespace before them, such as ".". [spec 0.4]
 * `WORD[]`: Null-terminated subset of stop characters that will inhibit whitespace after them, such as "(". [spec 0.4]
