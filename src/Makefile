@@ -32,6 +32,7 @@ tidy:
 
 clean: tidy
 	rm -f aamshow aambundle aamrun aamshow.exe aambundle.exe aamrun.exe
+	rm -f mkheader mkfontdata table_*.h tables_*.h
 	$(MAKE) -C 6502 clean
 
 install: all
@@ -102,8 +103,19 @@ aambundle.exe: aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c \
 	tables_6502font.h
 	${MINGW32} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c
 
+# Fall back rules when you make a blob from here
+# e.g. "make -C src aambundle" redirects to "make -C 6502"
+BLOBS = 6502/a2.system 6502/a2_0boot.bin 6502/a2_sboot.bin \
+	6502/c64_drivecode.bin 6502/c64_loader.prg 6502/c64_crunched.bin
+
+$(BLOBS):
+	$(MAKE) -C 6502 $(@F)
+
 mkheader: mkheader.c
 	${CC} ${CFLAGS} -o $@ mkheader.c
+
+mkfontdata: mkfontdata.c
+	${CC} ${CFLAGS} -o $@ mkfontdata.c
 
 tables_6502font.h:	6502/fontdef.txt mkfontdata
 			./mkfontdata <6502/fontdef.txt >tables_6502font.h
