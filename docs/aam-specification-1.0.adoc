@@ -669,16 +669,16 @@ RAM area. Remaining words are assumed to be filled with the 'unused' value
 
 In 16-bit story files, this chunk begins with:
 
-* `BYTE[2]`: Offset in chunk of <<tbl-decode,bitstream decoding table>>
-* `BYTE[2]`: Offset in chunk of <<tbl-extchar,extended character table>>
-* `BYTE[2]`: Offset in chunk of <<tbl-ending,word endings decoder>>
-* `BYTE[2]`: Offset in chunk of <<tbl-stop,special characters table>>
+* `SHORT`: Offset in chunk of <<tbl-decode,bitstream decoding table>>
+* `SHORT`: Offset in chunk of <<tbl-extchar,extended character table>>
+* `SHORT`: Offset in chunk of <<tbl-ending,word endings decoder>>
+* `SHORT`: Offset in chunk of <<tbl-stop,special characters table>>
 
 In 32-bit story files, the bitstream decoding table and extended character table
 are not present. The chunk instead begins with:
 
-* `BYTE[2]`: Offset in chunk of <<tbl-ending,word endings decoder>>
-* `BYTE[2]`: Offset in chunk of <<tbl-stop,special characters table>>
+* `SHORT`: Offset in chunk of <<tbl-ending,word endings decoder>>
+* `SHORT`: Offset in chunk of <<tbl-stop,special characters table>>
 
 [tbl-decode]
 ==== Bitstream decoding table
@@ -795,14 +795,17 @@ Strings of characters referenced by the dictionary. No terminator. Can overlap.
 In 16-bit story files, each word is an array of bytes in the game-specific character set.
 In 32-bit story files, each word is an array of characters encoded in UTF-8.
 In both cases, the length of each string is given in bytes, not characters.
+This means that the maximum length of a dictionary word is 255 characters in
+a 16-bit file and 63 characters in a 32-bit file (if composed entirely of
+non-BMP characters).
 
 [[MAPS]]
 === MAPS
 
 ==== 16-bit
 
-* `SHORT`: Number of word-to-object maps
-** `SHORT`: Byte offset in chunk of word-to-object map
+* `WORD`: Number of word-to-object maps
+** `WORD`: Byte offset in chunk of word-to-object map
 
 Each word-to-object map:
 
@@ -818,8 +821,8 @@ Payload data:
 
 ==== 32-bit
 
-* `SHORT`: Number of word-to-object maps
-** `SHORT`: Byte offset in chunk of word-to-object map
+* `WORD`: Number of word-to-object maps
+** `WORD`: Byte offset in chunk of word-to-object map
 
 Each word-to-object map:
 
@@ -838,11 +841,11 @@ Payload data:
 [[LOOK]]
 === LOOK
 
-* `SHORT`: Number of style classes
-** `SHORT`: Byte offset in chunk of style definition
+* `WORD`: Number of style classes
+** `WORD`: Byte offset in chunk of style definition
 
-Each style definition consists of zero or more null-terminated ASCII
-strings. Each is a CSS key-value pair without the final semicolon, e.g.
+Each style definition consists of zero or more null-terminated strings.
+Each is a CSS key-value pair without the final semicolon, e.g.
 "width: 100%". The original case from the Dialog source code is
 preserved, so interpreters must perform case-insensitive comparison.
 Leading whitespace has been removed from the entries. A blank entry
@@ -852,6 +855,10 @@ These pairs are typically CSS properties, but may include other
 information of use to the interpreter, such as ARIA roles. Thus,
 interpreters must ignore any unrecognized keys or values, rather than
 raising an error.
+
+CSS properties and values are generally expected to be in ASCII, but
+Dialog does not enforce this. Non-ASCII characters will be encoded in the
+game-specific character set in 16-bit files and UTF-8 in 32-bit files.
 
 [[TAGS]]
 === TAGS (optional)
@@ -878,10 +885,9 @@ Identifiers:
 * `06`: Compiler version string
 
 In 16-bit story files, these strings use the game-specific character set,
-except that $10 (normally undefined for output) is a line feed.
-
-In 32-bit story files, these strings use UTF-8. Line feeds should always
-be $10, not $13.
+except that $10 (normally undefined for output) is a line feed. In 32-bit
+story files, these strings use UTF-8. Line feeds should always be $10, not
+$13.
 
 [[WRIT]]
 === WRIT
@@ -904,8 +910,8 @@ packed addressing modes.
 
 ==== 16-bit
 
-* `SHORT`: Number of resources
-** `SHORT`: Byte offset in chunk of descriptor
+* `WORD`: Number of resources
+** `WORD`: Byte offset in chunk of descriptor
 
 Each descriptor is:
 
@@ -959,13 +965,14 @@ instruction.
 
 The one exception is the <<EXT32>> opcode (ff). Its number and format
 of operands are not currently defined, but may vary depending on the
-following bytes. This opcode is always illegal in 16-bit story files,
-and thus 16-bit interpreters need not try to decode it.
+following bytes—in other words, EXT32 is a prefix for any future 32-bit-only
+instructions. This opcode is always illegal in 16-bit story files, and
+thus 16-bit interpreters need not try to decode it.
 
 [[op]]
 ==== Operands
 
-Operand types (always big-endian byte ordering):
+Operand types (always big-endian byte ordering, most significant bit first):
 
 [[0,0]]
 **0**: implicit constant zero, not encoded
@@ -983,6 +990,8 @@ Operand types (always big-endian byte ordering):
 [[WORD,WORD]]
 *WORD*: constant number, e.g. line number for tracing
 
+In 16-bit story files:
+
 * `xxxxxxxx xxxxxxxx`: Number 0000..ffff
 
 In 32-bit story files:
@@ -992,6 +1001,8 @@ In 32-bit story files:
 [[VWORD,VWORD]]
 *VWORD*: constant <<literal>>
 
+In 16-bit story files:
+
 * `0xxxxxxx xxxxxxxx`: Literal 0000..7fff
 
 In 32-bit story files:
@@ -1000,6 +1011,8 @@ In 32-bit story files:
 
 [[RAW,RAW]]
 *RAW*: unsigned word-sized number
+
+In 16-bit story files:
 
 * `0xxxxxxx xxxxxxxx`: Number 0000..7fff
 * `10xxxxxx`: Value of register 00..3f
@@ -1013,6 +1026,8 @@ In 32-bit story files:
 
 [[VALUE,VALUE]]
 *VALUE*: <<live,live value>> (tagged reference)
+
+In 16-bit story files:
 
 * `0xxxxxxx xxxxxxxx`: Literal 0000..7fff
 * `10xxxxxx`: Value of register 00..3f
@@ -1035,6 +1050,8 @@ In 32-bit story files:
 [[INDEX,INDEX]]
 *INDEX*: medium raw constant, e.g. index of variable, style class
 
+In 16-bit story files:
+
 * `0xxxxxxx`: Index 00..7f
 * `10xxxxxx`: Index 80..bf
 * `11xxxxxx xxxxxxxx`: Index 0000..3fff
@@ -1045,8 +1062,27 @@ In 32-bit story files:
 * `10xxxxxx`: Index 80..bf
 * `11xxxxxx xxxxxxxx xxxxxxxx xxxxxxxx`: Index 0000 0000..3fff ffff
 
+[[STRING,STRING]]
+*STRING*: shifted byte address in <<WRIT>> chunk: tiny pointers are shifted
+		right by log2(wordsz) bits, short and long pointers are shifted
+		right by a number of bits stored in the header
+
+In 16-bit story files:
+
+* `0xxxxxxx`: Tiny pointer (shift by log2(wordsz) = 1)
+* `10xxxxxx xxxxxxxx`: Short pointer (shift per header)
+* `11xxxxxx xxxxxxxx xxxxxxxx`: Long pointer (shift per header)
+
+In 32-bit story files:
+
+* `0xxxxxxx`: Tiny pointer (shift by log2(wordsz) = 2)
+* `10xxxxxx xxxxxxxx`: Short pointer (shift per header)
+* `11xxxxxx xxxxxxxx xxxxxxxx xxxxxxxx`: Long pointer (shift per header)
+
 [[CODE]]
 *CODE*: byte address in <<CODE-chunk>> chunk
+
+In 16-bit story files:
 
 * `00000000`: Absolute address 0 (known to contain the <<FAIL>> opcode)
 * `00xxxxxx`: Close relative pointer (+ 1..3f bytes)
@@ -1060,30 +1096,16 @@ In 32-bit story files:
 * `01xxxxxx xxxxxxxx`: Relative pointer (± 8 kB), 14-bit signed integer relative to end of operand
 * `1xxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx`: Absolute pointer (full 1 GB range)
 
-[[STRING,STRING]]
-*STRING*: shifted byte address in <<WRIT>> chunk: tiny pointers are shifted
-		right by log2(wordsz) bits, short and long pointers are shifted
-		right by a number of bits stored in the header
-
-* `0xxxxxxx`: Tiny pointer (shift by log2(wordsz) = 1)
-* `10xxxxxx xxxxxxxx`: Short pointer (shift per header)
-* `11xxxxxx xxxxxxxx xxxxxxxx`: Long pointer (shift per header)
-
-In 32-bit story files:
-
-* `0xxxxxxx`: Tiny pointer (shift by log2(wordsz) = 2)
-* `10xxxxxx xxxxxxxx`: Short pointer (shift per header)
-* `11xxxxxx xxxxxxxx xxxxxxxx xxxxxxxx`: Long pointer (shift per header)
-
 Decoding of a CODE operand can sometimes can be postponed until after
 the execute stage, when it may be possible to decode straight into INST
 or skip the operand altogether. Both close and relative pointers are
 decoded relative to INST when encountering the CODE operand.
 
 RAW and VALUE only differ when the value read from a register or env
-variable has its high bit set. For a RAW operand, 8002 is interpreted
-as the number 8002. For a VALUE operand, it is treated as a pointer,
-and the word at heap address 2 will be fetched and used instead.
+variable has its high bit set. For a RAW operand, $8002 in a register
+is interpreted as the number $8002. For a VALUE operand, it is treated
+as a pointer, and the word at heap address 2 will be fetched and used
+instead.
 
 == Instructions
 
@@ -1479,7 +1501,7 @@ Additional API calls perform high-level operations on the output state:
 	output_clear_links() // transform old links into static text
 	output_clear_div() // clear current div
 	output_clear_old() // clear old text
-	output_leave_all()
+	output_leave_all() // leave divs, spans, and status areas
 	output_sync()
 	bool output_script_on() // returns true to indicate success
 	output_script_off()
@@ -1521,7 +1543,6 @@ to `output_leavediv`), the engine tracks output state using four global
 variables (in addition to SPC and CWL):
 
 * nSpan: integer, initially 0
-
 * nLink: integer, initially 0
 * inStatus: boolean, initially false
 * divList: list/array of style classes, initially empty
@@ -1554,13 +1575,13 @@ Do nothing.
 
  fail
 
-==== 16-bit
+_16-bit:_
 
  def fail:
  	INST = (heap[CHO + 4] << BITS_PER_WORD) | heap[CHO + 5]
  	leave recursive unify/push/pop/(de)serialize operation
 
-==== 32-bit
+_32-bit:_
 
  def fail:
  	INST = heap[CHO + 3]
@@ -1578,7 +1599,7 @@ Do nothing.
 
  if(SIM < 0x8000(0000)) CHO = SIM
  INST = CONT
- 
+
 Proceed from the continuation point (CONT).
 When the simple cutting choice point (SIM) is set, proceed with
 that as the current choice frame on the choice stack. SIM (and
@@ -1654,7 +1675,7 @@ frame to SIM if there is no existing cutting choice point.
 
 *BYTE/0*
 
-==== 16-bit
+_16-bit:_
 
  local variable addr = min(ENV, CHO) - 4 - arg
  if(addr < TOP) runtime_error(1)
@@ -1666,7 +1687,7 @@ frame to SIM if there is no existing cutting choice point.
 
  ENV = addr
 
-==== 32-bit
+_32-bit:_
 
  local variable addr = min(ENV, CHO) - 3 - arg
  if(addr < TOP) runtime_error(1)
@@ -1680,13 +1701,13 @@ frame to SIM if there is no existing cutting choice point.
 [[POP_ENV]]
 === POP_ENV
 
-==== 16-bit
+_16-bit:_
 
  CONT = (heap[ENV + 2] << BITS_PER_WORD) | heap[ENV + 3]
  SIM = heap[ENV + 1]
  ENV = heap[ENV + 0]
 
-==== 32-bit
+_32-bit:_
 
  CONT = heap[ENV + 2]
  SIM = heap[ENV + 1]
@@ -1695,13 +1716,13 @@ frame to SIM if there is no existing cutting choice point.
 [[POP_ENV_PROCEED]]
 === POP_ENV_PROCEED
 
-==== 16-bit
+_16-bit:_
 
  INST = (heap[ENV + 2] << BITS_PER_WORD) | heap[ENV + 3]
  if(heap[ENV + 1] < 0x8000) CHO = heap[ENV + 1]
  ENV = heap[ENV + 0]
 
-==== 32-bit
+_32-bit:_
 
  INST = heap[ENV+2]
  if(heap[ENV + 1] < 0x80000000) CHO = heap[ENV + 1]
@@ -1714,7 +1735,7 @@ frame to SIM if there is no existing cutting choice point.
 
  push_choice(arg1, arg2)
 
-==== 16-bit
+_16-bit:_
 
  def push_choice(narg, next):
  	local variable addr = min(ENV, CHO) - 9 - narg
@@ -1733,10 +1754,10 @@ frame to SIM if there is no existing cutting choice point.
  	}
  	CHO = addr
 
-==== 32-bit
+_32-bit:_
 
  def push_choice(narg, next):
- 	local variable addr = min(ENV, CHO) - 9 - narg
+ 	local variable addr = min(ENV, CHO) - 7 - narg
  	if(addr < TOP) runtime_error(1)
  	heap[addr + 0] = ENV
  	heap[addr + 1] = SIM
@@ -1755,7 +1776,7 @@ frame to SIM if there is no existing cutting choice point.
 
 *BYTE/0*
 
-==== 16-bit
+_16-bit:_
 
  for(local variable i = 0; i < arg; i++) {
  	R[i] = heap[CHO + 9 + i]
@@ -1769,7 +1790,7 @@ frame to SIM if there is no existing cutting choice point.
  ENV = heap[CHO + 0]
  CHO = heap[CHO + 6]
 
-==== 32-bit
+_32-bit:_
 
  for(local variable i = 0; i < arg; i++) {
  	R[i] = heap[CHO + 7 + i]
@@ -1788,7 +1809,7 @@ frame to SIM if there is no existing cutting choice point.
 
 *BYTE/0 CODE*
 
-==== 16-bit
+_16-bit:_
 
  heap[CHO + 4] = arg2 >> BITS_PER_WORD
  heap[CHO + 5] = arg2 & 0xffff
@@ -1803,7 +1824,7 @@ frame to SIM if there is no existing cutting choice point.
  SIM = heap[CHO + 1]
  ENV = heap[CHO + 0]
 
-==== 32-bit
+_32-bit:_
 
  heap[CHO + 3] = arg2
  for(local variable i = 0; i < arg1; i++) {
@@ -1820,11 +1841,11 @@ frame to SIM if there is no existing cutting choice point.
 [[CUT_CHOICE]]
 === CUT_CHOICE
 
-==== 16-bit
+_16-bit:_
 
  CHO = heap[CHO + 6]
 
-==== 32-bit
+_32-bit:_
 
  CHO = heap[CHO + 4]
 
@@ -2311,16 +2332,27 @@ is nevertheless used by <<AUX_POP_LIST>>.
 
 *VALUE/0 INDEX DEST*
 
- local variable offset = BITS_PER_WORD - 8 * ((arg2 % wordsz) + 1)
- arg3 <- (read_field(arg2 / wordsz, deref(arg1))
- 	>> offset) & 0xff
+_16-bit:_
 
-In other words, in a 16-bit file, index 2 has an offset of 8 (to
-access the high byte of the word), while index 3 has an offset of 0
-(to access the low byte). In a 32-bit file, index 4 has an offset
-of 24 (highest byte), index 5 has an offset of 16 (second highest),
-index 6 has an offset of 8 (second lowest), and index 7 has an offset
-of 0 (lowest byte).
+ local variable field = read_field(arg2 / 2, deref(arg1))
+ if(arg2 & 1) {
+	arg3 <- field & 0xff
+ } else {
+	arg3 <- field >> 8
+ }
+
+_32-bit:_
+
+ local variable field = read_field(arg2 / 4, deref(arg1))
+ if(arg2 % 4 == 0) {
+	arg3 <- field >> 24
+ } else if(arg2 % 4 == 1) {
+	arg3 <- (field >> 16) & 0xff
+ } else if(arg2 % 4 == 2) {
+	arg3 <- (field >> 8) & 0xff
+ } else { // arg2 % 4 == 3
+	arg3 <- field & 0xff
+ }
 
 [[LOAD_VAL]]
 === LOAD_VAL
@@ -2401,7 +2433,7 @@ of 0 (lowest byte).
 
 *VALUE/0 INDEX VALUE*
 
-For 16-bit story files:
+_16-bit:_
 
  local variable addr = field_addr(arg2 / 2, deref(arg1))
  if(arg2 & 1) {
@@ -2410,7 +2442,7 @@ For 16-bit story files:
  	ram[addr] = (ram[addr] & 0x00ff) | (arg3 << 8)
  }
 
-For 32-bit story files:
+_32-bit:_
 
  local variable addr = field_addr(arg2 / 4, deref(arg1))
  if(arg2 % 4 == 0) {
@@ -2820,7 +2852,7 @@ no effect).
  }
 
 In other words, this reads field number (arg2 / BITS_PER_WORD) of the
-object (or null) given in arg1, then extracts the (arg2 % BITS_PER_WORD)th
+object/null given in arg1, then extracts the (arg2 % BITS_PER_WORD)th
 bit from it, where bit 0 is the most significant. This latter convention
 is the reason for the awkward pseudocode.
 
@@ -2866,7 +2898,7 @@ See <<IF_FLAG>>.
  local variable result = unbox_int(arg1) + unbox_int(arg2)
  arg3 <- box_int(result)
 
-For 16-bit story files:
+_16-bit:_
 
  def unbox_int(v):
  	v = deref(v)
@@ -2877,16 +2909,16 @@ For 16-bit story files:
  	if(v < 0 || v > 0x3fff) fail
  	return <number, v>
 
-For 32-bit story files, where sign extension is needed:
+_32-bit:_
 
  def unbox_int(v):
  	v = deref(v)
  	if(v.tag != number) fail
- 	return (v.value << 4) >> 4
+ 	return (v.value << 4) >> 4 // sign extend
 
  def box_int(v):
- 	if(v & 0xf000_0000 != 0 &&
- 	   v & 0xf000_0000 != 0xf000_0000) {
+ 	if((v & 0xf000_0000) != 0 &&
+ 	   (v & 0xf000_0000) != 0xf000_0000) {
  		fail
  	}
  	return <number, v>
@@ -2935,8 +2967,9 @@ TODO: THIS SECTION NEEDS REVISING ONCE THE MULTIPLICATION PR MERGES
  arg3 <- box_int(result)
 
 Division is rounded toward negative infinity, not toward zero ("floored
-division" rather than "truncated division"). In other words, -5 / 2 = -3,
-not -2.
+division" rather than "truncated division"). In other words, ``-5 / 2 = -3``,
+not ``-2``. This only matters for 32-bit story files, since the 16-bit
+Å-machine does not support negative numbers.
 
 [[MOD_NUM]]
 === MOD_NUM
@@ -2947,10 +2980,12 @@ not -2.
  local variable result = unbox_int(arg1) % unbox_int(arg2)
  arg3 <- box_int(result)
 
-This is the value such that ((P/Q) * Q) + (P % Q) = P. Since division rounds
-toward negative infinity, that means P % Q has the sign of Q, not the sign
-of P - this is a modulo operation, not a remainder operation. In other words,
--5 % 2 = 1, not -1 (but 5 % -2 = -1).
+This is the value such that ``((P/Q) * Q) + (P % Q) = P``. Since division
+rounds toward negative infinity, that means P % Q has the sign of Q, not the
+sign of P—in other words, this is a modulo operation, not a remainder
+operation. For example, ``-5 % 2 = 1``, not ``-1`` (but ``5 % -2 = -1``).
+This only matters for 32-bit story files, since the 16-bit Å-machine does
+not support negative numbers.
 
 [[RAND_NUM]]
 === RAND_NUM
@@ -3187,6 +3222,9 @@ of P - this is a modulo operation, not a remainder operation. In other words,
  	}
  	return str
 
+The result of `output_char(ch)` on a character below $20 is undefined.
+The Z-machine prints `\?`, which indicates clearly that something is wrong.
+
 [[ENTER_DIV]]
 === ENTER_DIV
 
@@ -3211,7 +3249,7 @@ of P - this is a modulo operation, not a remainder operation. In other words,
 
 Pre-1.0 versions of this specification erroneously said SPC
 should be set to "par" instead of "line". This is not meant to
-be a change between Aa-machine versions; ideally SPC should be
+be a change between Å-machine versions; ideally SPC should be
 set to "line" even when running version 0.5 story files.
 
 [[ENTER_SPAN]]
@@ -3456,9 +3494,8 @@ left to the implementation.
  	}
  }
 
-Prints a progress bar with `arg1/arg2` filled.
-
-TODO: What should happen if arg2.value == 0?
+Prints a progress bar with `arg1/arg2` filled. If arg2 is zero, the bar should
+be entirely filled, regardless of arg1.
 
 [[QUIT]]
 === QUIT
@@ -3514,8 +3551,11 @@ TODO: What should happen if arg2.value == 0?
 
  // fails on error/cancel, continues on success, jumps on restore
  if(inStatus || nSpan > 0) runtime_error(7)
- if(!vm_save(arg)) {
+ local variable status = vm_save(arg)
+ if(status == failed) {
  	fail
+ } else if(status == restored) {
+ 	INST = arg1
  }
 
 [[SAVE_UNDO]]
@@ -3525,8 +3565,11 @@ TODO: What should happen if arg2.value == 0?
 
  // fails on error/cancel, continues on success, jumps on restore
  if(inStatus || nSpan > 0) runtime_error(7)
- if(!vm_save_undo(arg)) {
+ local variable status = vm_save_undo(arg)
+ if(status == failed) {
  	fail
+ } else if(status == restored) {
+ 	INST = arg1
  }
 
 [[GET_INPUT]]
@@ -3870,7 +3913,7 @@ by the specification.)
 *VWORD/VBYTE CODE*
 
  if(IDX == arg1) INST = arg2
-	
+
 [[CHECK_GT_EQ]]
 === CHECK_GT_EQ
 
@@ -3913,7 +3956,7 @@ by the specification.)
  }
  
 The 'find_in_wordmap' procedure reads from one of the wordmaps
-(`wordmaps[arg1]`), looking up the word of interest (IDX) to see
+in the <<MAPS>> chunk, looking up the word of interest (IDX) to see
 if it's there.
 
 [[CHECK_EQ_2]]
@@ -3936,7 +3979,6 @@ if it's there.
 
 The operands and semantics of this opcode are not yet defined.
 It is guaranteed to always be illegal in 16-bit story files.
-
 
 == Examples
 
