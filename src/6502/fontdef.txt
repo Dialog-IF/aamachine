@@ -1264,7 +1264,7 @@
 .##..##.
 ........
 
-+00c4	"A" ; Ä LATIN CAPITAL LETTER A WITH DIAERESIS
++00c4	"Ae" ; Ä LATIN CAPITAL LETTER A WITH DIAERESIS
 
 .##..##.
 ..####..
@@ -1275,7 +1275,7 @@
 .##..##.
 ........
 
-+00c5	"A" ; Å LATIN CAPITAL LETTER A WITH RING ABOVE
++00c5	"Aa" ; Å LATIN CAPITAL LETTER A WITH RING ABOVE
 
 ..####..
 .##..##.
@@ -1286,7 +1286,7 @@
 .##..##.
 ........
 
-+00c6	"AE" ; Æ LATIN CAPITAL LETTER AE
++00c6	"Ae" ; Æ LATIN CAPITAL LETTER AE
 
 ........
 ..#####.
@@ -1462,7 +1462,7 @@
 ..####..
 ........
 
-+00d6	"O" ; Ö LATIN CAPITAL LETTER O WITH DIAERESIS
++00d6	"Oe" ; Ö LATIN CAPITAL LETTER O WITH DIAERESIS
 
 .##..##.
 ..####..
@@ -1473,7 +1473,7 @@
 ..####..
 ........
 
-+00d8	"O" ; Ø LATIN CAPITAL LETTER O WITH STROKE
++00d8	"Oe" ; Ø LATIN CAPITAL LETTER O WITH STROKE
 
 ........
 ..###.##
@@ -1517,7 +1517,7 @@
 ..####..
 ........
 
-+00dc	"U" ; Ü LATIN CAPITAL LETTER U WITH DIAERESIS
++00dc	"Ue" ; Ü LATIN CAPITAL LETTER U WITH DIAERESIS
 
 .##..##.
 ........
@@ -1544,8 +1544,8 @@
 ........
 .##.....
 .#####..
-.##...#.
-.##...#.
+.##..##.
+.##..##.
 .#####..
 .##.....
 ........
@@ -1605,7 +1605,7 @@
 ..#####.
 ........
 
-+00e4	"a" ; ä LATIN SMALL LETTER A WITH DIAERESIS
++00e4	"ae" ; ä LATIN SMALL LETTER A WITH DIAERESIS
 
 ........
 .##..##.
@@ -1616,7 +1616,7 @@
 ..#####.
 ........
 
-+00e5	"a" ; å LATIN SMALL LETTER A WITH RING ABOVE
++00e5	"aa" ; å LATIN SMALL LETTER A WITH RING ABOVE
 
 ...###..
 ..##.##.
@@ -1803,7 +1803,7 @@
 ..####..
 ........
 
-+00f6	"o" ; ö LATIN SMALL LETTER O WITH DIAERESIS
++00f6	"oe" ; ö LATIN SMALL LETTER O WITH DIAERESIS
 
 ........
 ........
@@ -1814,7 +1814,7 @@
 ..####..
 ........
 
-+00f8	"o" ; ø LATIN SMALL LETTER O WITH STROKE
++00f8	"oe" ; ø LATIN SMALL LETTER O WITH STROKE
 
 ........
 ........
@@ -1858,7 +1858,7 @@
 ..#####.
 ........
 
-+00fc	"u" ; ü LATIN SMALL LETTER U WITH DIAERESIS
++00fc	"ue" ; ü LATIN SMALL LETTER U WITH DIAERESIS
 
 ........
 .##..##.
@@ -1885,8 +1885,8 @@
 .##.....
 .##.....
 .#####..
-.##...#.
-.##...#.
+.##..##.
+.##..##.
 .#####..
 .##.....
 .##.....
@@ -1924,7 +1924,7 @@
 ..####..
 ........
 
-+0152	"OE" ; Œ LATIN CAPITAL LIGATURE OE
++0152	"Oe" ; Œ LATIN CAPITAL LIGATURE OE
 
 ........
 ..#####.
@@ -2078,7 +2078,7 @@
 .##..##.
 ........
 
-+202f	" " ; U+202F
++202f	" " ; NARROW NO-BREAK SPACE
 
 ........
 ........
