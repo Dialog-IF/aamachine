@@ -1,15 +1,21 @@
 = Å-machine 1.0 Specification
 
 This file contains a detailed description of the Å-machine (Aa-machine)
-version 1.0, including the two file formats (story and saved game) and the
+version 1.1, including the two file formats (story and saved game) and the
 bytecode semantics. Be warned that the description is technically
 comprehensive and rather condensed.
 
-Note that 1.0 is not any more official or stable than its predecessor, 0.5.
+Note that 1.x is not any more official or stable than its predecessor, 0.5.
 The major version change marks where the community forked the project and
 took over development and maintenance.
 
 :toc:
+
+== Changes in v1.1
+
+32-bit story files are now supported
+
+New opcode: EXT32
 
 == Changes in v1.0
 
@@ -77,8 +83,11 @@ all other numbers are decimal.
 
 === Words
 
-Most data is organized into words. A word is currently always 16 bits.
+Most data is organized into words. The size of a word is stored in the <<HEAD>>:
+either 2 bytes (16 bits) or 4 bytes (32 bits).
 When words are stored in a save file, the byte order is big-endian.
+
+==== 16-bit words
 
 The internal format of a 16-bit word could be:
 
@@ -181,7 +190,119 @@ The special value `3f3f` marks unused words in the main heap,
 aux, and random access areas. This is handy for measuring peak
 memory usage.
 
+==== 32-bit words
+
+The internal format of a 32-bit word could be:
+
+*A raw 32-bit value*, such as an index into one of the heap
+areas.
+
+*32 independent flags*, numbered 00..1f starting with the most
+significant bit.
+
+The unconventional bit order works together with
+big-endian byte ordering to allow interpreters to work
+with word-addressing or byte-addressing when dealing
+with flag numbers.
+
+[[literal32,literal]]
+*A literal value*, as follows:
+
+* ``0000 0001..0fff ffff``	Object
+* ``1000 0000..1fff ffff``	Dict word (index into dictionary)
+* ``2000 0000..2010 ffff``	Character (Unicode codepoint)
+* ``2011 0000..2fff ffff``	reserved
+* ``3000 0000           ``	`[]` (empty list)
+* ``3000 0001..3fff ffff``	reserved
+* ``4000 0000..4fff ffff``	28-bit signed integer
+* ``5000 0000..7fff ffff``	reserved
+
+[[live32]]
+*A live value (tagged reference)*, as follows:
+
+* ``0000 0000           ``		undefined
+* ``0000 0001..7fff ffff``		<<literal32,Literal value>>
+* ``8000 0000..8fff ffff``		Indirect reference (word index into heap)
+* ``9000 0000..9fff ffff``		reserved
+* ``a000 0000..afff ffff``		Pair (word index into heap)
+* ``b000 0000..bfff ffff``		Dict word, extended (word index into heap)
+* ``c000 0000..ffff ffff``		reserved
+
+Live values only exist in registers or on the heap, and
+can be invalidated when the heap shrinks.
+
+In this document, tagged references are described as if
+they had two independent fields, "tag" (the top four bits)
+and "value" (the bottom 28 bits).
+
+* `0`	null_tag (v = 0)
+* `0`	object (v > 0)
+* `1`	word
+* `2`	char
+* `3`	empty_tag (v = 0)
+* `4`	number
+* `8`	reference
+* `a`	pair
+* `b`	extdict
+
+Tag 3 (v > 0) and 5-7 are reserved for future simple values.
+Tags 9 and c-f are reserved for future reference types.
+
+Tag `1` may also be referred to as a "dict" to avoid ambiguity with the
+other meaning of "word" (a two-byte or four-byte value).
+
+A pair is a pointer to a two-word cell on the heap. The
+first word of that cell is the head of the list (can be
+any value). The second word of that cell is the rest of
+the list (either a pair or `[]`).
+
+An extended dict (extdict) is a pointer to a two-word
+cell on the heap. If the first word of that cell is a
+pair, it represents an unrecognized dict (not found in
+the dictionary); the first word is a list of characters
+and the second word is `[]`. Otherwise, it represents a
+dict with an optional ending; the first word is a dict
+(the essential part) and the second word is a list of
+characters (the optional part).
+
+*A stored value*, as follows:
+
+* ``0000 0000           ``	Unset (Null)
+* ``0000 0001..7fff ffff``	<<literal32,Literal value>>
+* ``8000 0000..bfff ffff``	Word index into long-term storage area
+* ``c000 0000..ffff ffff``	reserved
+
+Stored values exist in global and object variables (the
+lower parts of RAM) and may have to be updated when
+long-term storage is rearranged. See the pseudocode for
+<<clear_longterm,`clear_longterm`>>.
+
+Part of a *serialized data stream*:
+
+* ``0000 0000           ``	End of stream marker
+* ``0000 0001..7fff ffff``	<<literal32,Literal value>>
+* ``8000 0000           ``	Unbound variable
+* ``8000 0001..80ff ffff``	reserved
+* ``8100 0000           ``	Extdict (two words) follows
+* ``8100 0001..9fff ffff``	reserved
+* ``a000 0000..afff ffff``	Proper list with (x & 0fff ffff) elements follows
+* ``b000 0000..bfff ffff``	Improper list with (x & 0fff ffff) elements follows
+* ``c000 0000..ffff ffff``	reserved
+
+Values are serialized into this format if they need to be
+stored on the aux heap or in long-term storage. See the
+pseudocode for <<push_serialized,`push_serialized`>> and
+<<push_longterm,`push_longterm`>>.
+
+The special value `3f3f 3f3f` marks unused words in the main heap,
+aux, and random access areas. This is handy for measuring peak
+memory usage.
+
 === Text
+
+==== 16-bit text
+
+The following applies only when the word size is 16 bits.
 
 The game-specific *character set* is a single-byte encoding.
 
@@ -217,6 +338,31 @@ Huffman-inspired encoding.
 
 There is a game-specific bitstream decoding tree with up to 128 nodes
 (see <<LANG>>).
+
+==== 32-bit text
+
+The following applies only when the word size is 32 bits.
+
+The *character set* is a three-byte (24-bit) encoding.
+
+``00-1f`` are reserved. Some represent special keypresses:
+
+`08`	backspace/delete
+`0d`	return
+`10`	up
+`11`	down
+`12`	left
+`13`	right
+
+Characters from `20` to `10ffff` are identical to Unicode.
+Characters above `10ffff` are undefined.
+
+Characters from the *character set* may appear in input, dictionary
+words, and output. As part of input processing, characters must be
+converted to lowercase.
+
+Strings are sequences of characters encoded in UTF-8, a standard
+variable-length encoding for Unicode text.
 
 === Game state
 
@@ -291,7 +437,7 @@ starts or restarts. The exceptions are:
 * `ENV = <<HEAD>>.heapsz`
 * `CHO = <<HEAD>>.heapsz`
 * `TRL = <<HEAD>>.auxsz`
-* `SIM = ffff`
+* `SIM = ffff` (or `ffff ffff` depending on word size)
 * `SPC = line`
 
 In case of a runtime error, the machine is restarted with R00
@@ -364,7 +510,7 @@ variables (not affiliated with any object).
 Saved games contain a RAM area that matches the layout described here
 (starting with 'Initialized registers'). The on-disk representation
 is a run-length encoded xor difference with the contents of the INIT
-chunk (padded by copies of the 'unused' word, `3f3f`).
+chunk (padded by copies of the 'unused' word, `3f3f` or `3f3f 3f3f`).
 
 It is possible to track the game state in RAM in the same format at
 runtime, although it may be more efficient to represent words in the
@@ -394,6 +540,11 @@ From lower to higher heap index:
 * `LONG`: Saved CONT
 * `WORD[]`: Local variables
 
+Note that a LONG is the size of two WORDs in a 16-bit story file, but one
+WORD in a 32-bit story file. This means that the size of an env frame is
+four words (plus one for each local) in a 16-bit file, but only three words
+(plus one for each local) in a 32-bit file.
+
 === Choice frame format
 
 From lower to higher heap index:
@@ -406,6 +557,11 @@ From lower to higher heap index:
 * `WORD`: Saved TOP
 * `WORD`: Saved TRL
 * `WORD[]`: Saved arguments
+
+Note that a LONG is the size of two WORDs in a 16-bit story file, but one
+WORD in a 32-bit story file. This means that the size of a choice frame is
+nine words (plus one for each argument) in a 16-bit file, but only seven
+words (plus one for each argument) in a 32-bit file.
 
 === Stop frame format
 
@@ -432,9 +588,9 @@ story file.
 
 Take the game state (including the full extent of the heaps), then
 exclusive-or with the contents of the <<INIT>> chunk padded with the
-'unused' word (`3f3f`). This stream of bytes is run-length encoded in
-the following way: A non-null byte is represented by itself. A stretch
-of N (1..256) null bytes is represented by a null byte, followed by a
+'unused' word (`3f3f` or `3f3f 3f3f`). This stream of bytes is run-length
+encoded in the following way: A non-null byte is represented by itself. A
+stretch of N (1..256) null bytes is represented by a null byte, followed by a
 byte of value N - 1.
 
 === REGS chunk
@@ -485,7 +641,7 @@ address space.
 === HEAD
 
 * `BYTE[2]`: "version", File format version (major, minor)
-* `BYTE`: "wordsz", Word size (currently always 2)
+* `BYTE`: "wordsz", Word size (either 2 or 4)
 * `BYTE`: "shift", Shift amount for short/long string pointers
 
 * `SHORT`: "release", Story release number
@@ -506,15 +662,23 @@ This chunk corresponds to the format of the game state detailed above,
 starting with the <<initialized-registers,Initialized registers>>. Words
 are stored in big-endian byte order. The chunk can be smaller than the
 RAM area. Remaining words are assumed to be filled with the 'unused' value
-3f3f.
+3f3f or 3f3f 3f3f.
 
 [[LANG]]
 === LANG
 
-* `BYTE[2]`: Offset in chunk of <<tbl-decode,bitstream decoding table>>
-* `BYTE[2]`: Offset in chunk of <<tbl-extchar,extended character table>>
-* `BYTE[2]`: Offset in chunk of <<tbl-ending,word endings decoder>>
-* `BYTE[2]`: Offset in chunk of <<tbl-stop,special characters table>>
+In 16-bit story files, this chunk begins with:
+
+* `SHORT`: Offset in chunk of <<tbl-decode,bitstream decoding table>>
+* `SHORT`: Offset in chunk of <<tbl-extchar,extended character table>>
+* `SHORT`: Offset in chunk of <<tbl-ending,word endings decoder>>
+* `SHORT`: Offset in chunk of <<tbl-stop,special characters table>>
+
+In 32-bit story files, the bitstream decoding table and extended character table
+are not present. The chunk instead begins with:
+
+* `SHORT`: Offset in chunk of <<tbl-ending,word endings decoder>>
+* `SHORT`: Offset in chunk of <<tbl-stop,special characters table>>
 
 [tbl-decode]
 ==== Bitstream decoding table
@@ -546,6 +710,8 @@ Escape code handling for story file version 0.4 or later:
 * If X < B, produce character $a0 + X.
 * Otherwise, produce a space character ($20) followed by dictionary word X - B.
 
+This table is not present in 32-bit files.
+
 [tbl-extchar]
 ==== Extended character table
 
@@ -554,8 +720,12 @@ Escape code handling for story file version 0.4 or later:
 ** `BYTE`: Corresponding uppercase character (can be the same)
 ** `BYTE[3]`: Unicode codepoint
 
+This table is not present in 32-bit files.
+
 [tbl-ending]
 ==== Word endings decoder
+
+===== 16-bit
 
 An array of instruction bytes:
 
@@ -573,8 +743,28 @@ current ending).
 the ending and resume execution at byte offset yy in the
 decoder.
 
+===== 32-bit
+
+An array of instruction words:
+
+* `00 00 00 00`: Fail
+* `00 00 00 01`: Check
+* `xx xx xx yy`: Shift xx, jump yy
+
+*Fail*: The word is not valid. Shift all letters and create an
+unrecognized word.
+
+*Check*: If the word is in the dictionary, succeed (with the
+current ending).
+
+*Shift xx, jump yy*: If the last character is xx, then move it to
+the ending and resume execution at *word* (not byte!) offset yy in the
+decoder.
+
 [tbl-stop]
 ==== Special characters table
+
+===== 16-bit
 
 * `BYTE[]`: Stop characters, a null-terminated set of characters that will be treated as separate words when parsing player input.
 
@@ -584,42 +774,78 @@ The following fields are present if the storyfile version is
 * `BYTE[]`: Null-terminated subset of stop characters that will inhibit whitespace before them, such as ".". [spec 0.4]
 * `BYTE[]`: Null-terminated subset of stop characters that will inhibit whitespace after them, such as "(". [spec 0.4]
 
+===== 32-bit
+
+* `WORD[]`: Stop characters, a null-terminated set of characters that will be treated as separate words when parsing player input.
+
+The following fields are present if the storyfile version is
+0.4 or more. (Which, for a 32-bit file, it always will be.)
+
+* `WORD[]`: Null-terminated subset of stop characters that will inhibit whitespace before them, such as ".". [spec 0.4]
+* `WORD[]`: Null-terminated subset of stop characters that will inhibit whitespace after them, such as "(". [spec 0.4]
+
 [[DICT]]
 === DICT
 
 * `WORD`: Number of dictionary words
-** `BYTE`: Length of word (2..ff)
-** `BYTE[2]`: Start of characters (offset in chunk)
+** `BYTE`: Length of word in bytes (2..ff)
+** `WORD`: Start of characters (byte offset in chunk)
 
-Strings of characters (arrays of bytes in the game-specific character
-set) referenced by the dictionary. No terminator. Can overlap.
+Strings of characters referenced by the dictionary. No terminator. Can overlap.
+In 16-bit story files, each word is an array of bytes in the game-specific character set.
+In 32-bit story files, each word is an array of characters encoded in UTF-8.
+In both cases, the length of each string is given in bytes, not characters.
+This means that the maximum length of a dictionary word is 255 characters in
+a 16-bit file and 63 characters in a 32-bit file (if composed entirely of
+non-BMP characters).
 
 [[MAPS]]
 === MAPS
 
-* `BYTE[2]`: Number of word-to-object maps
-** `BYTE[2]`: Offset in chunk of word-to-object map
+==== 16-bit
+
+* `WORD`: Number of word-to-object maps
+** `WORD`: Byte offset in chunk of word-to-object map
 
 Each word-to-object map:
 
-* `BYTE[2]`: Number of entries (sorted by index value)
+* `SHORT`: Number of entries (sorted by index value)
 ** `WORD`: Index value (dictionary word or character)
-** `WORD`: Single object id + e000, offset in chunk of payload, or null (for wildcard words such as 'the')
+** `WORD`: Single object id + e000, byte offset in chunk of payload, or null (for wildcard words such as 'the')
 
 Payload data:
 
 * ``00       `` End
 * ``01..df   `` Short object id (0001..00df)
-* ``e0..ff xx`` Long object id (0001..1fff)
+* ``e0..ff xx`` Long object id plus e000 (0001..1fff)
+
+==== 32-bit
+
+* `WORD`: Number of word-to-object maps
+** `WORD`: Byte offset in chunk of word-to-object map
+
+Each word-to-object map:
+
+* `SHORT`: Number of entries (sorted by index value)
+** `WORD`: Index value (dictionary word or character)
+** `WORD`: Single object id, byte offset in chunk of payload + 8000 0000, or null (for wildcard words such as 'the')
+
+Payload data:
+
+* ``00             `` End
+* ``01..7f         `` Short object id (0001..007f)
+* ``80..bf xx      `` Long object id plus 8000 (0001..3fff)
+* ``c0..cf xx xx xx`` Full object id plus c000 0000 (0000 0001..0fff ffff)
+* ``d0..ff         `` reserved
 
 [[LOOK]]
 === LOOK
 
-* `BYTE[2]`: Number of style classes
-** `BYTE[2]`: Offset in chunk of style definition
+* `WORD`: Number of style classes
+** `WORD`: Byte offset in chunk of style definition
 
-Each style definition consists of zero or more null-terminated ASCII
-strings. Each is a CSS key-value pair without the final semicolon, e.g.
+Each style definition consists of zero or more null-terminated strings.
+Each is a CSS key-value pair without the final semicolon, e.g.
 "width: 100%". The original case from the Dialog source code is
 preserved, so interpreters must perform case-insensitive comparison.
 Leading whitespace has been removed from the entries. A blank entry
@@ -630,11 +856,15 @@ information of use to the interpreter, such as ARIA roles. Thus,
 interpreters must ignore any unrecognized keys or values, rather than
 raising an error.
 
+CSS properties and values are generally expected to be in ASCII, but
+Dialog does not enforce this. Non-ASCII characters will be encoded in the
+game-specific character set in 16-bit files and UTF-8 in 32-bit files.
+
 [[TAGS]]
 === TAGS (optional)
 
 * `WORD`: Number of named objects
-** `BYTE[2]`: Offset in chunk of null-terminated object name
+** `WORD`: Byte offset in chunk of null-terminated object name
 
 Strings of characters for the object names.
 
@@ -654,22 +884,34 @@ Identifiers:
 * `05`: Release date in YYYY-MM-DD format
 * `06`: Compiler version string
 
-Strings use the game-specific character set, except that $10 (normally
-undefined for output) is a line feed.
+In 16-bit story files, these strings use the game-specific character set,
+except that $10 (normally undefined for output) is a line feed. In 32-bit
+story files, these strings use UTF-8. Line feeds should always be $10, not
+$13.
 
 [[WRIT]]
 === WRIT
+
+==== 16-bit
 
 A byte-addressable read-only chunk containing packed bitstreams.
 Streams always begin on a byte boundary. Bits are packed into bytes
 starting with the MSB. Extra null bytes can be inserted to make better
 use of packed addressing modes.
 
+==== 32-bit
+
+A byte-addressable read-only chunk containing null-terminated strings
+encoded in UTF-8. Extra null bytes can be inserted to make better use of
+packed addressing modes.
+
 [[URLS]]
 === URLS
 
-* `BYTE[2]`: Number of resources
-** `BYTE[2]`: Offset in chunk of descriptor
+==== 16-bit
+
+* `WORD`: Number of resources
+** `WORD`: Byte offset in chunk of descriptor
 
 Each descriptor is:
 
@@ -686,6 +928,12 @@ file contents.
 
 The URL scheme "file" refers to data inside <<FILE>> chunks, e.g.
 "file:title.png".
+
+==== 32-bit
+
+As above, except that each descriptor instead begins with:
+
+* `LONG`: String pointer to alt-text (shift according to header)
 
 [[FILE]]
 === FILE
@@ -715,10 +963,16 @@ entries), or dispatching on the lower seven bits (128 table entries),
 and then branching on the MSB at a later stage while processing the
 instruction.
 
+The one exception is the <<EXT32>> opcode (ff). Its number and format
+of operands are not currently defined, but may vary depending on the
+following bytes—in other words, EXT32 is a prefix for any future 32-bit-only
+instructions. This opcode is always illegal in 16-bit story files, and
+thus 16-bit interpreters need not try to decode it.
+
 [[op]]
 ==== Operands
 
-Operand types (always big-endian byte ordering):
+Operand types (always big-endian byte ordering, most significant bit first):
 
 [[0,0]]
 **0**: implicit constant zero, not encoded
@@ -736,24 +990,52 @@ Operand types (always big-endian byte ordering):
 [[WORD,WORD]]
 *WORD*: constant number, e.g. line number for tracing
 
+In 16-bit story files:
+
 * `xxxxxxxx xxxxxxxx`: Number 0000..ffff
+
+In 32-bit story files:
+
+* `xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx`: Number 0000 0000..ffff ffff
 
 [[VWORD,VWORD]]
 *VWORD*: constant <<literal>>
 
+In 16-bit story files:
+
 * `0xxxxxxx xxxxxxxx`: Literal 0000..7fff
 
+In 32-bit story files:
+
+* `0xxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx`: Literal 0000 0000..7fff ffff
+
 [[RAW,RAW]]
-*RAW*: unsigned 16-bit number
+*RAW*: unsigned word-sized number
+
+In 16-bit story files:
 
 * `0xxxxxxx xxxxxxxx`: Number 0000..7fff
+* `10xxxxxx`: Value of register 00..3f
+* `11xxxxxx`: Value of env slot 00..3f
+
+In 32-bit story files:
+
+* `0xxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx`: Number 0000 0000..7fff ffff
 * `10xxxxxx`: Value of register 00..3f
 * `11xxxxxx`: Value of env slot 00..3f
 
 [[VALUE,VALUE]]
 *VALUE*: <<live,live value>> (tagged reference)
 
+In 16-bit story files:
+
 * `0xxxxxxx xxxxxxxx`: Literal 0000..7fff
+* `10xxxxxx`: Value of register 00..3f
+* `11xxxxxx`: Value of env slot 00..3f
+
+In 32-bit story files:
+
+* `0xxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx`: Literal 0000 0000..7fff ffff
 * `10xxxxxx`: Value of register 00..3f
 * `11xxxxxx`: Value of env slot 00..3f
 
@@ -768,26 +1050,51 @@ Operand types (always big-endian byte ordering):
 [[INDEX,INDEX]]
 *INDEX*: medium raw constant, e.g. index of variable, style class
 
+In 16-bit story files:
+
 * `0xxxxxxx`: Index 00..7f
 * `10xxxxxx`: Index 80..bf
 * `11xxxxxx xxxxxxxx`: Index 0000..3fff
 
+In 32-bit story files:
+
+* `0xxxxxxx`: Index 00..7f
+* `10xxxxxx`: Index 80..bf
+* `11xxxxxx xxxxxxxx xxxxxxxx xxxxxxxx`: Index 0000 0000..3fff ffff
+
+[[STRING,STRING]]
+*STRING*: shifted byte address in <<WRIT>> chunk: tiny pointers are shifted
+		right by log2(wordsz) bits, short and long pointers are shifted
+		right by a number of bits stored in the header
+
+In 16-bit story files:
+
+* `0xxxxxxx`: Tiny pointer (shift by log2(wordsz) = 1)
+* `10xxxxxx xxxxxxxx`: Short pointer (shift per header)
+* `11xxxxxx xxxxxxxx xxxxxxxx`: Long pointer (shift per header)
+
+In 32-bit story files:
+
+* `0xxxxxxx`: Tiny pointer (shift by log2(wordsz) = 2)
+* `10xxxxxx xxxxxxxx`: Short pointer (shift per header)
+* `11xxxxxx xxxxxxxx xxxxxxxx xxxxxxxx`: Long pointer (shift per header)
+
 [[CODE]]
 *CODE*: byte address in <<CODE-chunk>> chunk
+
+In 16-bit story files:
 
 * `00000000`: Absolute address 0 (known to contain the <<FAIL>> opcode)
 * `00xxxxxx`: Close relative pointer (+ 1..3f bytes)
 * `01xxxxxx xxxxxxxx`: Relative pointer (± 8 kB), 14-bit signed integer relative to end of operand
 * `1xxxxxxx xxxxxxxx xxxxxxxx`: Absolute pointer (full 8 MB range)
 
-[[STRING,STRING]]
-*STRING*: shifted byte address in <<WRIT>> chunk: tiny pointers are shifted
-		right by 1 bit, short and long pointers are shifted right by
-		a number of bits stored in the header
+In 32-bit story files:
 
-* `0xxxxxxx`: Tiny pointer (shift by 1)
-* `10xxxxxx xxxxxxxx`: Short pointer (shift per header)
-* `11xxxxxx xxxxxxxx xxxxxxxx`: Long pointer (shift per header)
+* `00000000`: Absolute address 0 (known to contain the <<FAIL>> opcode)
+* `00xxxxxx`: Close relative pointer (+ 1..3f bytes)
+* `01xxxxxx xxxxxxxx`: Relative pointer (± 8 kB), 14-bit signed integer relative to end of operand
+* `1xxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx`: Absolute pointer (full 1 GB range)
 
 Decoding of a CODE operand can sometimes can be postponed until after
 the execute stage, when it may be possible to decode straight into INST
@@ -795,9 +1102,10 @@ or skip the operand altogether. Both close and relative pointers are
 decoded relative to INST when encountering the CODE operand.
 
 RAW and VALUE only differ when the value read from a register or env
-variable has its high bit set. For a RAW operand, 8002 is interpreted
-as the number 8002. For a VALUE operand, it is treated as a pointer,
-and the word at heap address 2 will be fetched and used instead.
+variable has its high bit set. For a RAW operand, $8002 in a register
+is interpreted as the number $8002. For a VALUE operand, it is treated
+as a pointer, and the word at heap address 2 will be fetched and used
+instead.
 
 == Instructions
 
@@ -1040,6 +1348,9 @@ fd	<<CHECK_EQ_2>>	<<VBYTE>> <<VBYTE>> <<CODE>>	≥ 0.4
 {empty}	{empty}	{empty}	{empty}
 
 7f	<<TRACEPOINT>>	<<STRING>> <<STRING>> <<STRING>> <<WORD>>	{empty}
+{empty}	{empty}	{empty}	{empty}
+
+ff	<<EXT32>>	TBD	≥ 1.1
 |===
 
 [[status-values]]
@@ -1189,7 +1500,7 @@ Additional API calls perform high-level operations on the output state:
 	output_clear_links() // transform old links into static text
 	output_clear_div() // clear current div
 	output_clear_old() // clear old text
-	output_leave_all()
+	output_leave_all() // leave divs, spans, and status areas
 	output_sync()
 	bool output_script_on() // returns true to indicate success
 	output_script_off()
@@ -1231,7 +1542,6 @@ to `output_leavediv`), the engine tracks output state using four global
 variables (in addition to SPC and CWL):
 
 * nSpan: integer, initially 0
-
 * nLink: integer, initially 0
 * inStatus: boolean, initially false
 * divList: list/array of style classes, initially empty
@@ -1251,6 +1561,9 @@ them as static text. Such interpreters do not need the nLink variable.
 There could be errors. Recommendation is to double-check with the
 javascript interpreter.
 
+In the following pseudocode, 0x1234(5678) means 0x1234 for a 16-bit story
+file (word size 2) and 0x12345678 for a 32-bit story file (word size 4).
+
 [[NOP]]
 === NOP
 
@@ -1261,8 +1574,16 @@ Do nothing.
 
  fail
 
+_16-bit:_
+
  def fail:
- 	INST = (heap[CHO + 4] << 16) | heap[CHO + 5]
+ 	INST = (heap[CHO + 4] << BITS_PER_WORD) | heap[CHO + 5]
+ 	leave recursive unify/push/pop/(de)serialize operation
+
+_32-bit:_
+
+ def fail:
+ 	INST = heap[CHO + 3]
  	leave recursive unify/push/pop/(de)serialize operation
 
 [[SET_CONT]]
@@ -1275,14 +1596,14 @@ Do nothing.
 [[PROCEED]]
 === PROCEED
 
- if(SIM < 0x8000) CHO = SIM
+ if(SIM < 0x8000(0000)) CHO = SIM
  INST = CONT
- 
+
 Proceed from the continuation point (CONT).
 When the simple cutting choice point (SIM) is set, proceed with
 that as the current choice frame on the choice stack. SIM (and
 by extension all choice frames) aren't expected to naturally dip
-below $8000, as it would conflict with existing memory ranges.
+below $8000(0000), as it would conflict with existing memory ranges.
 
 [[JMP]]
 === JMP
@@ -1300,7 +1621,7 @@ later.
 
 *CODE*
 
- SIM = 0xffff
+ SIM = 0xffff(ffff)
  INST = arg
 
 Perform a multi-jump chain starting at the CODE address provided.
@@ -1312,7 +1633,7 @@ SIM is invalidated as a cutting choice point.
 *CODE*
 
  CONT = next_instruction
- SIM = 0xffff
+ SIM = 0xffff(ffff)
  INST = arg
 
 [[JMP_SIMPLE]]
@@ -1337,7 +1658,7 @@ SIM is invalidated as a cutting choice point.
 
 *CODE*
 
- if(SIM >= 0x8000) SIM = CHO
+ if(SIM >= 0x8000(0000)) SIM = CHO
  INST = arg
 
 Perform a jump to the CODE address, and save the current choice
@@ -1346,35 +1667,64 @@ frame to SIM if there is no existing cutting choice point.
 [[TAIL]]
 === TAIL
 
- if(SIM >= 0x8000) SIM = CHO
+ if(SIM >= 0x8000(0000)) SIM = CHO
 
 [[PUSH_ENV]]
 === PUSH_ENV
 
 *BYTE/0*
 
+_16-bit:_
+
  local variable addr = min(ENV, CHO) - 4 - arg
  if(addr < TOP) runtime_error(1)
 
  heap[addr + 0] = ENV
  heap[addr + 1] = SIM
- heap[addr + 2] = CONT >> 16
+ heap[addr + 2] = CONT >> BITS_PER_WORD
  heap[addr + 3] = CONT & 0xffff
+
+ ENV = addr
+
+_32-bit:_
+
+ local variable addr = min(ENV, CHO) - 3 - arg
+ if(addr < TOP) runtime_error(1)
+
+ heap[addr + 0] = ENV
+ heap[addr + 1] = SIM
+ heap[addr + 2] = CONT
 
  ENV = addr
 
 [[POP_ENV]]
 === POP_ENV
 
- CONT = (heap[ENV + 2] << 16) | heap[ENV + 3]
+_16-bit:_
+
+ CONT = (heap[ENV + 2] << BITS_PER_WORD) | heap[ENV + 3]
+ SIM = heap[ENV + 1]
+ ENV = heap[ENV + 0]
+
+_32-bit:_
+
+ CONT = heap[ENV + 2]
  SIM = heap[ENV + 1]
  ENV = heap[ENV + 0]
 
 [[POP_ENV_PROCEED]]
 === POP_ENV_PROCEED
 
- INST = (heap[ENV + 2] << 16) | heap[ENV + 3]
+_16-bit:_
+
+ INST = (heap[ENV + 2] << BITS_PER_WORD) | heap[ENV + 3]
  if(heap[ENV + 1] < 0x8000) CHO = heap[ENV + 1]
+ ENV = heap[ENV + 0]
+
+_32-bit:_
+
+ INST = heap[ENV+2]
+ if(heap[ENV + 1] < 0x80000000) CHO = heap[ENV + 1]
  ENV = heap[ENV + 0]
 
 [[PUSH_CHOICE]]
@@ -1384,14 +1734,16 @@ frame to SIM if there is no existing cutting choice point.
 
  push_choice(arg1, arg2)
 
+_16-bit:_
+
  def push_choice(narg, next):
  	local variable addr = min(ENV, CHO) - 9 - narg
  	if(addr < TOP) runtime_error(1)
  	heap[addr + 0] = ENV
  	heap[addr + 1] = SIM
- 	heap[addr + 2] = CONT >> 16
+ 	heap[addr + 2] = CONT >> BITS_PER_WORD
  	heap[addr + 3] = CONT & 0xffff
- 	heap[addr + 4] = next >> 16
+ 	heap[addr + 4] = next >> BITS_PER_WORD
  	heap[addr + 5] = next & 0xffff
  	heap[addr + 6] = CHO
  	heap[addr + 7] = TOP
@@ -1401,10 +1753,29 @@ frame to SIM if there is no existing cutting choice point.
  	}
  	CHO = addr
 
+_32-bit:_
+
+ def push_choice(narg, next):
+ 	local variable addr = min(ENV, CHO) - 7 - narg
+ 	if(addr < TOP) runtime_error(1)
+ 	heap[addr + 0] = ENV
+ 	heap[addr + 1] = SIM
+ 	heap[addr + 2] = CONT
+ 	heap[addr + 3] = next
+ 	heap[addr + 4] = CHO
+ 	heap[addr + 5] = TOP
+ 	heap[addr + 6] = TRL
+ 	for(local variable i = 0; i < narg; i++) {
+ 		heap[addr + 7 + i] = R[i] // register R00..
+ 	}
+ 	CHO = addr
+
 [[POP_CHOICE]]
 === POP_CHOICE
 
 *BYTE/0*
+
+_16-bit:_
 
  for(local variable i = 0; i < arg; i++) {
  	R[i] = heap[CHO + 9 + i]
@@ -1413,17 +1784,33 @@ frame to SIM if there is no existing cutting choice point.
  	heap[aux[TRL++]] = 0
  }
  TOP = heap[CHO + 7]
- CONT = (heap[CHO + 2] << 16) | heap[CHO + 3]
+ CONT = (heap[CHO + 2] << BITS_PER_WORD) | heap[CHO + 3]
  SIM = heap[CHO + 1]
  ENV = heap[CHO + 0]
  CHO = heap[CHO + 6]
+
+_32-bit:_
+
+ for(local variable i = 0; i < arg; i++) {
+ 	R[i] = heap[CHO + 7 + i]
+ }
+ while(TRL < heap[CHO + 6]) {
+ 	heap[aux[TRL++]] = 0
+ }
+ TOP = heap[CHO + 5]
+ CONT = heap[CHO + 2]
+ SIM = heap[CHO + 1]
+ ENV = heap[CHO + 0]
+ CHO = heap[CHO + 4]
 
 [[POP_PUSH_CHOICE]]
 === POP_PUSH_CHOICE
 
 *BYTE/0 CODE*
 
- heap[CHO + 4] = arg2 >> 16
+_16-bit:_
+
+ heap[CHO + 4] = arg2 >> BITS_PER_WORD
  heap[CHO + 5] = arg2 & 0xffff
  for(local variable i = 0; i < arg1; i++) {
  	R[i] = heap[CHO + 9 + i]
@@ -1432,14 +1819,34 @@ frame to SIM if there is no existing cutting choice point.
  	heap[aux[TRL++]] = 0
  }
  TOP = heap[CHO + 7]
- CONT = (heap[CHO + 2] << 16) | heap[CHO + 3]
+ CONT = (heap[CHO + 2] << BITS_PER_WORD) | heap[CHO + 3]
+ SIM = heap[CHO + 1]
+ ENV = heap[CHO + 0]
+
+_32-bit:_
+
+ heap[CHO + 3] = arg2
+ for(local variable i = 0; i < arg1; i++) {
+ 	R[i] = heap[CHO + 7 + i]
+ }
+ while(TRL < heap[CHO + 6]) {
+ 	heap[aux[TRL++]] = 0
+ }
+ TOP = heap[CHO + 5]
+ CONT = heap[CHO + 2]
  SIM = heap[CHO + 1]
  ENV = heap[CHO + 0]
 
 [[CUT_CHOICE]]
 === CUT_CHOICE
 
+_16-bit:_
+
  CHO = heap[CHO + 6]
+
+_32-bit:_
+
+ CHO = heap[CHO + 4]
 
 [[GET_CHO]]
 === GET_CHO
@@ -1595,20 +2002,28 @@ frame to SIM if there is no existing cutting choice point.
  			count++
  			v = deref(<reference, v.value + 1>)
  			if(v == empty_list) {
- 				v = 0xc000 + count
+				if(wordsz == 2) {
+					v = 0xc000 + count
+				} else {
+					v = 0xa000_0000 + count
+				}
  				break
  			} else if(v.tag != pair) {
  				push_serialized(v)
- 				v = 0xe000 + count
+ 				if(wordsz == 2) {
+					v = 0xe000 + count
+				} else {
+					v = 0xb000_0000 + count
+				}
  				break
  			}
  		}
  	} else if(v.tag == extdict) {
  		push_serialized(heap[v.value + 1])
  		push_serialized(heap[v.value + 0])
- 		v = 0x8100
+ 		v = 0x8100(0000)
  	} else if(v.tag == reference) {
- 		v = 0x8000
+ 		v = 0x8000(0000)
  	}
  	if(AUX >= TRL) runtime_error(2)
  	aux[AUX++] = v
@@ -1634,23 +2049,38 @@ is nevertheless used by <<AUX_POP_LIST>>.
 
  def pop_serialized:
  	local variable v = aux[--AUX]
- 	if(v == 0x8000) {
+ 	if(v == 0x8000(0000)) {
  		local variable addr = TOP++
  		if(TOP > min(ENV, CHO)) runtime_error(1)
  		heap[addr] = 0
  		v = <reference, addr>
- 	} else if(v == 0x8100) {
+ 	} else if(v == 0x8100(0000)) {
  		local variable addr = TOP
  		TOP += 2
  		if(TOP > min(ENV, CHO)) runtime_error(1)
  		heap[addr + 0] = pop_serialized()
  		heap[addr + 1] = pop_serialized()
  		v = <extdict, addr>
- 	} else if((v & 0xc000) == 0xc000) {
+ 	} else if(wordsz == 2 && (v & 0xc000) == 0xc000) { // tag c-d or e-f
  		local variable count = v & 0x1fff
- 		if(v & 0x2000) {
+ 		if(v & 0x2000) { // tag e-f
  			v = pop_serialized()
- 		} else {
+ 		} else { // tag c-d
+ 			v = empty_list
+ 		}
+ 		while(count--) {
+ 			local variable addr = TOP
+ 			TOP += 2
+ 			if(TOP > min(ENV, CHO)) runtime_error(1)
+ 			heap[addr + 0] = pop_serialized()
+ 			heap[addr + 1] = v
+ 			v = <pair, addr>
+ 		}
+ 	} else if(wordsz == 4 && (v & 0xa000_0000) == 0xa000_0000) { // tag a or b
+ 		local variable count = v & 0x0fff_ffff
+ 		if(v & 0x1000_0000) { // tag b
+ 			v = pop_serialized()
+ 		} else { // tag a
  			v = empty_list
  		}
  		while(count--) {
@@ -1901,8 +2331,27 @@ is nevertheless used by <<AUX_POP_LIST>>.
 
 *VALUE/0 INDEX DEST*
 
- arg3 <- (read_field(arg2 / 2, deref(arg1))
- 	>> ((arg2 & 1)? 0 : 8)) & 0xff
+_16-bit:_
+
+ local variable field = read_field(arg2 / 2, deref(arg1))
+ if(arg2 & 1) {
+	arg3 <- field & 0xff
+ } else {
+	arg3 <- field >> 8
+ }
+
+_32-bit:_
+
+ local variable field = read_field(arg2 / 4, deref(arg1))
+ if(arg2 % 4 == 0) {
+	arg3 <- field >> 24
+ } else if(arg2 % 4 == 1) {
+	arg3 <- (field >> 16) & 0xff
+ } else if(arg2 % 4 == 2) {
+	arg3 <- (field >> 8) & 0xff
+ } else { // arg2 % 4 == 3
+	arg3 <- field & 0xff
+ }
 
 [[LOAD_VAL]]
 === LOAD_VAL
@@ -1916,8 +2365,8 @@ is nevertheless used by <<AUX_POP_LIST>>.
  arg3 <- val
 
  def get_longterm(v):
- 	if(v & 0x8000) {
- 		TMP = v & 0x7fff
+ 	if(v & 0x8000(0000)) {
+ 		TMP = v & 0x7fff(ffff)
  		TMP += ram[TMP]
  		v = pop_longterm()
  	}
@@ -1925,24 +2374,39 @@ is nevertheless used by <<AUX_POP_LIST>>.
 
  def pop_longterm():
  	local variable v = ram[--TMP]
- 	if(v == 0x8000) {
+ 	if(v == 0x8000(0000)) {
  		local variable addr = TOP
  		TOP++
  		if(TOP > min(ENV, CHO)) runtime_error(1)
  		heap[addr] = 0
  		v = <reference, addr>
- 	} else if(v == 0x8100) {
+ 	} else if(v == 0x8100(0000)) {
  		local variable addr = TOP
  		TOP += 2
  		if(TOP > min(ENV, CHO)) runtime_error(1)
  		heap[addr + 0] = pop_longterm()
  		heap[addr + 1] = pop_longterm()
  		v = <extdict, addr>
- 	} else if((v & 0xc000) == 0xc000) {
+ 	} else if(wordsz == 2 && (v & 0xc000) == 0xc000) { // tag c-d or e-f
  		local variable count = v & 0x1fff
- 		if(v & 0x2000) {
+ 		if(v & 0x2000) { // tag e-f
  			v = pop_longterm()
- 		} else {
+ 		} else { // tag c-d
+ 			v = empty_list
+ 		}
+ 		while(count--) {
+ 			local variable addr = TOP
+ 			TOP += 2
+ 			if(TOP > min(ENV, CHO)) runtime_error(1)
+ 			heap[addr + 0] = pop_longterm()
+ 			heap[addr + 1] = v
+ 			v = <pair, addr>
+ 		}
+ 	} else if(wordsz == 4 && (v & 0xa000_0000) == 0xa000_0000) { // tag a or b
+ 		local variable count = v & 0x0fff_ffff
+ 		if(v & 0x1000_0000) { // tag b
+ 			v = pop_longterm()
+ 		} else { // tag a
  			v = empty_list
  		}
  		while(count--) {
@@ -1968,11 +2432,26 @@ is nevertheless used by <<AUX_POP_LIST>>.
 
 *VALUE/0 INDEX VALUE*
 
+_16-bit:_
+
  local variable addr = field_addr(arg2 / 2, deref(arg1))
  if(arg2 & 1) {
  	ram[addr] = (ram[addr] & 0xff00) | (arg3 & 0xff)
  } else {
  	ram[addr] = (ram[addr] & 0x00ff) | (arg3 << 8)
+ }
+
+_32-bit:_
+
+ local variable addr = field_addr(arg2 / 4, deref(arg1))
+ if(arg2 % 4 == 0) {
+ 	ram[addr] = (ram[addr] & 0x00ff_ffff) | ((arg3 << 24) & 0xff)
+ } else if(arg2 % 4 == 1) {
+ 	ram[addr] = (ram[addr] & 0xff00_ffff) | ((arg3 << 16) & 0xff)
+ } else if(arg2 % 4 == 2) {
+ 	ram[addr] = (ram[addr] & 0xffff_00ff) | ((arg3 << 8) & 0xff)
+ } else { // arg2 % 4 == 3
+ 	ram[addr] = (ram[addr] & 0xffff_ff00) | (arg3 & 0xff)
  }
 
 [[STORE_VAL]]
@@ -1994,7 +2473,7 @@ is nevertheless used by <<AUX_POP_LIST>>.
  		TMP = LTT + 2
  		if(TMP > HEAD.ramsz) runtime_error(6)
  		push_longterm(v)
- 		ram[addr] = 0x8000 + LTT
+ 		ram[addr] = 0x8000(0000) + LTT
  		ram[LTT + 0] = TMP - LTT
  		ram[LTT + 1] = addr
  		LTT = TMP
@@ -2012,18 +2491,26 @@ is nevertheless used by <<AUX_POP_LIST>>.
  			count++
  			v = deref(heap[v.value + 1])
  			if(v == empty_list) {
- 				v = 0xc000 | count
+				if(wordsz == 2) {
+					v = 0xc000 | count
+				} else {
+					v = 0xa000_0000 | count
+				}
  				break
  			} else if(v.tag != pair) {
  				push_longterm(v)
- 				v = 0xe000 | count
+ 				if(wordsz == 2) {
+					v = 0xe000 | count
+				} else {
+					v = 0xb000_0000 | count
+				}
  				break
  			}
  		}
  	} else if(v.tag == extdict) {
  		push_longterm(heap[v.value + 1])
  		push_longterm(heap[v.value + 0])
- 		v = 0x8100
+ 		v = 0x8100(0000)
  	} else if(v.tag == reference) {
  		runtime_error(4)
  	}
@@ -2033,9 +2520,9 @@ is nevertheless used by <<AUX_POP_LIST>>.
 [[clear_longterm]]
  def clear_longterm(addr):
  	local variable v = ram[addr]
- 	if(v & 0x8000) {
+ 	if(v & 0x8000(0000)) {
  		ram[addr] = 0
- 		v &= 0x7fff
+ 		v &= 0x7fff(ffff)
  		local variable size = ram[v]
  		for(local variable i = v; i < LTT - size; i++)
  		{
@@ -2056,6 +2543,8 @@ is nevertheless used by <<AUX_POP_LIST>>.
  ram[field_addr(arg2 / BITS_PER_WORD, deref(arg1))] |=
  	(1 << (BITS_PER_WORD - 1)) >> (arg2 % BITS_PER_WORD)
 
+See <<IF_FLAG>>.
+
 [[RESET_FLAG]]
 === RESET_FLAG
 
@@ -2066,6 +2555,11 @@ is nevertheless used by <<AUX_POP_LIST>>.
  	ram[field_addr(arg2 / BITS_PER_WORD, arg1)] &=
  		~((1 << (BITS_PER_WORD - 1)) >> (arg2 % BITS_PER_WORD))
  }
+
+See <<IF_FLAG>>.
+
+It's legal to reset a flag for an invalid object (but it will have
+no effect).
 
 [[UNLINK]]
 === UNLINK
@@ -2356,6 +2850,11 @@ is nevertheless used by <<AUX_POP_LIST>>.
  	INST = arg3
  }
 
+In other words, this reads field number (arg2 / BITS_PER_WORD) of the
+object/null given in arg1, then extracts the (arg2 % BITS_PER_WORD)th
+bit from it, where bit 0 is the most significant. This latter convention
+is the reason for the awkward pseudocode.
+
 [[IFN_FLAG]]
 === IFN_FLAG
 
@@ -2366,6 +2865,8 @@ is nevertheless used by <<AUX_POP_LIST>>.
  {
  	INST = arg3
  }
+
+See <<IF_FLAG>>.
 
 [[IF_CWL]]
 === IF_CWL
@@ -2386,7 +2887,7 @@ is nevertheless used by <<AUX_POP_LIST>>.
 
 *RAW RAW DEST*
 
- arg3 <- (arg1 + arg2) & 0xffff
+ arg3 <- (arg1 + arg2) & 0xffff(ffff)
 
 [[ADD_NUM]]
 === ADD_NUM
@@ -2395,6 +2896,8 @@ is nevertheless used by <<AUX_POP_LIST>>.
 
  local variable result = unbox_int(arg1) + unbox_int(arg2)
  arg3 <- box_int(result)
+
+_16-bit:_
 
  def unbox_int(v):
  	v = deref(v)
@@ -2405,12 +2908,30 @@ is nevertheless used by <<AUX_POP_LIST>>.
  	if(v < 0 || v > 0x3fff) fail
  	return <number, v>
 
+_32-bit:_
+
+ def unbox_int(v):
+ 	v = deref(v)
+ 	if(v.tag != number) fail
+ 	return (v.value << 4) >> 4 // sign extend
+
+ def box_int(v):
+ 	if((v & 0xf000_0000) != 0 &&
+ 	   (v & 0xf000_0000) != 0xf000_0000) {
+ 		fail
+ 	}
+ 	return <number, v>
+
+In a 32-bit story file, a number is out of range if its top four
+bits are not 0000 or 1111; or, equivalently, if it is less than
+-2^27^ or more than 2^27^ - 1.
+
 [[SUB_RAW]]
 === SUB_RAW
 
 *RAW RAW DEST*
 
- arg3 <- (arg1 - arg2) & 0xffff
+ arg3 <- (arg1 - arg2) & 0xffff(ffff)
 
 [[SUB_NUM]]
 === SUB_NUM
@@ -2426,8 +2947,14 @@ is nevertheless used by <<AUX_POP_LIST>>.
 *VALUE VALUE DEST*
 
  local variable result = unbox_int(arg1) * unbox_int(arg2)
- result = result & 0x3fff
+ if(wordsz == 2) {
+ 	result = result & 0x3fff
+ } else {
+ 	result = result & 0x0fff_ffff
+ }
  arg3 <- box_int(result)
+
+TODO: THIS SECTION NEEDS REVISING ONCE THE MULTIPLICATION PR MERGES
 
 [[DIV_NUM]]
 === DIV_NUM
@@ -2438,6 +2965,11 @@ is nevertheless used by <<AUX_POP_LIST>>.
  local variable result = unbox_int(arg1) / unbox_int(arg2)
  arg3 <- box_int(result)
 
+Division is rounded toward negative infinity, not toward zero ("floored
+division" rather than "truncated division"). In other words, ``-5 / 2 = -3``,
+not ``-2``. This only matters for 32-bit story files, since the 16-bit
+Å-machine does not support negative numbers.
+
 [[MOD_NUM]]
 === MOD_NUM
 
@@ -2446,6 +2978,13 @@ is nevertheless used by <<AUX_POP_LIST>>.
  if(unbox_int(arg2) == 0) fail
  local variable result = unbox_int(arg1) % unbox_int(arg2)
  arg3 <- box_int(result)
+
+This is the value such that ``((P/Q) * Q) + (P % Q) = P``. Since division
+rounds toward negative infinity, that means P % Q has the sign of Q, not the
+sign of P—in other words, this is a modulo operation, not a remainder
+operation. For example, ``-5 % 2 = 1``, not ``-1`` (but ``5 % -2 = -1``).
+This only matters for 32-bit story files, since the 16-bit Å-machine does
+not support negative numbers.
 
 [[RAND_NUM]]
 === RAND_NUM
@@ -2465,7 +3004,7 @@ is nevertheless used by <<AUX_POP_LIST>>.
 *BYTE DEST*
 
  // any timer-seeded PRNG can be used:
- arg2 <- (rand() % (arg1 + 1)) & 0xffff
+ arg2 <- (rand() % (arg1 + 1)) & 0xffff(ffff)
 
 [[INC_NUM]]
 === INC_NUM
@@ -2488,14 +3027,14 @@ is nevertheless used by <<AUX_POP_LIST>>.
 
 *RAW DEST*
 
- arg2 <- (arg1 + 1) & 0xffff
+ arg2 <- (arg1 + 1) & 0xffff(ffff)
 
 [[DEC_RAW]]
 === DEC_RAW
 
 *RAW DEST*
 
- arg2 <- (arg1 - 1) & 0xffff
+ arg2 <- (arg1 - 1) & 0xffff(ffff)
 
 [[PRINT_A_STR_A]]
 === PRINT_A_STR_A
@@ -2682,6 +3221,9 @@ is nevertheless used by <<AUX_POP_LIST>>.
  	}
  	return str
 
+The result of `output_char(ch)` on a character below $20 is undefined.
+The Z-machine prints `\?`, which indicates clearly that something is wrong.
+
 [[ENTER_DIV]]
 === ENTER_DIV
 
@@ -2704,9 +3246,9 @@ is nevertheless used by <<AUX_POP_LIST>>.
  	SPC = line
  }
 
-Previous versions of this specification erroneously said SPC
+Pre-1.0 versions of this specification erroneously said SPC
 should be set to "par" instead of "line". This is not meant to
-be a change between Aa-machine versions; ideally SPC should be
+be a change between Å-machine versions; ideally SPC should be
 set to "line" even when running version 0.5 story files.
 
 [[ENTER_SPAN]]
@@ -2857,10 +3399,11 @@ This opcode is deprecated, but still supported for now.
 
 *BYTE*
 
- // 1 = reverse, 2 = bold, 4 = italic, 8 = fixed
  if(CWL == 0) {
  	output_resetstyle(arg)
  }
+
+See <<SET_STYLE>>.
 
 This opcode is deprecated, but still supported for now.
 
@@ -2944,12 +3487,14 @@ left to the implementation.
  if(CWL == 0) {
  	arg1 = deref(arg1)
  	arg2 = deref(arg2)
- 	if(arg1.tag == number && arg2.tag == number) {
+ 	if(arg1.tag == number && arg2.tag == number
+ 	&& arg1.value >= 0 && arg2.value >= 0) {
  		output_progress_bar(arg1.value, arg2.value)
  	}
  }
 
-Prints a progress bar with `arg1/arg2` filled.
+Prints a progress bar with `arg1/arg2` filled. If arg2 is zero, the bar should
+be entirely filled, regardless of arg1.
 
 [[QUIT]]
 === QUIT
@@ -3005,8 +3550,11 @@ Prints a progress bar with `arg1/arg2` filled.
 
  // fails on error/cancel, continues on success, jumps on restore
  if(inStatus || nSpan > 0) runtime_error(7)
- if(!vm_save(arg)) {
+ local variable status = vm_save(arg)
+ if(status == failed) {
  	fail
+ } else if(status == restored) {
+ 	INST = arg1
  }
 
 [[SAVE_UNDO]]
@@ -3016,8 +3564,11 @@ Prints a progress bar with `arg1/arg2` filled.
 
  // fails on error/cancel, continues on success, jumps on restore
  if(inStatus || nSpan > 0) runtime_error(7)
- if(!vm_save_undo(arg)) {
+ local variable status = vm_save_undo(arg)
+ if(status == failed) {
  	fail
+ } else if(status == restored) {
+ 	INST = arg1
  }
 
 [[GET_INPUT]]
@@ -3077,11 +3628,20 @@ values as follows:
 
  	// Check for a decimal number in the range 0-16383:
  	local variable num = parse_decimal(input)
- 	if(num && num >= 0 && num <= 16383) {
+ 	if(wordsz == 2 && num && num >= 0 && num <= 16383) {
+ 		return <number, num>
+ 	}
+ 	// Or, for 32-bit files, -134217728 - 134217727:
+ 	if(wordsz == 4 && num && num >= -2**27 && num <= 2**27-1) {
  		return <number, num>
  	}
 
- 	// Otherwise, run the word endings decoder:
+ 	// Otherwise, run the word endings decoder
+ 	return endings_decoder(input);
+ }
+
+ // For 16-bit story files:
+ def endings_decoder(input) {
  	local variable state = 0
  	local variable ending = empty_list
  	local variable pos = input.length
@@ -3145,6 +3705,76 @@ values as follows:
  				pos--
  			} else {
  				state += 2
+ 			}
+ 		}
+ 	}
+ }
+ 
+ // For 32-bit story files:
+ def endings_decoder(input) {
+ 	local variable state = 0
+ 	local variable ending = empty_list
+ 	local variable pos = input.length
+ 	while(true) {
+ 		local variable addr
+ 		if(decoder[state] == 0x0000_0000) {
+ 			while(pos > 0) {
+ 				addr = TOP
+ 				TOP += 2
+ 				if(TOP > min(ENV, CHO)) {
+ 					runtime_error(1)
+ 				}
+ 				local variable c = input[--pos]
+ 				local variable v
+ 				if(c >= '0' && c <= '9') {
+ 					v = <number, c - '0'>
+ 				} else {
+ 					v = <char, c>
+ 				}
+ 				heap[addr + 0] = v
+ 				heap[addr + 1] = ending
+ 				ending = <pair, addr>
+ 			}
+ 			addr = TOP
+ 			TOP += 2
+ 			if(TOP > min(ENV, CHO)) {
+ 				runtime_error(1)
+ 			}
+ 			heap[addr + 0] = ending
+ 			heap[addr + 1] = empty_list
+ 			return <extdict, addr>
+ 		} else if(decoder[state] == 0x0000_0001) {
+ 			d = dict_lookup(input.first_n(pos))
+ 			if(d) {
+ 				// The first pos characters
+ 				// exactly match a dictionary
+ 				// word.
+ 				addr = TOP
+ 				TOP += 2
+ 				if(TOP > min(ENV, CHO)) {
+ 					runtime_error(1)
+ 				}
+ 				heap[addr + 0] = <word, d>
+ 				heap[addr + 1] = ending
+ 				return <extdict, addr>
+ 			} else {
+ 				state++
+ 			}
+ 		} else {
+ 			local variable ch = input[pos - 1]
+ 			if(ch == decoder[state] >> 8) {
+ 				addr = TOP
+ 				TOP += 2
+ 				if(TOP > min(ENV, CHO)) {
+ 					runtime_error(1)
+ 				}
+ 				heap[addr + 0] = <char, ch>
+ 				heap[addr + 1] = ending
+ 				ending = <pair, addr>
+ 				state = decoder[state] & 0x0000_00ff
+ 				pos--
+ 			} else {
+ 				state++
  			}
  		}
  	}
@@ -3282,7 +3912,7 @@ by the specification.)
 *VWORD/VBYTE CODE*
 
  if(IDX == arg1) INST = arg2
-	
+
 [[CHECK_GT_EQ]]
 === CHECK_GT_EQ
 
@@ -3325,7 +3955,7 @@ by the specification.)
  }
  
 The 'find_in_wordmap' procedure reads from one of the wordmaps
-(`wordmaps[arg1]`), looking up the word of interest (IDX) to see
+in the <<MAPS>> chunk, looking up the word of interest (IDX) to see
 if it's there.
 
 [[CHECK_EQ_2]]
@@ -3343,6 +3973,11 @@ if it's there.
  // event, predicate, file, line
  vm_tracepoint(arg1, arg2, arg3, arg4)
 
+[[EXT32]]
+=== EXT32
+
+The operands and semantics of this opcode are not yet defined.
+It is guaranteed to always be illegal in 16-bit story files.
 
 == Examples
 
