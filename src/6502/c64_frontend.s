@@ -536,6 +536,8 @@ palette
 ; 8 orange 9 brown a pink b dark gray
 ; c gray d light green e light blue f light gray
 
+; The current palette was decided at https://intfiction.org/t/help-dialog-choose-a-commodore-64-color-palette/81746/2 but see that post for some of the other options considered and how people felt about them
+
 io_mprogress
 	; input x = progress
 	; input y = total
