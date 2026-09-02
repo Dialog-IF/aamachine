@@ -14,11 +14,10 @@ The build system is plain `make`. The top-level `Makefile` delegates to `src/` a
 
 ```sh
 make                # builds aamshow, aambundle, 6502 blobs, then runs tests
-make no6502         # builds C tools and tests them without rebuilding 6502 assets
 make 6502           # builds only the 6502 engine, frontends, and the aambox6502 emulator
 make windows        # cross-compiles .exe versions (needs i686-w64-mingw32-gcc)
 make test           # runs the test suite (requires the C tools to be built)
-make clean          # removes build outputs
+make clean          # removes build outputs and test transcripts
 make install        # copies aamshow and aambundle to /usr/local/bin
 ```
 

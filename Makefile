@@ -1,25 +1,21 @@
-BINARIES=src/aamshow src/aambundle
+# Full build: the 6502 blobs, then the C tools that embed them, then the tests.
+all: tools test
 
-all: $(BINARIES) 6502 test
-
-src/aamshow:
+# "make -C src" builds the 6502 side first, then the C tools.
+tools:
 	$(MAKE) -C src
 
-src/aambundle:
-	$(MAKE) -C src
+# Only the 6502 engine, frontends, and the aambox6502 emulator.
+6502:
+	$(MAKE) -C src 6502
 
 windows:
 	$(MAKE) -C src windows
 
-6502:
-	$(MAKE) -C src 6502
-
-no6502: $(BINARIES) test
-
-test: $(BINARIES)
+test: tools
 	$(MAKE) -C test
 
-install: $(BINARIES)
+install: tools
 	$(MAKE) -C src install
 
 tidy:
@@ -35,4 +31,4 @@ uninstall:
 
 distclean: clean uninstall
 
-.PHONY: all test clean tidy install uninstall distclean windows 6502 no6502
+.PHONY: all tools windows 6502 test clean tidy install uninstall distclean

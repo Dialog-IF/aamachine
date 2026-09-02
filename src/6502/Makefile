@@ -9,7 +9,6 @@ check_xa:
 		echo "  macOS:         brew install xa"; \
 		echo "  Debian/Ubuntu: apt install xa65"; \
 		echo "  From source:   https://www.floodgap.com/retrotech/xa/"; \
-		echo "(To build the C tools without any 6502 code, run 'make no6502' from the top level.)"; \
 		exit 1; fi
 
 check_acme:
@@ -18,12 +17,17 @@ check_acme:
 		echo "  macOS:         brew install acme"; \
 		echo "  Debian/Ubuntu: apt install acme"; \
 		echo "  From source:   https://github.com/meonwax/acme"; \
-		echo "(Only the Apple II targets need acme; the C64 and aambox targets build with xa alone.)"; \
 		exit 1; fi
 
 clean:
 			rm -rf aambox6502 cruncher labels c64.labels mkfont
 			rm -f a2_frontend.bin a2_prorwts2.bin a2.labels a2.system a2_0boot.bin a2_sboot.bin a2_sboot.labels
+
+mkfont:			mkfont.c
+			${CC} ${CFLAGS} -o $@ mkfont.c
+
+cruncher:		cruncher.c
+			${CC} ${CFLAGS} -o $@ cruncher.c
 
 aambox6502:		aambox6502.c fake6502.c
 

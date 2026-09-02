@@ -1,39 +1,8 @@
-# Call `make DIFF=meld` to get a fancy diff
-DIFF = diff
-
-DIR6502 = ../../src/6502
-AAMBOX = $(DIR6502)/aambox6502
-FRONTEND = $(DIR6502)/aambox_frontend.bin
-AAMBUNDLE = ../../src/aambundle
+# The story is compiled from Dialog source with an external compiler.
 DIALOGC ?= dialogc
+AAMBUNDLE = ../../src/aambundle
 
-$(AAMBOX):
-	$(MAKE) -C $(DIR6502) aambox6502
-
-$(FRONTEND):
-	$(MAKE) -C $(DIR6502) aambox_frontend.bin
-
-$(AAMBUNDLE):
-	$(MAKE) -C ../../src aambundle
-
-all: test
-
-test: test.js test.6502
-
-test.js: codepoints.js.out
-	$(DIFF) codepoints.js.out codepoints.js.gold
-
-codepoints.js.out: codepoints.aastory
-	node ../../src/js/nodefrontend.js -s 1234 codepoints.aastory <codepoints.in >codepoints.js.out
-
-test.6502: codepoints.6502.out
-	$(DIFF) codepoints.6502.out codepoints.6502.gold
-
-codepoints.6502.out: codepoints.aastory $(AAMBOX) $(FRONTEND)
-	$(AAMBOX) -s 1234 $(FRONTEND) codepoints.aastory <codepoints.in >codepoints.6502.out
-
-codepoints.aastory: codepoints.dg
-	$(DIALOGC) -t aa -o $@ $<
+include ../common.mk
 
 # Neither the node frontend nor the aambox frontend renders a status area, and
 # neither one transliterates -- both emit UTF-8 straight through.  So the two
@@ -60,11 +29,14 @@ codepoints.aastory: codepoints.dg
 #           neither may the (clear all) that follows it.
 #           (Use +/- to nudge the status bar height for 24/25 row systems.)
 
-disks: codepoints.aastory $(AAMBUNDLE)
-	$(AAMBUNDLE) -t apple2 -o codepoints codepoints.aastory
-	$(AAMBUNDLE) -t c64 -o codepoints codepoints.aastory
+$(STORY).aastory: $(STORY).dg
+	$(DIALOGC) -t aa -o $@ $<
 
-clean:
-	rm -f *.out
+$(AAMBUNDLE):
+	$(MAKE) -C ../../src aambundle
 
-.PHONY: all test test.js test.6502 disks clean
+disks: $(STORY).aastory $(AAMBUNDLE)
+	$(AAMBUNDLE) -t apple2 -o $(STORY) $(STORY).aastory
+	$(AAMBUNDLE) -t c64 -o $(STORY) $(STORY).aastory
+
+.PHONY: disks
