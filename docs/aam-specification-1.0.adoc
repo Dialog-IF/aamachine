@@ -55,7 +55,7 @@ The notation `a..b` means the range of integers from a to b, inclusive.
 
 The notation `a-b` means the range of characters from a to b, inclusive.
 
-In the following description, `BYTE` always means eight bits, `SHORT`
+`BYTE` always means eight bits, `SHORT`
 always means 16 bits (two bytes), and `LONG` always means 32 bits (four
 bytes). `WORD` means either `SHORT` or `LONG`, depending on the word size
 specified in <<HEAD,the header>>.
@@ -68,7 +68,7 @@ The notation:
 Means that the "whatsit data" appears "number of whatsits" times in sequence.
 
 Throughout this document, numbers used to count things (like "16 bits" or
-"`WORD[64]`") are decimal (base 10), while numbers used as values (like "80" or
+"``WORD[64]``") are decimal (base 10), while numbers used as values (like "80" or
 "7fff") are hexadecimal (base 16). In ambiguous cases, hexadecimal numbers are
 marked with a `$` symbol. In pseudocode, hexadecimal numbers start with `0x`;
 all other numbers are decimal.
@@ -111,7 +111,7 @@ with flag numbers.
 * ``8000..9fff``	Indirect reference (word index into heap)
 * ``a000..bfff``	reserved
 * ``c000..dffe``	Pair (word index into heap)
-* ``e000..fffe``	Dict word, extended (word index into heap)
+* ``e000..fffe``	Extended dict word (word index into heap)
 
 Live values only exist in registers or on the heap, and
 can be invalidated when the heap shrinks.
@@ -134,7 +134,7 @@ of upper bits of the word, as follows (v is the value):
 
 The tag `001vvvvv vvvvvvvv` may also be referred to as
 a "dict" to avoid ambiguity with the other meaning of
-"word" (a two-byte or four-byte value).
+"word" (any two-byte value).
 
 A pair is a pointer to a two-word cell on the heap. The
 first word of that cell is the head of the list (can be
@@ -232,7 +232,7 @@ free to work with a different internal representation at runtime.
 
 ==== Special-purpose registers
 
-**Byte pointers into <<CODE-chunk,CODE>> chunk:
+**Byte pointers into <<CODE-chunk,CODE>> chunk:**
 
 * `LONG`: `INST`, Instruction pointer
 * `LONG`: `CONT`, Continuation pointer
@@ -247,7 +247,7 @@ free to work with a different internal representation at runtime.
 **Word pointers into aux heap:**
 
 * `WORD`: `AUX`, aux stack pointer (grows upwards)
-* `WORD`: `TRL`, trl stack pointer (grows downwards)
+* `WORD`: `TRL`, trail stack pointer (grows downwards)
 * `WORD`: `STA`, stoppable aux pointer
 * `WORD`: `STC`, stoppable choice pointer
 
@@ -270,7 +270,7 @@ Values for SPC:
 
 * `WORD[64]`: R00-R3f, general registers (args, temps, constants, globals)
 
-R3f is also known as IDX and is treated specially by certain instructions.
+R3f is also known as `IDX` and is treated specially by certain instructions.
 
 This is how dialogc uses these 64 registers:
 
@@ -278,6 +278,7 @@ This is how dialogc uses these 64 registers:
 * ``R0d..R3c``	Temporary values
 * ``R3d     ``	Quick temporary register (always available)
 * ``R3e     ``	Constant `[]` (3f00)
+* ``R3f     ``	Only used as `IDX`
 
 Since registers take only one byte to encode and a large
 immediate value takes two, storing frequently-needed constants in
@@ -287,12 +288,12 @@ With a few exceptions, all of the registers (special-purpose and
 general-purpose) are initialized to zero when the virtual machine
 starts or restarts. The exceptions are:
 
-* `INST = 1`
-* `ENV = <<HEAD>>.heapsz`
-* `CHO = <<HEAD>>.heapsz`
-* `TRL = <<HEAD>>.auxsz`
-* `SIM = ffff`
-* `SPC = line`
+* `INST` = 1
+* `ENV` = <<HEAD>>.heapsz
+* `CHO` = <<HEAD>>.heapsz
+* `TRL` = <<HEAD>>.auxsz
+* `SIM` = ffff
+* `SPC` = line
 
 In case of a runtime error, the machine is restarted with R00
 initialized to a tagged integer according to the following table:
@@ -314,7 +315,7 @@ Error code 5 is not used by the Å-machine.
 ==== Initialized registers
 
 The main chunk of saved data follows. The game state must conform to
-this format during restart, save and restore operations (including the
+this format during restart, save, and restore operations (including the
 big-endian byte ordering).
 
 * `WORD`: `NOB`, Number of objects
@@ -327,7 +328,7 @@ This memory is word-addressable, and it may contain pointers in
 the form of word offsets into itself.
 
 * `WORD`: Word offset of global data
-* `WORD[<<initialized-registers,NOB>>]`: Word offset of per-object data
+* `WORD[<<initialized-registers,NOB>>]`: Word offsets of per-object data
 * `WORD[<<HEAD>>.ramsz - <<initialized-registers,NOB>> - 1]`: Data
 
 The word offset of a data field is given by the following
@@ -471,8 +472,8 @@ chunks. <<HEAD>> must be the first chunk inside the form. In the following table
 * <<LANG>> (*): Character set, bitstream decoder, word endings
 * <<LOOK>> (*): Style sheet
 * <<MAPS>> (*): Word-to-object maps
-* <<META>> (optional): Story metadata
-* <<TAGS>> (optional): Internal object names
+* <<META,META>> (optional): Story metadata
+* <<TAGS,TAGS>> (optional): Internal object names
 * <<URLS>>: Table of resources
 * <<WRIT>> (*): Compressed text
 
@@ -485,13 +486,13 @@ address space.
 === HEAD
 
 * `BYTE[2]`: "version", File format version (major, minor)
-* `BYTE`: "wordsz", Word size (currently always 2)
-* `BYTE`: "shift", Shift amount for short/long string pointers
+* `BYTE`: "wordsz", Word size in bytes (currently always 2)
+* `BYTE`: "shift", Shift amount for short/long <<STRING,string pointers>>
 
 * `SHORT`: "release", Story release number
 * `BYTE[6]`: "serial",	Story serial number (ASCII)
 
-* `LONG`: "crc", Running CRC-32 of the contents of <<LOOK>>, <<LANG>>, <<MAPS>>, <<DICT>>, <<INIT>>, <<CODE>>, and <<WRIT>>, in that specific order
+* `LONG`: "crc", Running CRC-32 of the contents of <<LOOK>>, <<LANG>>, <<MAPS>>, <<DICT>>, <<INIT>>, <<CODE-chunk>>, and <<WRIT>>, in that specific order
 
 * `WORD`: "heapsz", Size (in words) of heap/env/choice area
 * `WORD`: "auxsz", Size (in words) of aux/trail area
@@ -720,7 +721,7 @@ instruction.
 
 Operand types (always big-endian byte ordering):
 
-[[0,0]]
+[[ZERO,0]]
 **0**: implicit constant zero, not encoded
 
 [[BYTE,BYTE]]
@@ -772,7 +773,7 @@ Operand types (always big-endian byte ordering):
 * `10xxxxxx`: Index 80..bf
 * `11xxxxxx xxxxxxxx`: Index 0000..3fff
 
-[[CODE]]
+[[CODE,CODE]]
 *CODE*: byte address in <<CODE-chunk>> chunk
 
 * `00000000`: Absolute address 0 (known to contain the <<FAIL>> opcode)
@@ -835,14 +836,14 @@ Opcode	Mnemonic	Args	Version
 87	<<TAIL>>	{empty}	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-08/88	<<PUSH_ENV>>	<<BYTE>>/<<0>>	{empty}
+08/88	<<PUSH_ENV>>	<<BYTE>>/<<ZERO>>	{empty}
 09	<<POP_ENV>>	{empty}	{empty}
 89	<<POP_ENV_PROCEED>>	{empty}	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-0a/8a	<<PUSH_CHOICE>>	<<BYTE>>/<<0>> <<CODE>>	{empty}
-0b/8b	<<POP_CHOICE>>	<<BYTE>>/<<0>>	{empty}
-0c/8c	<<POP_PUSH_CHOICE>>	<<BYTE>>/<<0>> <<CODE>>	{empty}
+0a/8a	<<PUSH_CHOICE>>	<<BYTE>>/<<ZERO>> <<CODE>>	{empty}
+0b/8b	<<POP_CHOICE>>	<<BYTE>>/<<ZERO>>	{empty}
+0c/8c	<<POP_PUSH_CHOICE>>	<<BYTE>>/<<ZERO>> <<CODE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
 0d	<<CUT_CHOICE>>	{empty}	{empty}
@@ -862,7 +863,7 @@ Opcode	Mnemonic	Args	Version
 {empty}	{empty}	{empty}	{empty}
 
 14	<<AUX_PUSH_VAL>>	<<VALUE>>	{empty}
-94	<<AUX_PUSH_RAW>>	<<0>>	≥ 0.5
+94	<<AUX_PUSH_RAW>>	<<ZERO>>	≥ 0.5
 15/95	<<AUX_PUSH_RAW>>	<<VWORD>>/<<VBYTE>>	{empty}
 16	AUX_POP_VAL 	<<DEST>>	< 1.0
 17	<<AUX_POP_LIST>>	<<DEST>>	{empty}
@@ -882,28 +883,28 @@ Opcode	Mnemonic	Args	Version
 9f	<<JOIN_WORDS>>	<<VALUE>> <<DEST>>	≥ 0.4
 {empty}	{empty}	{empty}	{empty}
 
-20/a0	<<LOAD_WORD>>	<<VALUE>>/<<0>> <<INDEX>> <<DEST>>	{empty}
-21/a1	<<LOAD_BYTE>>	<<VALUE>>/<<0>> <<INDEX>> <<DEST>>	{empty}
-22/a2	<<LOAD_VAL>>	<<VALUE>>/<<0>> <<INDEX>> <<DEST>>	{empty}
+20/a0	<<LOAD_WORD>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<DEST>>	{empty}
+21/a1	<<LOAD_BYTE>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<DEST>>	{empty}
+22/a2	<<LOAD_VAL>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<DEST>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-24/a4	<<STORE_WORD>>	<<VALUE>>/<<0>> <<INDEX>> <<VALUE>>	{empty}
-25/a5	<<STORE_BYTE>>	<<VALUE>>/<<0>> <<INDEX>> <<VALUE>>	{empty}
-26/a6	<<STORE_VAL>>	<<VALUE>>/<<0>> <<INDEX>> <<VALUE>>	{empty}
+24/a4	<<STORE_WORD>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<VALUE>>	{empty}
+25/a5	<<STORE_BYTE>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<VALUE>>	{empty}
+26/a6	<<STORE_VAL>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<VALUE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-28/a8	<<SET_FLAG>>	<<VALUE>>/<<0>> <<INDEX>>	{empty}
-29/a9	<<RESET_FLAG>>	<<VALUE>>/<<0>> <<INDEX>>	{empty}
+28/a8	<<SET_FLAG>>	<<VALUE>>/<<ZERO>> <<INDEX>>	{empty}
+29/a9	<<RESET_FLAG>>	<<VALUE>>/<<ZERO>> <<INDEX>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-2d/ad	<<UNLINK>>	<<VALUE>>/<<0>> <<INDEX>> <<INDEX>> <<VALUE>>	{empty}
+2d/ad	<<UNLINK>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<INDEX>> <<VALUE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
 2e/ae	<<SET_PARENT>>	<<VALUE>>/<<VBYTE>> <<VALUE>>	{empty}
 2f/af	<<SET_PARENT>>	<<VALUE>>/<<VBYTE>> <<VBYTE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-30/b0	<<IF_RAW_EQ>>	<<VWORD>>/<<0>> <<RAW>> <<CODE>>	{empty}
+30/b0	<<IF_RAW_EQ>>	<<VWORD>>/<<ZERO>> <<RAW>> <<CODE>>	{empty}
 31	<<IF_BOUND>>	<<VALUE>> <<CODE>>	{empty}
 32	<<IF_EMPTY>>	<<VALUE>> <<CODE>>	{empty}
 33	<<IF_NUM>>	<<VALUE>> <<CODE>>	{empty}
@@ -914,13 +915,13 @@ b6	<<IF_UWORD>>	<<VALUE>> <<CODE>>	≥ 0.4
 37	<<IF_UNIFY>>	<<VALUE>> <<VALUE>> <<CODE>>	{empty}
 38	<<IF_GT>>	<<VALUE>> <<VALUE>> <<CODE>>	{empty}
 39/b9	<<IF_EQ>>	<<VWORD>>/<<VBYTE>> <<VALUE>> <<CODE>>	{empty}
-3a/ba	<<IF_MEM_EQ>>	<<VALUE>>/<<0>> <<INDEX>> <<RAW>> <<CODE>>	{empty}
-3b/bb	<<IF_FLAG>>	<<VALUE>>/<<0>> <<INDEX>> <<CODE>>	{empty}
+3a/ba	<<IF_MEM_EQ>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<RAW>> <<CODE>>	{empty}
+3b/bb	<<IF_FLAG>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<CODE>>	{empty}
 3c	<<IF_CWL>>	<<CODE>>	{empty}
-3d/bd	<<IF_MEM_EQ>>	<<VALUE>>/<<0>> <<INDEX>> <<VBYTE>> <<CODE>>	≥ 0.4
+3d/bd	<<IF_MEM_EQ>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<VBYTE>> <<CODE>>	≥ 0.4
 {empty}	{empty}	{empty}	{empty}
 
-40/c0	<<IFN_RAW_EQ>>	<<VWORD>>/<<0>> <<RAW>> <<CODE>>	{empty}
+40/c0	<<IFN_RAW_EQ>>	<<VWORD>>/<<ZERO>> <<RAW>> <<CODE>>	{empty}
 41	<<IFN_BOUND>>	<<VALUE>> <<CODE>>	{empty}
 42	<<IFN_EMPTY>>	<<VALUE>> <<CODE>>	{empty}
 43	<<IFN_NUM>>	<<VALUE>> <<CODE>>	{empty}
@@ -931,10 +932,10 @@ c6	<<IFN_UWORD>>	<<VALUE>> <<CODE>>	≥ 0.4
 47	<<IFN_UNIFY>>	<<VALUE>> <<VALUE>> <<CODE>>	{empty}
 48	<<IFN_GT>>	<<VALUE>> <<VALUE>> <<CODE>>	{empty}
 49/c9	<<IFN_EQ>>	<<VWORD>>/<<VBYTE>> <<VALUE>> <<CODE>>	{empty}
-4a/ca	<<IFN_MEM_EQ>>	<<VALUE>>/<<0>> <<INDEX>> <<RAW>> <<CODE>>	{empty}
-4b/cb	<<IFN_FLAG>>	<<VALUE>>/<<0>> <<INDEX>> <<CODE>>	{empty}
+4a/ca	<<IFN_MEM_EQ>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<RAW>> <<CODE>>	{empty}
+4b/cb	<<IFN_FLAG>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<CODE>>	{empty}
 4c	<<IFN_CWL>>	<<CODE>>	{empty}
-4d/cd	<<IFN_MEM_EQ>>	<<VALUE>>/<<0>> <<INDEX>> <<VBYTE>> <<CODE>>	≥ 0.4
+4d/cd	<<IFN_MEM_EQ>>	<<VALUE>>/<<ZERO>> <<INDEX>> <<VBYTE>> <<CODE>>	≥ 0.4
 {empty}	{empty}	{empty}	{empty}
 
 50	<<ADD_RAW>>	<<RAW>> <<RAW>> <<DEST>>	{empty}
@@ -976,7 +977,7 @@ e3	<<PAR>>	{empty}	{empty}
 e6	<<LEAVE_DIV>>	{empty}	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-67	<<ENTER_STATUS>>	<<0>> <<INDEX>>	< 1.0
+67	<<ENTER_STATUS>>	<<ZERO>> <<INDEX>>	< 1.0
 e7	<<LEAVE_STATUS>>	{empty}	< 1.0
 {empty}	{empty}	{empty}	{empty}
 
