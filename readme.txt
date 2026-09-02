@@ -131,9 +131,6 @@ Release notes:
 
 	1.0.3:
 
-		6502 engine: Fixed some memory corruption issues, especially
-		involving save/restore/undo operations.
-
 		New Apple II interpreter:
 		- Supports Apple II+ and later models
 		- 64 or 128 kB
@@ -147,21 +144,21 @@ Release notes:
 		Aambundle: Stories without a title in their metadata are
 		named after the base name of the story file.
 
+		6502 engine: Fixed some memory corruption issues, especially
+		involving save/restore/undo operations.
+
 		6502 engine: Fixed NBSP so that it properly degrades to a
 		breaking space instead of being ignored.
 
 		6502 engine: Fixed blank lines when printing long words.
 
-		C64 interpreter: Added "reverse" (red) styling.
-
-		C64 interpreter: Added five glyphs (A with Acute, N with
-		Tilde, Hyphen, Ellipsis, NNBSP).
-
-		C64 interpreter: Fixed inline progress bars.
-
 		6502: Added five glyphs/transliterations (A with Acute,
 		N with Tilde, Hyphen, Ellipsis, NNBSP) and those listed
 		in The Z-Machine Standards Document.
+
+		C64 interpreter: Added "reverse" (warm palette) styling.
+
+		C64 interpreter: Fixed inline progress bars.
 
 	1.0.2:
 	
