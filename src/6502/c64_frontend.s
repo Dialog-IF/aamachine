@@ -507,23 +507,36 @@ done
 
 io_mstyle
 	; input a = style bits
+	; 1 reverse, 2 bold, 4 italic
+	; Or on C64:
+	; 1 warm, 2 light, 4 blue
 
 	.(
 	pha
 	jsr	io_mflush
 	pla
-	lsr
-	and	#3
+	and	#7
 	tax
 	lda	palette,x
 	sta	currfg
 	rts
 palette
-	.byt	$0	; normal
-	.byt	$b	; bold
-	.byt	$6	; italic
-	.byt	$e	; italic bold
+	.byt	$0	; normal = black
+	.byt	$1	; reverse = white (warm)
+	.byt	$b	; bold = dark gray (light)
+	.byt	$7	; bold reverse = yellow (light + warm)
+	.byt	$6	; italic = blue (saturated)
+	.byt	$2	; italic reverse = red (warm + saturated)
+	.byt	$e	; italic bold = light blue (saturated + light)
+	.byt	$a	; italic bold reverse = pink (warm + saturated + light)
 	.)
+; available colors:
+; 0 black 1 white 2 red 3 cyan
+; 4 purple 5 green 6 blue 7 yellow
+; 8 orange 9 brown a pink b dark gray
+; c gray d light green e light blue f light gray
+
+; The current palette was decided at https://intfiction.org/t/help-dialog-choose-a-commodore-64-color-palette/81746/2 but see that post for some of the other options considered and how people felt about them
 
 io_mprogress
 	; input x = progress
