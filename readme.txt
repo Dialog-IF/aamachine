@@ -144,6 +144,8 @@ Release notes:
 		Aambundle: Stories without a title in their metadata are
 		named after the base name of the story file.
 
+		Aambundle: Better warning messages for the 6502's limitations.
+
 		6502 engine: Fixed some memory corruption issues, especially
 		involving save/restore/undo operations.
 
