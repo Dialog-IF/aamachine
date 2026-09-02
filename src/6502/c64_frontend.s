@@ -509,7 +509,7 @@ io_mstyle
 	; input a = style bits
 	; 1 reverse, 2 bold, 4 italic
 	; Or on C64:
-	; 1 red, 2 lighter, 4 blue
+	; 1 warm, 2 light, 4 blue
 
 	.(
 	pha
