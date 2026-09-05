@@ -423,7 +423,7 @@ function prepare_story(file_array, io, seed, quit, toparea, inlinearea) {
 
 	e = {
 		VER_MAJOR:	1,
-		VER_MINOR:	0,
+		VER_MINOR:	1,
 		
 		SP_AUTO:	0,
 		SP_NOSPACE:	1,

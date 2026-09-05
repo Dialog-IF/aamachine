@@ -1,4 +1,4 @@
-VERSION=1.0.3
+VERSION=1.1.0
 CFLAGS=-Wall -O2 -DVERSION=\"$(VERSION)\"
 
 all:			aambox6502 aambox_frontend.bin c64_crunched.bin c64_drivecode.bin c64_loader.prg a2.system a2_0boot.bin a2_sboot.bin
