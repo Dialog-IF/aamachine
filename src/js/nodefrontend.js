@@ -1,6 +1,6 @@
 (function(){"use strict";
 
-const VERSION = "1.0.3";
+const VERSION = "1.0.4";
 
 const fs = require('fs');
 const readline = require('readline');
