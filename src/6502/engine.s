@@ -3642,7 +3642,11 @@ enter
 	lda	#0
 	sta	denom+1
 	sta	quot+1
+	txa ; New mul16 routine clobbers x
+	pha
 	jsr	mul16
+	pla
+	tax
 	lda	#100
 	sta	denom
 	lda	#0
@@ -4261,7 +4265,11 @@ chknum
 	sta	denom+1
 	lda	#10
 	sta	denom
+	txa ; New mul16 clobbers x
+	pha
 	jsr	mul16
+	pla
+	tax
 
 	pla
 	and	#$0f
@@ -5357,15 +5365,24 @@ op_mul_num
 	sta	denom
 
 	jsr	mul16
+	; If it overflowed, C is set (and numer, numer+1 are unaltered)
+	; Otherwise, the result is in numer and numer+1
+	bcs	fail
+	; If the top two bits of numer+1 are not zero, it's too big
+	lda	#%11000000
+	and	numer+1
+	bne	fail
 
+	; Otherwise, we know it fits in an int
 	lda	numer+1
-	and	#$3f
 	ora	#$40
 	sta	result+0
 	lda	numer
 	sta	result+1
 
 	jmp	ldystorefetchnext
+fail
+	jmp	failure
 	.)
 
 op_pop_choice
@@ -9206,7 +9223,8 @@ nomatch
 	jmp	loop
 	.)
 
-mul16
+/*
+oldmul16
 	; input quot, denom
 	; output numer
 	; clobbers quot, denom, y
@@ -9235,6 +9253,50 @@ nobit
 	dey
 	bne	loop
 
+	rts
+	.)
+*/
+
+mul16
+	; omult16.a from https://github.com/TobyLobster/multiply_test
+	; from BBC BASIC 2 ROM
+	; input quot, denom
+	; output numer, c (set on overflow)
+	; clobbers quot, denom, a, x, y
+	.(
+	ldx #0 ; using x,y as 16-bit accumulator
+	ldy #0 ; x high y low
+loop
+	; Get lsb of denom
+	lsr denom+1
+	ror denom
+	bcc skip ; Do not add quot if the bit is clear
+	
+	; Add quot to accumulator
+	clc
+	tya
+	adc quot
+	tay
+	txa
+	adc quot+1
+	tax
+	
+	; Bail out on overflow
+	bcs overflow
+skip
+	; Multiply quot by two
+	asl quot
+	rol quot+1
+	
+	; Continue until denom is zero
+	lda denom
+	ora denom+1
+	bne loop
+	
+	clc ; No overflow in this path
+	sty numer
+	stx numer+1
+overflow
 	rts
 	.)
 
@@ -10314,7 +10376,11 @@ digloop
 	sta	denom+1
 	lda	#10
 	sta	denom
+	txa ; The new mul16 routine clobbers x
+	pha ; So we need to stash it on the stack
 	jsr	mul16
+	pla
+	tax
 	pla
 	clc
 	adc	numer
