@@ -1,4 +1,4 @@
-= Å-machine 1.0 Specification
+= Å-machine 1.1 Specification
 
 This file contains a detailed description of the Å-machine (Aa-machine)
 version 1.0, including the two file formats (story and saved game) and the
