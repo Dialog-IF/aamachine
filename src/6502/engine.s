@@ -9257,7 +9257,8 @@ nobit
 	.)
 */
 
-mul16
+/*
+badmul16
 	; omult16.a from https://github.com/TobyLobster/multiply_test
 	; from BBC BASIC 2 ROM
 	; input quot, denom
@@ -9298,6 +9299,50 @@ skip
 	stx numer+1
 overflow
 	rts
+	.)
+*/
+
+mul16
+	; omult6.a from https://github.com/TobyLobster/multiply_test
+	; from Commodore 64 kernal ROM
+	; also in Applesoft II BASIC
+	; input quot, denom
+	; output numer, c (set on overflow)
+	; clobbers quot, denom, remain, a, x, y
+	; note - this algorithm starts with the high bit of the result, not the low bit
+	.(
+	; we repurpose remain here for the bit counter
+	lda	#16
+	sta	remain
+	ldx	#0	; result low
+	ldy	#0	; result high
+loop
+	txa	; get result low
+	asl	; mult by 2
+	tax	; save result low
+	tya	; get result high
+	rol	; mult by 2
+	tay	; save result high
+	bcs	overflow
+	asl	quot	; mult by 2
+	rol	quot+1
+	bcc	skip	; skip add if no carry
+	clc	; otherwise clear carry for adc
+	txa	; get result low
+	adc	denom	; add denom low to it
+	tax
+	tya	; get result high
+	adc	denom+1	; add denom high to it
+	tay
+	bcs	overflow
+skip
+	dec	remain
+	bne	loop
+	stx	numer	; save result
+	sty	numer+1
+;	clc	; must be clear because none of the instructions after the bcs affect it
+overflow
+	rts ; return whatever result we have
 	.)
 
 div16
