@@ -247,7 +247,7 @@ const io = {
 			}
 		});
 	},
-	
+
 	have_styles: function() { // No text styling
 		return false;
 	},

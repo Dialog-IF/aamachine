@@ -22,6 +22,7 @@ TRACE_STORE	= 0
 MEASURE_TIME	= 0
 UNDO		= 1
 SAVERESTORE	= 1
+FGCOLOR		= 1
 
 DEFWIDTH	= 40
 PREXTRA		= 8
@@ -510,14 +511,24 @@ io_mstyle
 	; 1 reverse, 2 bold, 4 italic
 	; Or on C64:
 	; 1 warm, 2 light, 4 blue
+	; input x = fg color or $80 if unset
 
 	.(
+	cpx	#0
+	bpl	color_override
 	pha
 	jsr	io_mflush
 	pla
 	and	#7
 	tax
 	lda	palette,x
+	sta	currfg
+	rts
+color_override
+	txa
+	pha
+	jsr	io_mflush
+	pla
 	sta	currfg
 	rts
 palette

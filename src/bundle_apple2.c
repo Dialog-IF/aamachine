@@ -47,6 +47,8 @@
  * doesn't do a volume scan.
  */
 
+#define AAKBD_APPLE2	"\\_`{|}~[]"
+
 static char storyname[48];
 
 /* ProDOS on-disk layout.  Blocks are 512 bytes and .po images store them
@@ -110,44 +112,6 @@ static const int dos_order[SECTORS_PER_TRACK] = {
  * 0boot then reads whole tracks from track 1, which means AAM.SYSTEM has to
  * start on that boundary, at block 8.  Block 7 is the cost of the alignment. */
 #define BOOT0_FIRST_DATA	BLOCKS_PER_TRACK
-
-/* Writes data, then pads the file with zeros up to a multiple of padto
- * bytes (padto = 1 means no padding). */
-static void writefile_padded(char *dirname, char *name, const uint8_t *data, size_t size, size_t padto) {
-	char *filename;
-	FILE *f;
-	size_t npad;
-
-	filename = malloc(strlen(dirname) + strlen(name) + 2);
-	sprintf(filename, "%s/%s", dirname, name);
-
-	f = fopen(filename, "wb");
-	if(!f) {
-		fprintf(stderr, "%s: %s\n", filename, strerror(errno));
-		exit(1);
-	}
-	if(size != fwrite(data, 1, size, f)) {
-		fprintf(stderr, "%s: %s\n", filename, strerror(errno));
-		exit(1);
-	}
-	npad = (padto - size % padto) % padto;
-	while(npad--) {
-		if(EOF == fputc(0, f)) {
-			fprintf(stderr, "%s: %s\n", filename, strerror(errno));
-			exit(1);
-		}
-		size++;
-	}
-	fclose(f);
-
-	printf("%-14s %7lu bytes\n", name, (unsigned long) size);
-
-	free(filename);
-}
-
-static void writefile(char *dirname, char *name, const uint8_t *data, size_t size) {
-	writefile_padded(dirname, name, data, size, 1);
-}
 
 /* ---------------------------------------------------------------- writing */
 
@@ -511,7 +475,7 @@ void check_font_has_translit(uint8_t *lang, uint32_t size) { // Expects the LANG
 			(lang[exttable+5*i+4])
 		);
 		if(!does_font_have_translit(unichar)) {
-			fprintf(stderr, "Warning: Extended character %d (%s, U+%04x) has no Apple II transliteration. It will display as '?'.\n", 0x80|i, unicode_to_utf8(unichar), unichar);
+			warning(WARN_CHARSET, "Extended character %d (%s, U+%04x) has no Apple II transliteration. It will display as '?'.", 0x80|i, unicode_to_utf8(unichar), unichar);
 		}
 	}
 }
@@ -532,7 +496,7 @@ void apple2_chunk_visitor(char *head, char *dirname, uint8_t *chunk, uint32_t si
 	} else {
 		return;
 	}
-	
+
 	if(langchunk && dictchunk) {
 		warn_about_nonascii(dictchunk, dictsize, langchunk, langsize);
 	}
@@ -689,6 +653,7 @@ static const char readme_build[] =
 "\n"
 "When booting from real ProDOS, name the volume containing the story\n"
 "file AA.STORY because the interpreter will scan for it by volume path.\n"
+"If it boots into BASIC, type -AAM.SYSTEM to start the interpeter.\n"
 "\n"
 ;
 
@@ -729,13 +694,14 @@ static void write_readme(char *dirname, int mode, const char *single, const char
 		sprintf(text + strlen(text), readme_800k, bigdisk);
 	}
 	strcat(text, readme_save);
-	strcat(text, readme_build);
 
 	strcat(text, readme_emul);
 	if(bigdisk) {
 		strcat(text, readme_emul_800k);
 	}
 	strcat(text, readme_emul_tail);
+
+	strcat(text, readme_build);
 
 	writefile(dirname, "readme.txt", (const uint8_t *) text, strlen(text));
 	free(text);
@@ -866,7 +832,9 @@ void bundle_apple2(char *dirname) {
 	int mode;
 
 	visit_chunks(storyname, sizeof(storyname), apple2_chunk_visitor);
-	trim_chunks(1);
+	gen_usty_set_target("apple2");
+	rewrite_chunks(rewrite_6502_sty, 1);
+	gen_usty_check();
 
 	writefile(dirname, "AAM.SYSTEM", table_a2terp, sizeof(table_a2terp));
 	/* The interpreter reads STORY a page at a time, so round the file up

@@ -175,6 +175,135 @@ void decode_look(struct chunk *ch) {
 	}
 }
 
+// USTY: bundler-generated style table for the 6502 engines.
+// (USTY_VERSION).
+//
+// 0     tag                 ; high nibble target, low nibble format version
+// 1     nclass
+// 2     nxsty
+// 3     reserved
+// 4-5   totalwords          ; b-e, words of heap the two arrays need
+// 6-7   xstyoff             ; b-e, body array offset from the record base
+//       class records[nclass * USTY_RECSIZE]
+//       xsty[]              ; (index, datalen, data[datalen]) records,
+//                           ; ended by $ff in an index byte
+//       pad                 ; 0 or 1 bytes, to totalwords * 2
+//
+// Keep in step with the record layouts in gen_usty.c.
+
+static void put_style_bits(uint8_t bits) {
+	int first = 1;
+
+	if(bits & AASTYLE_REVERSE) { printf("%sreverse", first? "" : " "); first = 0; }
+	if(bits & AASTYLE_BOLD)    { printf("%sbold", first? "" : " "); first = 0; }
+	if(bits & AASTYLE_ITALIC)  { printf("%sitalic", first? "" : " "); first = 0; }
+	if(bits & AASTYLE_FIXED)   { printf("%sfixed", first? "" : " "); first = 0; }
+	if(first) printf("none");
+}
+
+static const char *float_names[] = {"none", "left", "right"};
+
+static void decode_usty_records(uint8_t *d, uint8_t tag, uint32_t recoffs,
+	uint8_t nclass, int nrec, const uint32_t *xrecoffs)
+{
+	int i;
+
+	printf("\nClass records (%d bytes each):\n", USTY_RECSIZE);
+	for(i = 0; i < nclass; i++) {
+		uint8_t *r = d + recoffs + i * USTY_RECSIZE;
+		uint8_t fl = r[USTY_F_FLAGS];
+		int flo = (fl & USTY_FL_FLOATL)? 1 : 0;
+
+		if(fl & USTY_FL_FLOATR) flo = 2;
+
+		printf("  %04x:", i);
+		if(r[USTY_F_WIDTH]) {
+			printf(" width=%d%s", r[USTY_F_WIDTH], (fl & USTY_FL_RELW)? "%" : "");
+		}
+		if(r[USTY_F_HEIGHT]) {
+			printf(" height=%d%s", r[USTY_F_HEIGHT], (fl & USTY_FL_RELH)? "%" : "");
+		}
+		if(r[USTY_F_MTOP]) printf(" mtop=%d", r[USTY_F_MTOP]);
+		if(r[USTY_F_MBOTTOM]) printf(" mbottom=%d", r[USTY_F_MBOTTOM]);
+		if(flo) printf(" float=%s", float_names[flo]);
+		if(r[USTY_F_STYON]) {
+			printf(" on=");
+			put_style_bits(r[USTY_F_STYON]);
+		}
+		if(r[USTY_F_STYOFF]) {
+			printf(" off=");
+			put_style_bits(r[USTY_F_STYOFF]);
+		}
+		if(r[USTY_F_FG] != 0x80) printf(" fg=%02x", r[USTY_F_FG]);
+		// An all-default class still has a record here
+		if(!r[0] && !r[1] && !r[2] && !r[3]
+		&& !r[4] && !r[5] && !r[6] && r[7] == 0x80) {
+			printf(" all defaults");
+		}
+		printf("\n");
+	}
+
+	printf("\n");
+}
+
+static void decode_usty_ext(uint8_t *d, uint32_t size, uint8_t tag) {
+	uint8_t nclass, nxsty;
+	uint32_t recoffs, xstyoffs, totalwords, xstyrel;
+	uint32_t xrecoffs[256];
+	int nrec = 0; // no xsty records yet
+
+	if(size < USTY_HDRSIZE) {
+		printf("Chunk too small (%u bytes) to hold a USTY header.\n", size);
+		return;
+	}
+
+	nclass = d[1];
+	nxsty = d[2];
+	totalwords = (d[4] << 8) | d[5];
+	xstyrel = (d[6] << 8) | d[7];
+
+	recoffs = USTY_HDRSIZE;
+	xstyoffs = recoffs + xstyrel;
+
+	printf("nclass: %d  nxsty: %d\n", nclass, nxsty);
+	printf("Offsets: rec %u  xsty %u  (%u words resident)\n",
+		recoffs, xstyoffs, totalwords);
+
+	decode_usty_records(d, tag, recoffs, nclass, nrec, xrecoffs);
+}
+
+void decode_usty(struct chunk *ch) {
+	uint8_t *d = ch->data;
+	uint32_t size = ch->size;
+	uint8_t tag;
+
+	if(size < 4) {
+		printf("Chunk too small (%u bytes) to be a USTY table.\n", size);
+		return;
+	}
+
+	tag = d[0];
+
+	printf("Tag: %02x (", tag);
+	switch(tag & 0xf0) {
+	case 0x00: printf("aambox"); break;
+	case 0x10: printf("c64"); break;
+	case 0x20: printf("apple2"); break;
+	default: printf("unknown target"); break;
+	}
+	printf(", format version %d)\n", tag & 0x0f);
+
+	switch(tag & 0x0f) {
+	case USTY_VERSION:
+		decode_usty_ext(d, size, tag);
+		break;
+	default:
+		printf("Cannot decode USTY format version %d; this aamshow knows %d.\n",
+			tag & 0x0f, USTY_VERSION);
+		break;
+	}
+}
+
 static int put_obj(struct chunk *tagsch, int num) {
 	int ptr, count = 0;
 	uint8_t c;
@@ -857,6 +986,7 @@ struct decoder {
 	{decode_head, "HEAD"},
 	{decode_meta, "META"},
 	{decode_look, "LOOK"},
+	{decode_usty, "USTY"},
 	{decode_tags, "TAGS"},
 	{decode_lang, "LANG"},
 	{decode_writ, "WRIT"},
@@ -957,7 +1087,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Error: First chunk must be HEAD.\n");
 		exit(1);
 	}
-	
+
 	aavm_init(chunk[0].data[0]); // Wait until after reading the file before initializing the opcode database so that we can pass the major version
 
 	if(chunk[0].data[0] > AAVM_FORMAT_MAJOR || (chunk[0].data[0] == 1 && chunk[0].data[1] > AAVM_FORMAT_MINOR)) {
@@ -999,9 +1129,18 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
+	int crc_valid = 1;
 	actual_crc = 0xffffffff;
 	if(!savefile) {
-		crc_chunk("LOOK");
+		// A story bundled for a 6502 target has had LOOK replaced by the
+		// precomputed USTY table, so its absence is not a defect there. The
+		// CRC will not match HEAD either way once chunks have been rewritten.
+		if(findchunk("USTY")) {
+			crc_chunk("USTY"); // crc will fail anyway
+			crc_valid = 0;
+		} else {
+			crc_chunk("LOOK");
+		}
 		crc_chunk("LANG");
 		crc_chunk("MAPS");
 		crc_chunk("DICT");
@@ -1010,7 +1149,10 @@ int main(int argc, char **argv) {
 		crc_chunk("WRIT");
 		actual_crc ^= 0xffffffff;
 
-		if(actual_crc != get32(chunk[0].data + 12)) {
+		if(!crc_valid) {
+			printf("Warning: This file was rewritten with a USTY chunk and CRC (%08x) was not recomputed.\n",
+				get32(chunk[0].data + 12));
+		} else if(actual_crc != get32(chunk[0].data + 12)) {
 			printf("Warning: CRC declared in header (%08x) does not match actual CRC (%08x).\n",
 				get32(chunk[0].data + 12),
 				actual_crc);

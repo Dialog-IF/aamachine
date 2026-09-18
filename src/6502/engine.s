@@ -101,6 +101,9 @@ ramsz	= $ce	; word, b-e
 
 zporg	= $d0	; 24 bytes of code
 
+#if FGCOLOR
+rfgcol  = $f2	; current fg color
+#endif
 inittmp	= $f3	; word, b-e
 temp	= $f5
 pcmsb	= $f6
@@ -128,8 +131,12 @@ chnklsb	= HEAPEND+$0d0+0*CH_N
 chnkssb	= HEAPEND+$0d0+1*CH_N
 chnkmsb	= HEAPEND+$0d0+2*CH_N
 
-databuf = HEAPEND+$0f0	; 8 bytes
-filesz	= HEAPEND+$0f8	; 3 bytes, b-e
+; placed relative to the chunk table so that
+; adding a chunk slot cannot silently
+; overlap them; there are 48 bytes here and
+; the three uses need 3*CH_N + 11.
+databuf = HEAPEND+$0d0+3*CH_N	; 8 bytes
+filesz	= databuf+8		; 3 bytes, b-e
 
 ; for each physical page, what
 ; virtual page owns it (initialized
@@ -166,6 +173,7 @@ STY_MBOTTOM	= 3
 STY_STYON	= 4
 STY_STYOFF	= 5
 STY_FLAGS	= 6
+STY_FG		= 7	; $80 = inherit
 
 STYF_RELW	= $01
 STYF_RELH	= $02
@@ -534,6 +542,10 @@ unstyle
 	lda	stflag
 	bne	skip
 
+#if FGCOLOR
+	lda	#$80
+	sta	rfgcol
+#endif
 	lda	#0
 	sta	rstyle
 
@@ -565,12 +577,22 @@ loop
 	ldy	#STY_STYON
 	ora	(phydata),y
 	sta	rstyle
+#if FGCOLOR
+	ldy	#STY_FG
+	lda	(phydata),y
+	bmi	nofgcol
+	sta	rfgcol
+nofgcol
+#endif
 
 	inx
 	inx
 	jmp	loop
 done
 	lda	rstyle
+#if FGCOLOR
+	ldx	rfgcol
+#endif
 	jmp	io_mstyle
 skip
 	rts
@@ -684,6 +706,10 @@ clrdone
 
 restartvm
 	.(
+#if FGCOLOR
+	lda	#$80
+	sta	rfgcol
+#endif
 	lda	#0
 	sta	stflag
 	sta	rupper
@@ -7801,6 +7827,9 @@ op_style
 	lda	operlsb+0
 	ora	rstyle
 	sta	rstyle
+#if FGCOLOR
+	ldx	rfgcol
+#endif
 	jsr	io_mstyle
 	lda	#SPC_SPACE
 	sta	rspc
@@ -7812,6 +7841,9 @@ off
 	eor	#$ff
 	and	rstyle
 	sta	rstyle
+#if FGCOLOR
+	ldx	rfgcol
+#endif
 	jsr	io_mstyle
 	jmp	ldyfetchnext
 	.)
@@ -9901,380 +9933,41 @@ done
 	rts
 
 initengine4
-	; LOOK.
+	; Read the style table from the USTY chunk.
+	; The header is:
+	;   0 tag       1 nclass
+	;   2 nxsty     3 reserved
+	;   4 totalwords (b-e)
+	;   6 xstyoff    (b-e)
+	; followed by:
+	;   records[nclass * 8]
+	; padded to totalwords*2 bytes.
 
-	.(
-	lda	freeptr
-	sec
-	sbc	#8
-	sta	phytmp
-	lda	freeptr+1
-	sbc	#0
-	sta	phytmp+1
-
-	lda	chnklsb+CH_LOOK
+	lda	chnklsb+CH_USTY
 	sta	virdata+2
-	lda	chnkssb+CH_LOOK
+	lda	chnkssb+CH_USTY
 	sta	virdata+1
-	lda	chnkmsb+CH_LOOK
+	lda	chnkmsb+CH_USTY
 	sta	virdata+0
-	lda	#2
-	jsr	readdata
-	lda	#0
-	sta	temp
-	lda	databuf+1
-	sta	count
-	asl
-	rol	temp
-	asl
-	rol	temp
-	tax
-	ldy	temp
-	jsr	allocwords
+	lda	#8
+	jsr	readdata	; read the header
+
+	ldx	databuf+5	; totalwords
+	ldy	databuf+4
+	jsr	allocwords	; allocate memory
 	stx	stybase
 	sty	stybase+1
-classloop
-	lda	#0
-	sta	temp
+	stx	phydata
+	sty	phydata+1
 
-	lda	count
-	bne	notdone
-
-	jmp	classdone
-notdone
+	lda	databuf+5
 	asl
-	rol	temp
-	;clc
-	adc	chnklsb+CH_LOOK
-	sta	virdata+2
-	lda	temp
-	adc	chnkssb+CH_LOOK
-	sta	virdata+1
-	lda	chnkmsb+CH_LOOK
-	adc	#0
-	sta	virdata+0
-	lda	#2
-	jsr	readdata
+	sta	physize
+	lda	databuf+4
+	rol
+	sta	physize+1
+	jsr	readdatato	; read the data
 
-	lda	databuf+1
-	clc
-	adc	chnklsb+CH_LOOK
-	sta	virdata+2
-	lda	databuf
-	adc	chnkssb+CH_LOOK
-	sta	virdata+1
-	lda	chnkmsb+CH_LOOK
-	adc	#0
-	sta	virdata+0
-
-	ldy	#7
-	lda	#0
-clrloop
-	sta	(phytmp),y
-	dey
-	bpl	clrloop
-attrsloop
-	lda	#1
-	jsr	readdata
-	lda	databuf
-	bne	attrsnotdone
-
-	jmp	attrsdone
-attrsnotdone
-	ldx	#0
-attrloop
-	cmp	#$41
-	bcc	nocase
-
-	cmp	#$5b
-	bcs	nocase
-
-	eor	#$20
-nocase
-	sta	inpbuf,x
-	inx
-	txa
-	pha
-	lda	#1
-	jsr	readdata
-	pla
-	tax
-	lda	databuf
-	bne	attrloop
-
-	sta	inpbuf,x
-#if 0
-	ldx	#0
-ploop
-	lda	inpbuf,x
-	beq	pdone
-
-	txa
-	pha
-	lda	inpbuf,x
-	jsr	vio_putc
-	pla
-	tax
-	inx
-	jmp	ploop
-pdone
-	lda	#SPC_AUTO
-	sta	rspc
-	jsr	vio_line
-#endif
-	ldy	#0
-	sty	operlsb+0
-matchloop
-	ldx	#0
-cmploop
-	lda	csskeywords,y
-	beq	cmpend
-
-	cmp	inpbuf,x
-	bne	matchnext
-
-	inx
-	iny
-	jmp	cmploop
-cmpskip1
-	inx
-cmpend
-	lda	inpbuf,x
-	cmp	#$20
-	beq	cmpskip1
-
-	cmp	#$3a
-	beq	matchfound
-
-	dey
-matchnext
-	iny
-	lda	csskeywords,y
-	bne	matchnext
-
-	iny
-	inc	operlsb+0
-	lda	operlsb
-	cmp	#CSS_N
-	bcc	matchloop
-
-	jmp	attrsloop
-matchfound
-cmpskip2
-	inx
-	lda	inpbuf,x
-	cmp	#$20
-	beq	cmpskip2
-
-	ldy	operlsb
-	bne	nowidth
-
-	jsr	css_abs_rel
-	ldy	#STY_WIDTH
-	sta	(phytmp),y
-	bcc	norelw
-
-	ldy	#STY_FLAGS
-	lda	(phytmp),y
-	ora	#STYF_RELW
-	sta	(phytmp),y
-norelw
-	jmp	attrsloop
-nowidth
-	dey
-	bne	noheight
-
-	jsr	css_abs_rel
-	ldy	#STY_HEIGHT
-	sta	(phytmp),y
-	bcc	norelh
-
-	ldy	#STY_FLAGS
-	lda	(phytmp),y
-	ora	#STYF_RELH
-	sta	(phytmp),y
-norelh
-	jmp	attrsloop
-noheight
-	dey
-	bne	nofloat
-
-	ldy	#cssparam_left
-	jsr	css_check_param
-	bcc	noleft
-
-	ldy	#STY_FLAGS
-	lda	(phytmp),y
-	ora	#STYF_FLOATL
-	sta	(phytmp),y
-	jmp	attrsloop
-noleft
-	ldy	#cssparam_right
-	jsr	css_check_param
-	bcc	noright
-
-	ldy	#STY_FLAGS
-	lda	(phytmp),y
-	ora	#STYF_FLOATR
-	sta	(phytmp),y
-noright
-	jmp	attrsloop
-nofloat
-	dey
-	bne	nofstyle
-
-	ldy	#cssparam_italic
-	jsr	css_check_param
-	bcs	italic
-
-	ldy	#cssparam_oblique
-	jsr	css_check_param
-	bcc	noitalic
-italic
-	ldy	#STY_STYON
-	lda	(phytmp),y
-	ora	#4
-	sta	(phytmp),y
-	jmp	attrsloop
-noitalic
-	ldy	#cssparam_normal
-	jsr	css_check_param
-	bcc	nounitalic
-
-	ldy	#STY_STYOFF
-	lda	(phytmp),y
-	ora	#4
-	sta	(phytmp),y
-nounitalic
-	jmp	attrsloop
-nofstyle
-	dey
-	bne	nofweight
-
-	ldy	#cssparam_bold
-	jsr	css_check_param
-	bcc	nobold
-
-	ldy	#STY_STYON
-	lda	(phytmp),y
-	ora	#2
-	sta	(phytmp),y
-	jmp	attrsloop
-nobold
-	ldy	#cssparam_normal
-	jsr	css_check_param
-	bcc	nounbold
-
-	ldy	#STY_STYOFF
-	lda	(phytmp),y
-	ora	#2
-	sta	(phytmp),y
-nounbold
-	jmp	attrsloop
-nofweight
-	dey
-	bne	noffamily
-fixedloop1
-	ldy	#0
-fixedloop2
-	lda	inpbuf,x
-	beq	nofixed
-
-	cmp	css_monospace,y
-	beq	fixednext
-
-	cmp	#'m'
-	beq	fixedloop1
-
-	inx
-	jmp	fixedloop1
-fixednext
-	inx
-	iny
-	cpy	#9
-	bne	fixedloop2
-
-	ldy	#STY_STYON
-	lda	(phytmp),y
-	ora	#8
-	sta	(phytmp),y
-nofixed
-	jmp	attrsloop
-noffamily
-	dey
-	bne noifrev
-
-	ldy #cssparam_reverse
-	jsr css_check_param
-	bcc noreverse
-
-	ldy	#STY_STYON
-	lda	(phytmp),y
-	ora	#1
-	sta	(phytmp),y
-	jmp	attrsloop
-noreverse
-	ldy #cssparam_none
-	jsr css_check_param
-	bcc nounreverse
-
-	ldy	#STY_STYOFF
-	lda	(phytmp),y
-	ora	#1
-	sta	(phytmp),y
-nounreverse
-	jmp	attrsloop
-noifrev
-	dey
-	bne	nomtop
-
-	jsr	css_abs_rel
-	bcs	badmtop
-
-	ldy	#STY_MTOP
-	sta	(phytmp),y
-badmtop
-	jmp	attrsloop
-nomtop
-	dey
-	bne	nombottom
-
-	jsr	css_abs_rel
-	bcs	badmbtm
-
-	ldy	#STY_MBOTTOM
-	sta	(phytmp),y
-badmbtm
-nombottom
-	jmp	attrsloop
-attrsdone
-#if 0
-	ldy	#0
-dumploop
-	lda	(phytmp),y
-	jsr	puthex
-	iny
-	cpy	#8
-	bne	dumploop
-
-	lda	#SPC_AUTO
-	sta	rspc
-	jsr	vio_line
-#endif
-	dec	count
-	lda	phytmp
-	sec
-	sbc	#8
-	sta	phytmp
-	bcs	noc1
-
-	dec	phytmp+1
-noc1
-	jmp	classloop
-classdone
-	.)
-
-	.(
 	lda	chnklsb+CH_CODE
 	sec
 	sbc	#1
@@ -10285,129 +9978,10 @@ classdone
 	lda	chnkmsb+CH_CODE
 	sbc	#0
 	sta	codeseg+0
-	.)
 
 	rts
 
-css_abs_rel
-	; input inpbuf = data
-	; input x = data offset
-	; output a = value
-	; output c = relative
-	; returns absolute 0 on error
-
-	.(
-	lda	#0
-	sta	quot
-	sta	quot+1
-digloop
-	lda	inpbuf,x
-	cmp	#$30
-	bcc	nodig
-
-	cmp	#$3a
-	bcs	nodig
-
-	and	#$0f
-	pha
-	lda	#0
-	sta	denom+1
-	lda	#10
-	sta	denom
-	jsr	mul16
-	pla
-	clc
-	adc	numer
-	sta	quot
-	lda	numer+1
-	adc	#0
-	sta	quot+1
-	inx
-	jmp	digloop
-skip1
-	inx
-	lda	inpbuf,x
-	cmp	#$30
-	bcc	nodig2
-
-	cmp	#$3a
-	bcc	skip1
-nodig
-	cmp	#$2e
-	beq	skip1
-nodig2
-	cmp	#'e'
-	beq	got_e
-
-	cmp	#'c'
-	beq	got_c
-
-	cmp	#$25
-	bne	noparse
-
-	lda	quot
-	;sec
-	rts
-got_e
-	lda	inpbuf+1,x
-	cmp	#'m'
-	beq	gotabs
-
-	cmp	#'n'
-	beq	gotabs
-
-	jmp	noparse
-got_c
-	lda	inpbuf+1,x
-	cmp	#'h'
-	bne	noparse
-gotabs
-	lda	quot
-	clc
-	rts
-noparse
-	lda	#0
-	clc
-	rts
-	.)
-
-css_check_param
-	; input inpbuf = input
-	; input x = input offset
-	; input y = keyword offset
-	; output c = match
-	; preserves x
-
-	.(
-	txa
-	pha
-loop
-	lda	cssparams,y
-	beq	end
-
-	cmp	inpbuf,x
-	bne	fail
-
-	inx
-	iny
-	jmp	loop
-skip
-	inx
-end
-	lda	inpbuf,x
-	cmp	#$20
-	beq	skip
-
-	cmp	#0
-	beq	succeed
-fail
-	clc
-succeed
-	pla
-	tax
-	rts
-	.)
-
+;; list of chunks we can find
 CH_CODE	= 0
 CH_LANG	= 1
 CH_META	= 2
@@ -10416,56 +9990,16 @@ CH_WRIT = 4
 CH_TAGS = 5
 CH_DICT = 6
 CH_MAPS = 7
-CH_LOOK = 8
+CH_USTY = 8
 CH_URLS = 9
 CH_N	= 10
 chunknames
-	.byt	"CLMIWTDMLU"
-	.byt	"OAENRAIAOR"
-	.byt	"DNTIIGCPOL"
-	.byt	"EGATTSTSKS"
+	.byt	"CLMIWTDMUU"
+	.byt	"OAENRAIASR"
+	.byt	"DNTIIGCPTL"
+	.byt	"EGATTSTSYS"
 
-CSS_WIDTH	= 0
-CSS_HEIGHT	= 1
-CSS_FLOAT	= 2
-CSS_FONTSTYLE	= 3
-CSS_FONTWEIGHT	= 4
-CSS_FONTFAMILY	= 5
-CSS_REVERSE = 6
-CSS_MARGINTOP	= 7
-CSS_MARGINBTM	= 8
-CSS_N		= 9
-csskeywords
-	.byt	"width",0
-	.byt	"height",0
-	.byt	"float",0
-	.byt	"font-style",0
-	.byt	"font-weight",0
-	.byt	"font-family",0
-	.byt	"-iftf-reverse-video",0
-	.byt	"margin-top",0
-	.byt	"margin-bottom",0
-
-cssparams
-cssparam_left	= * - cssparams
-	.byt	"left",0
-cssparam_right	= * - cssparams
-	.byt	"right",0
-cssparam_italic	= * - cssparams
-	.byt	"italic",0
-cssparam_oblique = * - cssparams
-	.byt	"oblique",0
-cssparam_normal	= * - cssparams
-	.byt	"normal",0
-cssparam_bold	= * - cssparams
-	.byt	"bold",0
-cssparam_reverse	= * - cssparams
-	.byt	"reverse",0
-cssparam_none	= * - cssparams
-	.byt	"none",0
-
-css_monospace
-	.byt	"monospace"
+;;
 
 allocwords
 	; input x = size lsb

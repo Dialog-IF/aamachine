@@ -129,6 +129,11 @@ Project website:
 
 Release notes:
 
+	1.0.4:
+
+		Aambundle now replaces the LOOK chunk with an internal USTY
+		chunk for 6502 targets. Use --help-all to see new warnings.
+
 	1.0.3:
 
 		New Apple II interpreter:
