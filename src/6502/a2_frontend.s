@@ -232,6 +232,9 @@ AUXUNDOBANK2	= $d0		; logical page from
 
 ; ---- frontend zero page ----
 
+invdyn		= $02	; $80 = cout picks INVFLG per
+			; character (see set_inverse)
+auxram		= $03	; $80 if aux RAM is usable
 curstyle	= $04	; last style bits set by io_mstyle
 nunread		= $05	; lines scrolled off since last clear
 ioparam		= $06	; word, used by the engine
@@ -256,9 +259,13 @@ strow		= $1b
 scrw		= $1c	; 40 or 80
 col80		= $1d	; $80 if the //e 80-column
 			; firmware is driving COUT
+			; ($44 if unenhanced IIe)
 foldup		= $1e	; $80 to fold output to
 			; upper case
-auxram		= $1f	; $80 if aux RAM is usable
+
+; $1f is the video firmware's YSAV1 on unenhanced IIe
+; https://6502disassembly.com/a2-rom/Unenh_IIe_80col.html
+; https://6502disassembly.com/a2-rom/Unenh_IIe_F8ROM.html
 
 ; ---- frontend buffers ----
 
@@ -1354,6 +1361,24 @@ cout
 	.(
 	stx	coutx
 	sty	couty
+	bit	invdyn
+	bpl	plain
+
+	; Inverse on an alt charset that keeps
+	; upper and lower case in bands a single
+	; INVFLG mask cannot span -- bit 5 of the
+	; character says which band it wants, and
+	; COUT1 only applies the mask to $a0 and
+	; above, so control characters do not care
+	; what is left here.
+
+	pha
+	and	#$20		; $3f -> $00-$1f upper,
+	asl			;        $20-$3f special
+	ora	#$3f		; $7f -> $60-$7f lower
+	sta	INVFLG
+	pla
+plain
 	ROMCALL(COUT)
 +restore_coutxy
 	ldx	coutx
@@ -1406,12 +1431,31 @@ mstyle_enter
 
 set_inverse
 	.(
-	bit	col80
+	lda	col80
 	bmi	firmware
+; Apple //e enhanced has upper/lower at $00 and $60
+; Apple //e unenhanced has upper/lower at $40 and $60
+	and	#4
+	bne	unenhanced	; IIe unenhanced, 40 col mode
+	bit	col80
+	bvc	noalt		; ][ or ][+, no alt charset
 
+	; IIe enhanced, 40 col mode -- $40-$5f is
+	; MouseText, so no one mask reaches both
+	; $00-$1f and $60-$7f and cout has to
+	; choose per character.
+
+	lda	#$80
+	sta	invdyn
++set_inverse_rts
+	rts
+noalt
 	lda	#$3f
 	sta	INVFLG
-+set_inverse_rts
+	rts
+unenhanced
+	lda	#$7f
+	sta	INVFLG
 	rts
 firmware
 	lda	#$8f		; ctrl-O
@@ -1424,6 +1468,8 @@ set_normal
 	bit	col80
 	bmi	firmware
 
+	lda	#0
+	sta	invdyn
 	lda	#$ff
 	sta	INVFLG
 	rts
@@ -3070,26 +3116,31 @@ auxclrlp
 	sta	cury
 	sta	strow
 	sta	curstyle
+	sta	invdyn
+	sta	nunread		; garbage here is a [MORE]
+				; prompt before the first line
 #if UNDO
 	sta	u_ready
 	sta	u_count
 #endif
-
-	lda	#$e1
-	sta	seed+0
-	lda	#$27
-	sta	seed+1
 
 #if PRORWTS
 	ROMCALL(setmachid)
 #endif
 	jsr	detect
 	jsr	setupvideo
+
+	lda	#$e1
+	sta	seed+0
+	lda	#$27
+	sta	seed+1
+
 #if PRODOS
 	jsr	initparms
 	jsr	removeram
 #endif
 	jsr	banner
+
 	jmp	openstory
 	.)
 
@@ -3103,7 +3154,8 @@ detect
 	; (Bit 3 on) BITS 7,6- 00=NA 01=NA 10=//c 11=NA
 	; BITS 5,4- 00=NA 01=48K 10=64K 11=128K
 	; BIT 3 - Modifier for MACHID Bits 7,6.
-	; BIT 1=1- 80 Column card
+	; BIT 2 - unenhanced IIe
+	; BIT 1 - 80 Column card
 
 	.(
 	lda	#0
@@ -3122,15 +3174,41 @@ detect
 	; The Apple ][ and ][+ character
 	; generator has no lower case, and an
 	; 80-column card in one of those is not
-	; the //e firmware, so it goes unused.
+	; the IIe firmware, so it goes unused.
 
 	lda	#$80
 	sta	foldup
 	rts
 notplus
 	sta	ALTCHRSET_ON	; display inverse lowercase
+
+	; store flags for IIe 40-column lowercase
+	lda	MACHID
+	and	#4		; unenhanced bit
+	ora	#$40		; alt charset bit
+	sta	col80
+
+	; one probe answers both questions below
+	jsr	auxtest
+	sty	auxram		; $80 = 64K aux bank
+	stx	f_temp2		; $80 = aux display ram
+
 	lda	MACHID
 	and	#$02
+	beq	no80
+
+	; the 80-column card is ram only -- the
+	; signature that bit comes from is on the
+	; motherboard and answers with an empty
+	; aux slot, where the odd columns would
+	; come off the floating bus
+
+	bit	f_temp2
+	bpl	no80
+
+	; press 4 when booting to force 40 columns
+	lda	KBD
+	cmp	#'4'+128
 	beq	no80
 
 	lda	#$80
@@ -3138,13 +3216,6 @@ notplus
 	lda	#80
 	sta	scrw
 no80
-	lda	MACHID
-	and	#$30
-	cmp	#$30		; %10 is 64K, not 128K
-	bne	done
-
-	lda	#$80
-	sta	auxram
 done
 	rts
 	.)
@@ -3157,6 +3228,7 @@ done
 ; the three fields detect reads are filled in --
 ; the clock bit and the bits 7,6 modifier stay
 ; clear.
+; https://prodos8.com/docs/technote/misc/02/
 
 setmachid
 	.(
@@ -3165,12 +3237,17 @@ setmachid
 	cpx	#$06		; ][e, ][c and IIgs say 6
 	bne	store
 
+	lda	#$a4		; IIe, 64K, no 80 columns, unenhanced
+	ldx	$fbc0
+	cpx	#$ea		; unenhanced IIe?
+	beq	unenh
+	lda	#$a0		; enhanced IIe
+
 	; The Pascal 1.1 firmware signature is the
 	; same thing ProDOS looks for, so a card in
 	; slot 3 that is not a display -- an
 	; accelerator, say -- is rejected here too.
-
-	lda	#$a0		; ][e, 64K, no 80 columns
+unenh
 	ldx	$c305
 	cpx	#$38
 	bne	no80
@@ -3188,19 +3265,24 @@ setmachid
 
 	ora	#$02		; 80 columns
 no80
-	sta	MACHID
-	jsr	auxtest
-	ora	MACHID		; aux RAM
+	; don't test for auxram here anymore, test in detect
 store
 	sta	MACHID
 	rts
 	.)
+#endif
 
-; Returns $10 in a if there is auxiliary RAM,
-; which turns the 64K in bits 5,4 into 128K.
+; Returns $80 in y if there is a full 64K bank
+; of auxiliary RAM, which turns the 64K in bits
+; 5,4 into 128K, and $80 in x if auxiliary
+; $0400-$07ff answers at all -- the 1 kB an
+; 80-column display needs, which a plain
+; 80-column card has without the rest.
 ; Only ever reached on a ][e or later, so the
-; switches are known to exist.  The main side of
-; the scratch byte is left as it was.
+; switches are known to exist.  Both sides of
+; the scratch byte are left clobbered, which is
+; why seed is set after detect runs and not
+; before.
 ;
 ; RAMRD is no use for this.  It hands reads of
 ; $0200 to $bfff to the auxiliary side, and that
@@ -3209,22 +3291,30 @@ store
 ; out of auxiliary memory as code.  ALTZP moves
 ; the zero page, the stack and $d000-$ffff
 ; instead, and this routine sits in none of
-; those -- ROMCALL has left rom banked in over
-; $d000, and between SETALTZP and CLRALTZP there
-; is no zero page addressing, no stack traffic
-; and no jsr.
+; those -- it runs from main RAM below $c000,
+; so whichever of rom, main lc and aux lc is
+; banked in over $d000 makes no difference to
+; the fetch, and between SETALTZP and CLRALTZP
+; there is no zero page addressing, no stack
+; traffic and no jsr.
 ;
 ; A plain 80-column card carries 1 kB rather
 ; than 64K, and decodes none of the address
 ; lines above it, so it answers at every
 ; auxiliary address -- the sparse mapping the
 ; Apple II identification routine tests for.
-; Zero page $0b and $040b are the same cell on
-; such a card and different cells on a real
-; one, and 80STORE with PAGE2 reaches the
-; second of those without disturbing the fetch
-; either, so writing one and reading the other
-; tells the two cards apart.
+; The scratch byte and its $400 mirror are one
+; cell on such a card and two on a real one,
+; and 80STORE with PAGE2 reaches the mirror
+; without disturbing the fetch either, so
+; writing one and reading the other tells the
+; two cards apart.
+;
+; An empty auxiliary slot answers neither, and
+; floats the video bus back in place of the
+; byte just written -- which could match by
+; chance, so the mirror is written and read
+; back twice, with two different values.
 ;
 ; ProDOS starts by reading RDRAMRD and RDALTZP,
 ; on the grounds that anything already banked
@@ -3232,15 +3322,16 @@ store
 ; switch this early, so that shortcut would
 ; always fall through to here.
 
-auxscratch = f_temp		; moved by ALTZP
+auxscratch = seed		; moved by ALTZP
 auxmirror = $400 + auxscratch	; moved by PAGE2
 
 auxtest
 	.(
-	lda	auxscratch
-	pha
 	php
 	sei
+
+	ldx	#0		; assume neither
+	ldy	#0
 
 	; PAGE2 only picks the bank while 80STORE
 	; is on, and gives the display back when
@@ -3252,17 +3343,23 @@ auxtest
 	lda	auxmirror
 	pha
 
+	lda	#$a5
+	sta	auxmirror
+	cmp	auxmirror
+	bne	restore		; nothing there at all
 	lda	#$5a
 	sta	auxmirror
+	cmp	auxmirror
+	bne	restore
 
-	lda	#$a5
+	ldx	#$80		; 80 columns have ram
+
+	lda	#$96
 	sta	SETALTZP
 	sta	auxscratch	; auxiliary zero page
 	sta	CLRALTZP
-	eor	#$ff
-	sta	auxscratch	; main gets $5a
-
-	ldx	#0		; assume there is none
+	lda	#$69
+	sta	auxscratch
 
 	lda	auxmirror
 	cmp	#$5a
@@ -3271,22 +3368,18 @@ auxtest
 	sta	SETALTZP
 	lda	auxscratch
 	sta	CLRALTZP
-	cmp	#$a5
+	cmp	#$96
 	bne	restore		; main answered instead
 
-	ldx	#$10
+	ldy	#$80		; 128 KB (assumed)
 restore
 	pla
 	sta	auxmirror
 	sta	TXTPAGE1
 	sta	CLR80STORE
 	plp
-	pla
-	sta	auxscratch
-	txa
 	rts
 	.)
-#endif
 
 setupvideo
 	.(
@@ -3300,7 +3393,7 @@ setupvideo
 	jmp	window
 firmware
 	ROMCALL(SETTXT)
-	jsr	SLOT3		; hook up the //e
+	ROMCALL(SLOT3)		; hook up the //e
 				; 80-column firmware
 
 	lda	#$92		; ctrl-R, 80 columns
