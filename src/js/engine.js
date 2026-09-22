@@ -423,7 +423,7 @@ function prepare_story(file_array, io, seed, quit, toparea, inlinearea) {
 
 	e = {
 		VER_MAJOR:	1,
-		VER_MINOR:	0,
+		VER_MINOR:	1,
 		
 		SP_AUTO:	0,
 		SP_NOSPACE:	1,
@@ -2154,8 +2154,10 @@ function vm_run(e, param) {
 					a1 = deref(fvalue());
 					a2 = deref(fvalue());
 					if(a1 >= 0x4000 && a1 < 0x8000 && a2 >= 0x4000 && a2 < 0x8000) {
-						v = ((a1 & 0x3fff) * (a2 & 0x3fff)) & 0x3fff;
-						store(e.code[e.inst++], v | 0x4000);
+						v = (a1 & 0x3fff) * (a2 & 0x3fff);
+						if(v < 0x4000) {
+							store(e.code[e.inst++], v | 0x4000);
+						} else fail();
 					} else fail();
 					break;
 				case 0x5c: // div_num value value dest

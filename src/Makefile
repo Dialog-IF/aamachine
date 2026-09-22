@@ -1,6 +1,6 @@
-VERSION=1.0.4
+VERSION=1.1.0
 VER_MAJOR=1
-VER_MINOR=0
+VER_MINOR=1
 CC		= gcc
 CFLAGS		+= -Wall -O3 -DVERSION=\"$(VERSION)\" -DVER_MAJOR=$(VER_MAJOR) -DVER_MINOR=$(VER_MINOR)
 ifeq ($(shell uname -s),Darwin)
