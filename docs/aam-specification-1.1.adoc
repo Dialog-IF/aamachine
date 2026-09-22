@@ -1,9 +1,10 @@
 = Å-machine 1.1 Specification
 
 This file contains a detailed description of the Å-machine (Aa-machine)
-version 1.0, including the two file formats (story and saved game) and the
+version 1.1, including the two file formats (story and saved game) and the
 bytecode semantics. Be warned that the description is technically
-comprehensive and rather condensed.
+comprehensive and rather condensed. But we are always working to make this
+specification more readable, and feedback is welcome!
 
 Note that 1.0 is not any more official or stable than its predecessor, 0.5.
 The major version change marks where the community forked the project and
