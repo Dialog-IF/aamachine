@@ -176,20 +176,9 @@ void decode_look(struct chunk *ch) {
 }
 
 // USTY: bundler-generated style table for the 6502 engines.
-// (USTY_VERSION).
-//
-// 0     tag                 ; high nibble target, low nibble format version
-// 1     nclass
-// 2     nxsty
-// 3     reserved
-// 4-5   totalwords          ; b-e, words of heap the two arrays need
-// 6-7   xstyoff             ; b-e, body array offset from the record base
-//       class records[nclass * USTY_RECSIZE]
-//       xsty[]              ; (index, datalen, data[datalen]) records,
-//                           ; ended by $ff in an index byte
-//       pad                 ; 0 or 1 bytes, to totalwords * 2
-//
-// Keep in step with the record layouts in gen_usty.c.
+// The chunk layout is specified in docs/aam-specification-1.1-8bit.adoc.
+// Keep the field offsets and record layouts below in step with that
+// document and with gen_usty.c.
 
 static void put_style_bits(uint8_t bits) {
 	int first = 1;

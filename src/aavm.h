@@ -176,9 +176,10 @@
 
 #define AA_MAX_TEMP		(REG_TMP - REG_X) // 48
 
-// USTY chunk (precomputed style table for the 6502 targets)
-// The USTY version number is internal, mainly to prevent devs from confusing
-// themselves, so it should be incremented often and can wrap (0..15)
+// USTY chunk (precomputed style table for the 6502 targets).
+// The chunk layout is specified in docs/aam-specification-1.1-8bit.adoc.
+// USTY_VERSION is an internal format version (0..15), bumped to keep a
+// stale table from being misread; it may wrap.
 #define USTY_VERSION		0
 
 #define USTY_HDRSIZE		8	// USTY header size

@@ -166,6 +166,7 @@ SPC_SPACE	= 3
 SPC_LINE	= 4
 SPC_PAR		= 5
 
+; USTY class record fields; see docs/aam-specification-1.1-8bit.adoc.
 STY_WIDTH	= 0
 STY_HEIGHT	= 1
 STY_MTOP	= 2
@@ -173,7 +174,7 @@ STY_MBOTTOM	= 3
 STY_STYON	= 4
 STY_STYOFF	= 5
 STY_FLAGS	= 6
-STY_FG		= 7	; $80 = inherit
+STY_FG		= 7
 
 STYF_RELW	= $01
 STYF_RELH	= $02
@@ -9934,14 +9935,7 @@ done
 
 initengine4
 	; Read the style table from the USTY chunk.
-	; The header is:
-	;   0 tag       1 nclass
-	;   2 nxsty     3 reserved
-	;   4 totalwords (b-e)
-	;   6 xstyoff    (b-e)
-	; followed by:
-	;   records[nclass * 8]
-	; padded to totalwords*2 bytes.
+	; The chunk layout is specified in docs/aam-specification-1.1-8bit.adoc.
 
 	lda	chnklsb+CH_USTY
 	sta	virdata+2

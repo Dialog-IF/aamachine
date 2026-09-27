@@ -8,10 +8,10 @@
 
 // ============================================================================
 // USTY chunk generation: precomputed style table for the 6502 engines.
+// The chunk layout is specified in docs/aam-specification-1.1-8bit.adoc.
 //
-// Parses the LOOK chunk (CSS declarations) once, in C, and emits the compact
-// binary table defined in aamshow.c. USTY replaces LOOK on the 6502
-// targets which have no style sheet parser.
+// Parses the LOOK chunk (CSS declarations) once, in C, and emits that table.
+// USTY replaces LOOK on the 6502 targets, which have no style sheet parser.
 //
 // The parser mirrors both the dialog compiler's effective CSS subset
 // (~/if/dialog/src/frontend.c:2899-3000): case-insensitive keys,
@@ -562,12 +562,8 @@ static styclass *parse_look(int *nclassp) {
 	return cls;
 }
 
-// Build the USTY chunk (revision 13).
-//
-// The body array is a list of (index, datalen, data...) records, ended by
-// a single $ff index byte; datalen is the per-target payload size. The
-// payload is padded to an even length after the header so that
-// totalwords * 2 is exactly the number of bytes the engine reads.
+// Build the USTY chunk. See docs/aam-specification-1.1-8bit.adoc for the
+// layout.
 
 static uint8_t *build_usty_flat(uint32_t *sizep) {
 	styclass *cls;
@@ -597,10 +593,10 @@ static uint8_t *build_usty_flat(uint32_t *sizep) {
 
 	out[0] = sty_target->tag | USTY_VERSION;
 	out[1] = nclass;
-	// out[2] = nxsty, filled in below.
-	// out[3] stays 0: reserved (revision 12's xstysize stride byte).
-	out[6] = (xstyoffs - recoffs) >> 8;     // from the record base, which is
-	out[7] = (xstyoffs - recoffs) & 0xff;   // the pointer the engine holds
+	// out[2] = nxsty, filled in below; out[3] is reserved and stays 0.
+	// out[6..7] = xstyoff, relative to the record base.
+	out[6] = (xstyoffs - recoffs) >> 8;
+	out[7] = (xstyoffs - recoffs) & 0xff;
 
 	for(i = 0; i < nclass; i++) {
 		make_flat(out + recoffs + i * USTY_RECSIZE, &cls[i]);
