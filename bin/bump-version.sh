@@ -21,3 +21,6 @@ sed -Ei "s|VER_MINOR:.+|VER_MINOR:	$MINOR_VERSION,|" src/js/engine.js
 
 sed -Ei "s|web interpreter v.+|web interpreter v$FULL_VERSION</a>|" src/js/webfrontend.html
 sed -Ei "s|const VERSION = .+|const VERSION = \"$FULL_VERSION\";|" src/js/nodefrontend.js
+
+sed -Ei "s|#define AAVM_FORMAT_MAJOR .+|#define AAVM_FORMAT_MAJOR $MAJOR_VERSION|" src/aavm.h
+sed -Ei "s|#define AAVM_FORMAT_MINOR .+|#define AAVM_FORMAT_MINOR $MINOR_VERSION|" src/aavm.h

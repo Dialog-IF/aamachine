@@ -1,1 +1,1 @@
-aam-specification-1.0.adoc
+aam-specification-1.1.adoc
