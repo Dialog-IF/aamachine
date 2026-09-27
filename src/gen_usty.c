@@ -71,16 +71,11 @@ typedef struct {
 } styclass;
 
 // ----------------------------------------------------------------------------
-// Color mapping. The C64 has a 16-color palette; web colors are reduced to
-// the nearest VIC-II color by RGB distance. "inherit", "initial" and
-// "transparent" (or alpha 0) leave the field unset.
-
-static const uint8_t c64_rgb[16][3] = {
-	{0, 0, 0}, {255, 255, 255}, {136, 0, 0}, {170, 255, 238},
-	{204, 68, 204}, {0, 204, 85}, {0, 0, 170}, {238, 238, 119},
-	{221, 136, 85}, {102, 68, 0}, {255, 119, 119}, {51, 51, 51},
-	{119, 119, 119}, {170, 255, 102}, {0, 136, 255}, {187, 187, 187}
-};
+// Color mapping. The C64 has a fixed 16-color palette. Because it is so
+// small, colors have to be named explicitly (or given as a bare 0..15
+// index); the bundler does not approximate an arbitrary RGB value, so the
+// author always knows which palette entry they are getting. "inherit",
+// "initial" and "transparent" (or alpha 0) leave the field unset.
 
 // CSS color names map by name to their obvious VIC-II counterparts
 static const struct {
@@ -98,13 +93,13 @@ static const struct {
 	{"yellow", 7},
 	{"orange", 8},
 	{"brown", 9},
-	{"pink", 10},
+	{"lightred", 10},
 	{"darkgrey", 11},
 	{"mediumgrey", 12},
 	{"lightgreen", 13},
 	{"lightblue", 14},
 	{"lightgrey", 15},
-	// synonyms
+	// synonyms (undocumented)
 	{"maroon", 2},
 	{"aqua", 3},
 	{"teal", 3},
@@ -112,9 +107,8 @@ static const struct {
 	{"fuchsia", 4},
 	{"lime", 5},
 	{"navy", 6},
-	{"lightred", 10},
-	{"gray", 11},
-	{"grey", 11},
+	{"pink", 10},
+	{"mediumgray", 12},
 	{"darkgray", 11},
 	{"lightgray", 15},
 	{"silver", 15},
@@ -141,42 +135,16 @@ static void swarn(const char *fmt, ...) {
 	warning(WARN_STYLE, "style class %s: %s", sty_name ? sty_name : "(unknown)", msg);
 }
 
-// Map an rgb triplet to the nearest VIC-II color, using a perceptual
-// distance (weighted RGB, a standard cheap approximation of CIE lightness).
-static int rgb_to_c64(int r, int g, int b) {
-	int best = 0, bestdist = 0x7fffffff;
-	int i;
-
-	for(i = 0; i < 16; i++) {
-		long dr = r - c64_rgb[i][0];
-		long dg = g - c64_rgb[i][1];
-		long db = b - c64_rgb[i][2];
-		long dist = 2 * dr * dr + 4 * dg * dg + 3 * db * db;
-		if(dist < bestdist) {
-			bestdist = dist;
-			best = i;
-		}
-	}
-	if(bestdist > (2+3+4)*64*64) {
-		swarn("The color #%02x%02x%02x is not accurately represented on %s, the closest is %s (index %d, #%02x%02x%02x).",
-			r, g, b, sty_target->name, css2vic[best].name, best,
-			c64_rgb[best][0], c64_rgb[best][1], c64_rgb[best][2]);
-	}
-	return best;
-}
-
-// Hex digit to value.
-static int hex(char c) {
-	return c >= '0' && c <= '9'? c - '0' : (c | 0x20) - 'a' + 10;
-}
-
-// Parse "  #rgb", "#rrggbb", "rgb(r,g,b)", "rgba(r,g,b,a)", a name,
-//   or a specific VIC-II color index (0..15).
+// Parse a named VIC-II color or a bare palette index (0..15).
 // Returns 1 and sets *out to a palette index;
 // returns 0 if the value is not a usable color
-//   (inherit, initial, transparent, alpha 0, garbage).
+//   (inherit, initial, transparent, hex, rgb(), garbage).
+//
+// Hex (#rgb/#rrggbb) and rgb()/rgba() are deliberately rejected. The VIC-II
+// palette is fixed and small, so an author has to name the color they want
+// (or pick an index) instead of having the bundler approximate it.
 static int parse_color(const char *v, int *out) {
-	int i, r = 0, g = 0, b = 0, alpha = 255, n;
+	int i, n;
 
 	while(*v == ' ' || *v == '\t') v++;
 
@@ -187,36 +155,11 @@ static int parse_color(const char *v, int *out) {
 	}
 
 	if(v[0] == '#') {
-		v++;
-		n = 0;
-		while(v[n] && ((v[n] >= '0' && v[n] <= '9') || (v[n] >= 'a' && v[n] <= 'f') || (v[n] >= 'A' && v[n] <= 'F'))) {
-			n++;
-		}
-		if(n == 3) {
-			r = hex(v[0]) * 0x11;
-			g = hex(v[1]) * 0x11;
-			b = hex(v[2]) * 0x11;
-		}else if(n == 6) {
-			r = (hex(v[0]) << 4) | hex(v[1]);
-			g = (hex(v[2]) << 4) | hex(v[3]);
-			b = (hex(v[4]) << 4) | hex(v[5]);
-		} else {
-			return 0;
-		}
-	} else if(!strncmp(v, "rgb", 3)) {
-		float af;
-		v += 3;
-		if(*v == 'a') v++;
-		if(*v != '(') return 0;
-		v++;
-		if(sscanf(v, "%d , %d , %d , %f", &r, &g, &b, &af) == 4) {
-			// rgba: alpha is a 0..1 float
-			alpha = (int)(af * 255 + 0.5);
-			alpha = alpha < 0? 0 : alpha > 255? 255 : alpha;
-			if(alpha == 0) return 0;
-		} else {
-			if(sscanf(v, "%d , %d , %d", &r, &g, &b) != 3) return 0;
-		}
+		swarn("Hex colors are not supported on %s; use one of the 16 named C64 colors or an index 0..15.", sty_target->name);
+		return 0;
+	} else if(!strncmp(v, "rgb(", 4) || !strncmp(v, "rgba(", 5)) {
+		swarn("rgb()/rgba() colors are not supported on %s; use one of the 16 named C64 colors or an index 0..15.", sty_target->name);
+		return 0;
 	} else if(*v >= '0' && *v <= '9') {
 		// Naked VIC color index: 0..15 selects the palette entry itself,
 		// so 3 is cyan no matter what hue CSS would call it. Reject
@@ -246,10 +189,6 @@ static int parse_color(const char *v, int *out) {
 		*out = vic;
 		return 1;
 	}
-
-	// Hex and rgb() paths land here with r/g/b filled in.
-	*out = rgb_to_c64(r, g, b);
-	return 1;
 }
 
 // ----------------------------------------------------------------------------

@@ -93,10 +93,30 @@ table is written, so it can be ignored by the interpreter:
 |===
 
 `fg` is a target palette index, or the sentinel `$80` meaning "inherit" (no
-explicit color). Colors appear only on the Commodore 64, whose palette is the
-standard 16-entry VIC-II palette; the parser accepts names, `#rgb`/`#rrggbb`,
-`rgb()`/`rgba()`, and a bare index 0..15. On other targets the field is
-always `$80`.
+explicit color).
+
+Colors appear only on the Commodore 64, whose palette is the
+standard 16-entry VIC-II palette. The parser accepts one of the canonical
+color names below, or a bare index 0..15.
+
+[cols="1,2,2,1,2,2"]
+|===
+| Index | Name | Reference | Index | Name | Reference
+
+| 0 | `black` | `#000000` | 8 | `orange` | `#dd8855`
+| 1 | `white` | `#ffffff` | 9 | `brown` | `#664400`
+| 2 | `red` | `#880000` | 10 | `lightred` | `#ff7777`
+| 3 | `cyan` | `#aaffee` | 11 | `darkgrey` | `#333333`
+| 4 | `purple` | `#cc44cc` | 12 | `mediumgrey` | `#777777`
+| 5 | `green` | `#00cc55` | 13 | `lightgreen` | `#aaff66`
+| 6 | `blue` | `#0000aa` | 14 | `lightblue` | `#0088ff`
+| 7 | `yellow` | `#eeee77` | 15 | `lightgrey` | `#bbbbbb`
+|===
+
+The reference RGB values are given only to help choose a color; the bundler
+does not accept RGB notation in a style declaration.
+Hex (`#rgb`/`#rrggbb`) and `rgb()`/`rgba()` values are rejected with a
+warning.
 
 If a class specifies both a color and bold/italic styling, the color takes
 precedence on the Commodore 64: the frontend uses the explicit color instead
@@ -109,8 +129,8 @@ color.
 === Flags
 
 ----
-$01  relw     ; width is a percentage of the parent width
-$02  relh     ; height is a percentage of the parent height
+$01  relw     ; width is a percentage of the parent width (0-100)
+$02  relh     ; height is a percentage of the parent height (0-100)
 $40  floatl   ; float: left
 $80  floatr   ; float: right
 ----
