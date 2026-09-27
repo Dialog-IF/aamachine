@@ -223,10 +223,11 @@ static void decode_usty_records(uint8_t *d, uint8_t tag, uint32_t recoffs,
 			printf(" off=");
 			put_style_bits(r[USTY_F_STYOFF]);
 		}
-		if(r[USTY_F_FG] != 0x80) printf(" fg=%02x", r[USTY_F_FG]);
+		if(r[USTY_F_FG] == USTY_FG_INITIAL) printf(" fg=initial");
+		else if(r[USTY_F_FG] != USTY_FG_INHERIT) printf(" fg=%02x", r[USTY_F_FG]);
 		// An all-default class still has a record here
 		if(!r[0] && !r[1] && !r[2] && !r[3]
-		&& !r[4] && !r[5] && !r[6] && r[7] == 0x80) {
+		&& !r[4] && !r[5] && !r[6] && r[7] == USTY_FG_INHERIT) {
 			printf(" all defaults");
 		}
 		printf("\n");

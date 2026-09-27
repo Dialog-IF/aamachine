@@ -28,7 +28,8 @@
 #define STY_RELW  0x01
 #define STY_RELH  0x02
 
-#define NOCOLOR   0x80    // "$80 = not set" sentinel for the sty fg field
+#define NOCOLOR   0x80    // "$80 = inherit" sentinel for the sty fg field
+#define INITIAL   0x81    // "$81 = initial" sentinel: reset explicitly-coloured ancestors
 
 struct sty_target {
 	const char *name;
@@ -63,7 +64,7 @@ static int sty_emitted;
 // Per-class record, one for every class in LOOK.
 typedef struct {
 	uint8_t styon, styoff;  // AASTYLE_* bits
-	uint8_t fg;             // c64 palette index, NOCOLOR = inherit
+	uint8_t fg;             // c64 palette index, NOCOLOR = inherit, INITIAL = initial
 	uint8_t mtop, mbottom;  // top/bottom margins in rows
 	uint8_t width, height;  // width/height in columns
 	uint8_t flo;            // 0 none, 1 left, 2 right
@@ -136,9 +137,9 @@ static void swarn(const char *fmt, ...) {
 }
 
 // Parse a named VIC-II color or a bare palette index (0..15).
-// Returns 1 and sets *out to a palette index;
-// returns 0 if the value is not a usable color
-//   (inherit, initial, transparent, hex, rgb(), garbage).
+// Returns 1 and sets *out to a palette index, NOCOLOR (inherit/transparent)
+// or INITIAL; returns 0 if the value is not a usable color
+//   (hex, rgb(), garbage).
 //
 // Hex (#rgb/#rrggbb) and rgb()/rgba() are deliberately rejected. The VIC-II
 // palette is fixed and small, so an author has to name the color they want
@@ -148,10 +149,16 @@ static int parse_color(const char *v, int *out) {
 
 	while(*v == ' ' || *v == '\t') v++;
 
+	// transparent has no meaning for text on these targets; treat it as
+	// inherit, i.e. leave whatever explicit color the enclosing element set.
 	if(!strncmp(v, "inherit", 7)
-	|| !strncmp(v, "initial", 7)
 	|| !strncmp(v, "transparent", 11)) {
-		return 0;
+		*out = NOCOLOR;
+		return 1;
+	}
+	if(!strncmp(v, "initial", 7)) {
+		*out = INITIAL;
+		return 1;
 	}
 
 	if(v[0] == '#') {

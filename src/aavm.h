@@ -194,6 +194,12 @@
 #define USTY_F_FLAGS		6
 #define USTY_F_FG		7
 
+// USTY_F_FG holds a target palette index (0..15 on the C64) or one of these
+// sentinels. Both have bit 7 set, which is how the engines tell a sentinel
+// from a palette entry.
+#define USTY_FG_INHERIT		0x80	// keep the enclosing explicit color (no-op)
+#define USTY_FG_INITIAL		0x81	// discard it; use the style-derived color
+
 #define USTY_FL_RELW		0x01
 #define USTY_FL_RELH		0x02
 #define USTY_FL_FLOATL		0x40

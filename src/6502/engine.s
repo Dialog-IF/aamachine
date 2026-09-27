@@ -181,6 +181,9 @@ STYF_RELH	= $02
 STYF_FLOATL	= $40
 STYF_FLOATR	= $80
 
+STYF_NOCOLOR	= $80	; fg = inherit (keep enclosing explicit color)
+STYF_INITIAL	= $81	; fg = initial (drop it, use the style-derived color)
+
 engine_firstaddr
 
 swapin
@@ -544,7 +547,7 @@ unstyle
 	bne	skip
 
 #if FGCOLOR
-	lda	#$80
+	lda	#STYF_NOCOLOR
 	sta	rfgcol
 #endif
 	lda	#0
@@ -581,7 +584,11 @@ loop
 #if FGCOLOR
 	ldy	#STY_FG
 	lda	(phydata),y
-	bmi	nofgcol
+	bpl	setfgcol
+	cmp	#STYF_INITIAL
+	bne	nofgcol		; $80 = inherit, leave rfgcol alone
+	lda	#STYF_NOCOLOR		; $81 = initial, discard outer colour
+setfgcol
 	sta	rfgcol
 nofgcol
 #endif
@@ -708,7 +715,7 @@ clrdone
 restartvm
 	.(
 #if FGCOLOR
-	lda	#$80
+	lda	#STYF_NOCOLOR
 	sta	rfgcol
 #endif
 	lda	#0

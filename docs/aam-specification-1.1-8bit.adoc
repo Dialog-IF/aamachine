@@ -69,7 +69,7 @@ indexed directly by class number:
 4   styon          ; style bits to set
 5   styoff         ; style bits to reset
 6   flags          ; see below
-7   fg             ; foreground color, $80 = inherit
+7   fg             ; foreground color, $80 = inherit, $81 = initial
 ----
 
 `styon`/`styoff` use the same bit values as the main specification:
@@ -92,8 +92,18 @@ table is written, so it can be ignored by the interpreter:
 | Apple II | `$01` | reverse only
 |===
 
-`fg` is a target palette index, or the sentinel `$80` meaning "inherit" (no
-explicit color).
+`fg` is a target palette index, or one of two sentinels, which are
+recognized by having bit 7 set:
+
+[cols="1,4"]
+|===
+| Value | Meaning
+
+| `$80` | `inherit`. Keep the explicit color selected by the enclosing
+elements. This is a no-op, and is also what `transparent` maps to.
+| `$81` | `initial`. Discard the explicit color selected by the enclosing
+elements and fall back to the color implied by the current style bits.
+|===
 
 Colors appear only on the Commodore 64, whose palette is the
 standard 16-entry VIC-II palette. The parser accepts one of the canonical
@@ -121,10 +131,6 @@ warning.
 If a class specifies both a color and bold/italic styling, the color takes
 precedence on the Commodore 64: the frontend uses the explicit color instead
 of the palette entry it would otherwise choose for the style bits.
-
-`inherit` and `initial` are not distinguished in version 0; both map to the
-`$80` sentinel, and an element with no color inherits the enclosing explicit
-color.
 
 === Flags
 
