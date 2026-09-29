@@ -1,7 +1,7 @@
 This textfile uses UTF-8 encoding.
 
-This archive contains version 1.0 of the Å-machine specification, and version
-1.0.3 of the tools and official interpreters.
+This archive contains version 1.1 of the Å-machine specification, and version
+1.1.0 of the tools and official interpreters.
 
 The following interpreters are included:
 
@@ -128,6 +128,12 @@ Project website:
 	https://github.com/Dialog-IF/aamachine/
 
 Release notes:
+
+	1.1.0:
+
+		Specification: MUL_NUM opcode now fails on overflow.
+
+		Web: <hr /> elements now use the --theme-medium color.
 
 	1.0.3:
 

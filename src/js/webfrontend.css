@@ -74,6 +74,12 @@ body.enlarge {
 	font-size: 2em;
 }
 
+hr {
+	color: --theme-medium; /* IE */
+	border-color: --theme-medium; /* Chromium, Safari */
+	background-color: --theme-medium; /* Firefox, Opera */
+}
+
 /* This undoes the normal h2 styling from https://searchfox.org/mozilla-central/source/layout/style/res/html.css */
 /* We're using h2 elements for each past player input, so that screen readers can easily jump to them */
 /* But that means we don't want them to be styled like h2s, we want them to be styled like normal text */
