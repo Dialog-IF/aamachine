@@ -169,11 +169,13 @@ A style declaration whose key begins `-iftf-sys-<target>-` applies only to the
 named target, where `<target>` is `c64`, `apple2`, or `aambox`. So
 
 ----
--iftf-sys-c64-color: red
+-iftf-sys-c64-color: red;
+-iftf-sys-apple2-reverse-video: reverse;
 ----
 
-sets the foreground color on the Commodore 64 and is ignored elsewhere. A
-prefixed declaration overrides an unprefixed declaration of the same property,
+sets the foreground color only the Commodore 64, and reverse video only on the Apple II.
+
+A prefixed declaration overrides an unprefixed declaration of the same property,
 regardless of their order in the style sheet.
 
 Because the bundler parses `LOOK` into `USTY`, it is the bundler that decides

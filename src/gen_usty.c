@@ -206,15 +206,19 @@ static int parse_color(const char *v, int *out) {
 //   2 = number and unit
 //       (*unit is "" for a bare number, "%" or "em"/"ch"/"en")
 static int scan_length(const char *value, int *val, char *unit) {
-	float f;
-	int n;
+	int frac, n;
 
 	while(*value == ' ' || *value == '\t') value++;
 	if((*value < '0' || *value > '9') && *value != '.') return 0;
 	unit[0] = 0;
-	n = sscanf(value, "%f %15s", &f, unit);
+	// Parse the integer and fractional parts separately. Using %f here is
+	// not portable: libraries disagree about whether an incomplete exponent
+	// such as "1e" in "1em" is consumed as part of the number (glibc bug
+	// 1765), which would leave "m" as the unit. Fractions are truncated.
+	n = sscanf(value, "%d.%d %15s", val, &frac, unit);
+	if(n > 1) return n - 1; // 2 = number + unit, 1 = bare number
+	n = sscanf(value, "%d %15s", val, unit);
 	if(n < 1) return 0;
-	*val = (int) f;         // fractions are truncated
 	return n;
 }
 
@@ -274,14 +278,12 @@ static void parse_decl(styclass *c, const char *p, int len, int pass) {
 	char param[32] = { 0 };
 	sscanf(value, "%31s", param);
 
-	if(!strcmp(key, "-iftf-text-decoration")) {
+	if(!strcmp(key, "-iftf-reverse-video")) {
 		if(!strcmp(param, "reverse")) c->styon |= AASTYLE_REVERSE;
 		else if(!strcmp(param, "none")) c->styoff |= AASTYLE_REVERSE;
-		else swarn("Invalid value for %s: %s", key, value);
-		return;
-	}
-
-	if(!strcmp(key, "width") || !strcmp(key, "height")) {
+		else if(strcmp(param, "inherit"))
+			swarn("Invalid value for %s: %s", key, value);
+	} else if(!strcmp(key, "width") || !strcmp(key, "height")) {
 		int v;
 		char unit[16];
 		int n = scan_length(value, &v, unit);
@@ -351,16 +353,12 @@ static void parse_decl(styclass *c, const char *p, int len, int pass) {
 		matched = 1;
 		if(strstr(value, "monospace")) c->styon |= AASTYLE_FIXED;
 		else if(strcmp(param, "inherit")) c->styoff |= AASTYLE_FIXED;
-	} else if(!strcmp(key, "text-decoration") || !strcmp(key, "reverse-video")) {
+	} else if(!strcmp(key, "reverse-video")) {
 		matched = 1;
-		if(strstr(value, "reverse")) {
-			c->styon |= AASTYLE_REVERSE;
-		} else if(strcmp(param, "inherit")) {
-			c->styoff |= AASTYLE_REVERSE;
-			if(!strcmp(key, "text-decoration") && strcmp(param, "none")) {
-				swarn("Invalid value for text-decoration: %s (only reverse, none and inherit are supported).", value);
-			}
-		}
+		if(!strcmp(param, "reverse")) c->styon |= AASTYLE_REVERSE;
+		else if(!strcmp(param, "none")) c->styoff |= AASTYLE_REVERSE;
+		else if(strcmp(param, "inherit"))
+			swarn("Invalid value for %s: %s", key, value);
 	} else if(!strcmp(key, "color")) {
 		matched = 1;
 		if(sty_target->have_vic_color) {
