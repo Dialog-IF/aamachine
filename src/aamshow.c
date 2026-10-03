@@ -192,7 +192,16 @@ static void put_style_bits(uint8_t bits) {
 
 static const char *float_names[] = {"none", "left", "right"};
 
-static void decode_usty_records(uint8_t *d, uint8_t tag, uint32_t recoffs,
+static const char *usty_platform_name(uint8_t platform) {
+	switch(platform) {
+	case USTY_PLATFORM_AAMBOX: return "aambox";
+	case USTY_PLATFORM_C64:     return "c64";
+	case USTY_PLATFORM_APPLE2:  return "apple2";
+	default:                    return "unknown";
+	}
+}
+
+static void decode_usty_records(uint8_t *d, uint32_t recoffs,
 	uint8_t nclass, int nrec, const uint32_t *xrecoffs)
 {
 	int i;
@@ -236,7 +245,7 @@ static void decode_usty_records(uint8_t *d, uint8_t tag, uint32_t recoffs,
 	printf("\n");
 }
 
-static void decode_usty_ext(uint8_t *d, uint32_t size, uint8_t tag) {
+static void decode_usty_ext(uint8_t *d, uint32_t size) {
 	uint8_t nclass, nxsty;
 	uint32_t recoffs, xstyoffs, totalwords, xstyrel;
 	uint32_t xrecoffs[256];
@@ -259,37 +268,31 @@ static void decode_usty_ext(uint8_t *d, uint32_t size, uint8_t tag) {
 	printf("Offsets: rec %u  xsty %u  (%u words resident)\n",
 		recoffs, xstyoffs, totalwords);
 
-	decode_usty_records(d, tag, recoffs, nclass, nrec, xrecoffs);
+	decode_usty_records(d, recoffs, nclass, nrec, xrecoffs);
 }
 
 void decode_usty(struct chunk *ch) {
 	uint8_t *d = ch->data;
 	uint32_t size = ch->size;
-	uint8_t tag;
+	uint8_t version;
 
 	if(size < 4) {
 		printf("Chunk too small (%u bytes) to be a USTY table.\n", size);
 		return;
 	}
 
-	tag = d[0];
+	version = d[0];
 
-	printf("Tag: %02x (", tag);
-	switch(tag & 0xf0) {
-	case 0x00: printf("aambox"); break;
-	case 0x10: printf("c64"); break;
-	case 0x20: printf("apple2"); break;
-	default: printf("unknown target"); break;
-	}
-	printf(", format version %d)\n", tag & 0x0f);
+	printf("Format version: %d\n", version);
+	printf("Platform: %s (%d)\n", usty_platform_name(d[3]), d[3]);
 
-	switch(tag & 0x0f) {
+	switch(version) {
 	case USTY_VERSION:
-		decode_usty_ext(d, size, tag);
+		decode_usty_ext(d, size);
 		break;
 	default:
 		printf("Cannot decode USTY format version %d; this aamshow knows %d.\n",
-			tag & 0x0f, USTY_VERSION);
+			version, USTY_VERSION);
 		break;
 	}
 }

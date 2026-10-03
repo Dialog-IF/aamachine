@@ -19,12 +19,6 @@
 // and em/ch/en (absolute), margins absolute only, fractional units truncated.
 // ============================================================================
 
-// The high nibble of the tag byte names the target, the low nibble the
-// format revision (0..15, internal only so it can recycle)
-#define STY_TAG_AAMBOX  0x00
-#define STY_TAG_C64     0x10
-#define STY_TAG_APPLE2  0x20
-
 #define STY_RELW  0x01
 #define STY_RELH  0x02
 
@@ -33,7 +27,7 @@
 
 struct sty_target {
 	const char *name;
-	uint8_t tag;
+	uint8_t platform;       // USTY_PLATFORM_* index written to the header
 	int have_vic_color;     // per-character fg color (c64)
 	uint8_t stymask;        // AASTYLE_* bits the frontend can actually act on
 	int mincols, maxcols;	// 40 for c64, 40-80 for apple2, 80 for aambox
@@ -41,17 +35,17 @@ struct sty_target {
 };
 
 static const struct sty_target sty_aambox = {
-	"aambox", STY_TAG_AAMBOX, 0,
+	"aambox", USTY_PLATFORM_AAMBOX, 0,
 	0,
 	80, 80, 20
 };
 static const struct sty_target sty_c64 = {
-	"c64", STY_TAG_C64, 1,
+	"c64", USTY_PLATFORM_C64, 1,
 	AASTYLE_REVERSE | AASTYLE_BOLD | AASTYLE_ITALIC,
 	40, 40, 20
 };
 static const struct sty_target sty_apple2 = {
-	"apple2", STY_TAG_APPLE2, 0,
+	"apple2", USTY_PLATFORM_APPLE2, 0,
 	AASTYLE_REVERSE,
 	40, 80, 20
 };
@@ -535,9 +529,10 @@ static uint8_t *build_usty_flat(uint32_t *sizep) {
 		exit(1);
 	}
 
-	out[0] = sty_target->tag | USTY_VERSION;
+	out[0] = USTY_VERSION;
 	out[1] = nclass;
-	// out[2] = nxsty, filled in below; out[3] is reserved and stays 0.
+	// out[2] = nxsty, filled in below; out[3] = platform index.
+	out[3] = sty_target->platform;
 	// out[6..7] = xstyoff, relative to the record base.
 	out[6] = (xstyoffs - recoffs) >> 8;
 	out[7] = (xstyoffs - recoffs) & 0xff;

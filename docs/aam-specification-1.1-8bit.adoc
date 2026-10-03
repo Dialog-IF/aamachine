@@ -32,20 +32,13 @@ The bundler may produce a `.ustory` file containing the `USTY` chunk for
 debugging purposes. These are not valid Aa-machine stories and should not
 be distributed.
 
-=== Tag byte
+=== Version byte
 
-* `BYTE`: "tag", target in the high nibble, format version in the low nibble
+* `BYTE`: "version", the USTY format revision
 
-[cols="1,1,4"]
-|===
-| Tag | Target | Notes
-| `0x00` | aambox | test platform; no styling beyond geometry
-| `0x10` | Commodore 64 | per-character foreground color
-| `0x20` | Apple II | reverse video only
-|===
-
-The USTY format is identified by integer, which is truncated to 0..15 and
-put in the low nibble.
+The USTY format is identified by integer, truncated to a single byte. The
+target is named separately by the platform byte in the header, so the format
+revision and the target can evolve independently.
 
 Version 0 is described here.
 
@@ -53,10 +46,20 @@ Version 0 is described here.
 
 * `BYTE`: "nclass", number of style classes (1..255)
 * `BYTE`: "nxsty", number of body records (0..255)
-* `BYTE`: reserved, written as 0
+* `BYTE`: "platform", target platform index (see below)
 * `SHORT`: "totalwords", size in words of the resident table (big-endian)
 * `SHORT`: "xstyoff", offset of the body array from the record base, i.e. from
   byte 8 (big-endian)
+
+The platform byte identifies the target by index. The values are stable, so a
+new target is appended rather than inserted.
+
+|===
+| Index | Target |
+| 0 | aambox |
+| 1 | Commodore 64 |
+| 2 | Apple II |
+|===
 
 Immediately after the header come `nclass` class records, eight bytes each,
 indexed directly by class number:

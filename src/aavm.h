@@ -178,12 +178,18 @@
 
 // USTY chunk (precomputed style table for the 6502 targets).
 // The chunk layout is specified in docs/aam-specification-1.1-8bit.adoc.
-// USTY_VERSION is an internal format version (0..15), bumped to keep a
+// USTY_VERSION is an internal format version (0..255), bumped to keep a
 // stale table from being misread; it may wrap.
 #define USTY_VERSION		0
 
 #define USTY_HDRSIZE		8	// USTY header size
 #define USTY_RECSIZE		8	// USTY record size
+
+// USTY header byte 3 names the target platform by index. The values are
+// stable IDs, so new targets are appended without renumbering the rest.
+#define USTY_PLATFORM_AAMBOX	0
+#define USTY_PLATFORM_C64	1
+#define USTY_PLATFORM_APPLE2	2
 
 #define USTY_F_WIDTH		0
 #define USTY_F_HEIGHT		1
