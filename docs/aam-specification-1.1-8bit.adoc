@@ -54,8 +54,8 @@ Version 0 is described here.
 * `BYTE`: "nclass", number of style classes (1..255)
 * `BYTE`: "nxsty", number of body records (0..255)
 * `BYTE`: reserved, written as 0
-* `WORD`: "totalwords", size in words of the resident table (big-endian)
-* `WORD`: "xstyoff", offset of the body array from the record base, i.e. from
+* `SHORT`: "totalwords", size in words of the resident table (big-endian)
+* `SHORT`: "xstyoff", offset of the body array from the record base, i.e. from
   byte 8 (big-endian)
 
 Immediately after the header come `nclass` class records, eight bytes each,
