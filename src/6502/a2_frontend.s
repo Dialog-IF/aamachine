@@ -2505,8 +2505,7 @@ noseek
 	ldy	prorwts_status
 	jsr	swaprwregs
 	tya
-	beq	noerr
-noerr
+	bne	goterr		; a = ProRWTS2 status
 	lda	ioparam
 	clc
 	adc	#1
@@ -2827,16 +2826,6 @@ coldstart
 	.)
 
 #ifdef DEBUG
-prword	.(
-	pha
-	txa
-	pha
-	pla
-	tax
-	pla
-	rts
-	.)
-
 dumpvars
 	.(
 	lda	#$8d
@@ -2946,8 +2935,8 @@ dumpvars
 	jsr	prbyte
 	lda	#$8d
 	jsr	cout
-	rts
-;	jmp	verify
+	jsr	getkey
+	jmp	verify
 	.)
 
 ; Read every whole page of the story file
@@ -3035,8 +3024,9 @@ nov
 	jsr	prbyte
 	lda	#$8d
 	jsr	cout
-;	rts
-halt3	jmp	halt3
+	jsr	getkey
+	rts
+;halt3	jmp	halt3
 	.)
 
 dumpram
@@ -3189,7 +3179,13 @@ notplus
 	sta	col80
 
 	; one probe answers both questions below
+	tay
+	tax			; both are < $80
+	lda	KBD
+	cmp	#'6'+128
+	beq	noauxtest
 	jsr	auxtest
+noauxtest
 	sty	auxram		; $80 = 64K aux bank
 	stx	f_temp2		; $80 = aux display ram
 
@@ -3622,6 +3618,7 @@ prorwts2_init = * + $2000 - $800 + boothdrlen + himem_end - himem_start
 .assert himem_start == $d000, "A2_ENGINE_HIMEM: engine code must start at $d000"
 .assert himem_end <= $f800, "A2_ENGINE_HIMEM: engine code exceeds LC RAM"
 
+#ifndef DEBUG
 ; Discourage programmers from expanding the resident code yet another 256 bytes
 .assert SAVEADDR <= $1a00, "HEY! The Apple II port is getting big! Either optimize some code (cool) or add $100 to this value (uncool)"
-
+#endif
