@@ -14,6 +14,8 @@
 
 #include "tables_6502font.h"
 
+#define AAKBD_C64	"\\_`{|}~"
+
 #define INTERLEAVE 11
 
 static char storyname[48];
@@ -124,7 +126,7 @@ void check_font_has_glyphs(uint8_t *lang, uint32_t size) { // Expects the LANG c
 			(lang[exttable+5*i+4])
 		);
 		if(!does_font_have_glyph(unichar)) {
-			fprintf(stderr, "Warning: Extended character %d (%s, U+%04x) has no font entry. It will display as '�'.\n", 0x80|i, unicode_to_utf8(unichar), unichar);
+			warning(WARN_CHARSET, "Extended character %d (%s, U+%04x) has no font entry. It will display as '�'.", 0x80|i, unicode_to_utf8(unichar), unichar);
 		}
 	}
 }
@@ -140,7 +142,7 @@ void c64_chunk_visitor(char *head, char *dirname, uint8_t *chunk, uint32_t size)
 	} else {
 		return;
 	}
-	
+
 	if(langchunk && dictchunk) {
 		warn_about_nonascii(dictchunk, dictsize, langchunk, langsize);
 	}
@@ -151,7 +153,6 @@ void bundle_c64(char *dirname) {
 	int fnsize, size;
 	int i, j, pos;
 	int terpsectors, terploc;
-	FILE *outf;
 
 	j = 0;
 	for(i = 0; i < 35; i++) {
@@ -162,7 +163,9 @@ void bundle_c64(char *dirname) {
 	memset(available, 1, j);
 
 	visit_chunks(storyname, sizeof(storyname), c64_chunk_visitor);
-	trim_chunks(1);
+	gen_usty_set_target("c64");
+	rewrite_chunks(rewrite_6502_sty, 1);
+	gen_usty_check();
 
 	fnsize = strlen(dirname) + strlen(storyname) + 64;
 	filename = malloc(fnsize);
@@ -242,24 +245,14 @@ void bundle_c64(char *dirname) {
 
 	write_bam();
 
-	snprintf(filename, fnsize, "%s/%s.d64", dirname, storyname);
-	outf = fopen(filename, "wb");
-	if(!outf) {
-		fprintf(stderr, "%s: %s", filename, strerror(errno));
-		exit(1);
-	}
-	fwrite(image, 1, sizeof(image), outf);
-	fclose(outf);
-	
+	snprintf(filename, fnsize, "%s.d64", storyname);
+	writefile(dirname, filename, (const uint8_t *)image, sizeof(image));
+
+	// Also write out the raw story file (the USTY-inserted .aastory that
+	// went into the .d64), so it can be inspected with aamshow or reused.
+	snprintf(filename, fnsize, "%s.c64.ustory", storyname);
+	writefile_padded(dirname, filename, story, storysize, 256);
+
 	// Add the license
-	snprintf(filename, fnsize, "%s/interpreter_license.txt", dirname);
-	if(!(outf = fopen(filename, "wb"))) {
-		fprintf(stderr, "%s: %s\n", filename, strerror(errno));
-		exit(1);
-	}
-	if(1 != fwrite(table_c64license, sizeof(table_c64license), 1, outf)) {
-		fprintf(stderr, "%s: write error\n", filename);
-		exit(1);
-	}
-	fclose(outf);
+	writefile(dirname, "interpreter_license.txt", table_c64license, sizeof(table_c64license));
 }

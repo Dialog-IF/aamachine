@@ -102,13 +102,27 @@ void bundle_web(char *dirname) {
 	bundle_web_story(filename);
 }
 
+// FILE chunks are unpacked into resources/ by bundle_web(), so the story the
+// interpreter loads does not need to carry them.
+
+static chunk_action_t drop_files(
+	const char *id,
+	uint8_t *data,
+	uint32_t size,
+	char *newid,
+	uint8_t **newdata,
+	uint32_t *newsize)
+{
+	return strcmp(id, "FILE")? CHUNK_KEEP : CHUNK_DROP;
+}
+
 void bundle_web_story(char *filename) {
 	int i;
 	uint32_t n, pos;
 	uint8_t buf[3], out[4];
 	FILE *outf;
 
-	trim_chunks(0);
+	rewrite_chunks(drop_files, 0);
 
 	outf = fopen(filename, "wb");
 	if(!outf) {

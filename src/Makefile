@@ -52,7 +52,7 @@ distclean: clean uninstall
 aamshow: aamshow.c crc32.c aavm.c aavm.h crc32.h
 	${CC} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
 
-aambundle: aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c \
+aambundle: aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c bundle_6502.c gen_usty.c crc32.c \
 	table_a2terp.h \
 	table_a20boot.h \
 	table_a2sboot.h \
@@ -68,7 +68,7 @@ aambundle: aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c \
 	table_jquery.h \
 	table_play.h \
 	tables_6502font.h
-	${CC} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c
+	${CC} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c bundle_6502.c gen_usty.c crc32.c
 
 aamrun.linux:	js/nodefrontend.js js/engine.js
 	pkg -t linux -o aamrun.linux js/nodefrontend.js
@@ -85,7 +85,7 @@ aamrun.exe: js/nodefrontend.js js/engine.js
 aamshow.exe: aamshow.c crc32.c aavm.c aavm.h crc32.h
 	${MINGW32} ${CFLAGS} -o $@ aamshow.c crc32.c aavm.c
 
-aambundle.exe: aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c \
+aambundle.exe: aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c bundle_6502.c gen_usty.c crc32.c \
 	table_a2terp.h \
 	table_a20boot.h \
 	table_a2sboot.h \
@@ -101,7 +101,7 @@ aambundle.exe: aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c \
 	table_jquery.h \
 	table_play.h \
 	tables_6502font.h
-	${MINGW32} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c
+	${MINGW32} ${CFLAGS} -o $@ aambundle.c bundle_web.c bundle_c64.c bundle_apple2.c bundle_6502.c gen_usty.c crc32.c
 
 # Fall back rules when you make a blob from here
 # e.g. "make -C src aambundle" redirects to "make -C 6502"

@@ -30,6 +30,7 @@ GOLD6502 ?= $(STORY).6502.gold
 DIR6502 = ../../src/6502
 AAMBOX = $(DIR6502)/aambox6502
 AAMFRONTEND = $(DIR6502)/aambox_frontend.bin
+AAMBUNDLE = ../../src/aambundle
 
 JS_ENGINE = ../../src/js/engine.js
 JS_FRONTEND = ../../src/js/nodefrontend.js
@@ -40,6 +41,9 @@ $(AAMBOX): $(DIR6502)/aambox6502.c $(DIR6502)/fake6502.c
 
 $(AAMFRONTEND): $(DIR6502)/aambox_frontend.s $(DIR6502)/engine.s
 	$(MAKE) -C $(DIR6502) aambox_frontend.bin
+
+$(AAMBUNDLE):
+	$(MAKE) -C ../src aambundle
 
 all: test
 
@@ -56,8 +60,12 @@ $(STORY).js.out: $(STORY).aastory $(STORY).in $(JS_ENGINE) $(JS_FRONTEND)
 test.6502: $(STORY).6502.out
 	$(DIFF) $(STORY).6502.out $(GOLD6502)
 
-$(STORY).6502.out: $(STORY).aastory $(STORY).in $(AAMBOX) $(AAMFRONTEND)
+$(STORY).6502.out: $(STORY).ustory $(STORY).in $(AAMBOX) $(AAMFRONTEND)
 	$(AAMBOX) -s 1234 $(AAMFRONTEND) $< <$(STORY).in >$@
+
+# Convert .aastory to .ustory to add USTY chunk
+$(STORY).ustory: $(STORY).aastory $(AAMBUNDLE)
+	$(AAMBUNDLE) -t aambox --no-warn-style -o $@ $<
 
 clean:
 	rm -f *.out
