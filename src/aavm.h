@@ -176,6 +176,41 @@
 
 #define AA_MAX_TEMP		(REG_TMP - REG_X) // 48
 
+// USTY chunk (precomputed style table for the 6502 targets).
+// The chunk layout is specified in docs/aam-specification-1.1-8bit.adoc.
+// USTY_VERSION is an internal format version (0..255), bumped to keep a
+// stale table from being misread; it may wrap.
+#define USTY_VERSION		0
+
+#define USTY_HDRSIZE		8	// USTY header size
+#define USTY_RECSIZE		8	// USTY record size
+
+// USTY header byte 3 names the target platform by index. The values are
+// stable IDs, so new targets are appended without renumbering the rest.
+#define USTY_PLATFORM_AAMBOX	0
+#define USTY_PLATFORM_C64	1
+#define USTY_PLATFORM_APPLE2	2
+
+#define USTY_F_WIDTH		0
+#define USTY_F_HEIGHT		1
+#define USTY_F_MTOP		2
+#define USTY_F_MBOTTOM		3
+#define USTY_F_STYON		4
+#define USTY_F_STYOFF		5
+#define USTY_F_FLAGS		6
+#define USTY_F_FG		7
+
+// USTY_F_FG holds a target palette index (0..15 on the C64) or one of these
+// sentinels. Both have bit 7 set, which is how the engines tell a sentinel
+// from a palette entry.
+#define USTY_FG_INHERIT		0x80	// keep the enclosing explicit color (no-op)
+#define USTY_FG_INITIAL		0x81	// discard it; use the style-derived color
+
+#define USTY_FL_RELW		0x01
+#define USTY_FL_RELH		0x02
+#define USTY_FL_FLOATL		0x40
+#define USTY_FL_FLOATR		0x80
+
 #define AASTYLE_REVERSE		1
 #define AASTYLE_BOLD		2
 #define AASTYLE_ITALIC		4

@@ -1,0 +1,187 @@
+= Å-machine 8-bit Addendum
+
+This document describes target-specific conventions that layer on top of the
+main Å-machine specification, for the 6502 engines (Commodore 64, Apple II,
+and the aambox test platform). All other parts of the main specification apply
+unchanged.
+
+The main specification is the versioned document `aam-specification-1.1.adoc`;
+where this addendum and the main document disagree about a 6502 target, this
+addendum wins.
+
+== Changes in v1.1
+
+* The `USTY` chunk replaces `LOOK` on 8-bit targets.
+* 8-bit interpreters no longer parse CSS at startup. The style table is
+  precompiled by the bundler.
+
+== The USTY chunk
+
+`USTY` is produced by `aambundle` when targeting an 8-bit platform. It is a
+direct substitute for `LOOK` in the same class index space, so every
+`ENTER_DIV`, `ENTER_SPAN`, `SET_BODY`, and `ENTER_STATUS` operand keeps its
+meaning; nothing in the `CODE` chunk needs rewriting.
+
+This chunk is not intended to be emitted by the Dialog compiler. The bundler
+drops `LOOK` and creates `USTY` in its place.
+
+A `USTY` table is target-specific: it is built for the palette and
+capabilities of the machine it ships beside.
+
+The bundler may produce a `.ustory` file containing the `USTY` chunk for
+debugging purposes. These are not valid Aa-machine stories and should not
+be distributed.
+
+=== Version byte
+
+* `BYTE`: "version", the USTY format revision
+
+The USTY format is identified by integer, truncated to a single byte. The
+target is named separately by the platform byte in the header, so the format
+revision and the target can evolve independently.
+
+Version 0 is described here.
+
+=== Header
+
+* `BYTE`: "nclass", number of style classes (1..255)
+* `BYTE`: "nxsty", number of body records (0..255)
+* `BYTE`: "platform", target platform index (see below)
+* `SHORT`: "totalwords", size in words of the resident table (big-endian)
+* `SHORT`: "xstyoff", offset of the body array from the record base, i.e. from
+  byte 8 (big-endian)
+
+The platform byte identifies the target by index. The values are stable, so a
+new target is appended rather than inserted.
+
+|===
+| Index | Target |
+| 0 | aambox |
+| 1 | Commodore 64 |
+| 2 | Apple II |
+|===
+
+Immediately after the header come `nclass` class records, eight bytes each,
+indexed directly by class number:
+
+----
+0   width          ; columns, or percent if relw
+1   height         ; rows, or percent if relh
+2   margin-top     ; rows
+3   margin-bottom  ; rows
+4   styon          ; style bits to set
+5   styoff         ; style bits to reset
+6   flags          ; see below
+7   fg             ; foreground color, $80 = inherit, $81 = initial
+----
+
+`styon`/`styoff` use the same bit values as the main specification:
+
+----
+$01  reverse
+$02  bold
+$04  italic
+$08  fixed
+----
+
+A bit that the target cannot render is masked out of both bytes before the
+table is written, so it can be ignored by the interpreter:
+
+[cols="1,1,3"]
+|===
+| Target | Mask | Notes
+| aambox | `$00` | no styling
+| Commodore 64 | `$01 \| $02 \| $04` | fixed is not rendered
+| Apple II | `$01` | reverse only
+|===
+
+`fg` is a target palette index, or one of two sentinels, which are
+recognized by having bit 7 set:
+
+[cols="1,4"]
+|===
+| Value | Meaning
+
+| `$80` | `inherit`. Keep the explicit color selected by the enclosing
+elements. This is a no-op, and is also what `transparent` maps to.
+| `$81` | `initial`. Discard the explicit color selected by the enclosing
+elements and fall back to the color implied by the current style bits.
+|===
+
+Colors appear only on the Commodore 64, whose palette is the
+standard 16-entry VIC-II palette. The parser accepts one of the canonical
+color names below, or a bare index 0..15.
+
+[cols="1,2,2,1,2,2"]
+|===
+| Index | Name | Reference | Index | Name | Reference
+
+| 0 | `black` | `#000000` | 8 | `orange` | `#dd8855`
+| 1 | `white` | `#ffffff` | 9 | `brown` | `#664400`
+| 2 | `red` | `#880000` | 10 | `lightred` | `#ff7777`
+| 3 | `cyan` | `#aaffee` | 11 | `darkgrey` | `#333333`
+| 4 | `purple` | `#cc44cc` | 12 | `mediumgrey` | `#777777`
+| 5 | `green` | `#00cc55` | 13 | `lightgreen` | `#aaff66`
+| 6 | `blue` | `#0000aa` | 14 | `lightblue` | `#0088ff`
+| 7 | `yellow` | `#eeee77` | 15 | `lightgrey` | `#bbbbbb`
+|===
+
+The reference RGB values are given only to help choose a color; the bundler
+does not accept RGB notation in a style declaration.
+Hex (`#rgb`/`#rrggbb`) and `rgb()`/`rgba()` values are rejected with a
+warning.
+
+If a class specifies both a color and bold/italic styling, the color takes
+precedence on the Commodore 64: the frontend uses the explicit color instead
+of the palette entry it would otherwise choose for the style bits.
+
+=== Flags
+
+----
+$01  relw     ; width is a percentage of the parent width (0-100)
+$02  relh     ; height is a percentage of the parent height (0-100)
+$40  floatl   ; float: left
+$80  floatr   ; float: right
+----
+
+Bits 2..5 are reserved and written as 0.
+
+=== The body array
+
+The class records are followed by the body array, at `xstyoff` bytes past the
+record base. Each record is
+
+----
+0   index       ; raw class index; $ff ends the array
+1   datalen     ; number of data bytes that follow
+2   data[datalen]
+----
+
+and the array is a single `$ff` index byte when empty. The array is scanned,
+not indexed, by the opcode that consumes it.
+The chunk is padded to an even length so that `totalwords * 2` is exactly the
+size of the resident table.
+
+No target emits body records in
+version 0; the layout is fixed here so that they can be added without moving
+the class records.
+
+== Conditional declarations
+
+A style declaration whose key begins `-iftf-sys-<target>-` applies only to the
+named target, where `<target>` is `c64`, `apple2`, or `aambox`. So
+
+----
+-iftf-sys-c64-color: red;
+-iftf-sys-apple2-reverse-video: reverse;
+----
+
+sets the foreground color only the Commodore 64, and reverse video only on the Apple II.
+
+A prefixed declaration overrides an unprefixed declaration of the same property,
+regardless of their order in the style sheet.
+
+Because the bundler parses `LOOK` into `USTY`, it is the bundler that decides
+what a declaration means. It warns about, and otherwise ignores, unrecognized
+properties and unknown targets. The 8-bit interpreter never sees the original
+style sheet.
