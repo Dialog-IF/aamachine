@@ -1,6 +1,5 @@
 # The story is compiled from Dialog source with an external compiler.
 DIALOGC ?= dialogc
-AAMBUNDLE = ../../src/aambundle
 
 include ../common.mk
 
@@ -29,11 +28,13 @@ include ../common.mk
 #           neither may the (clear all) that follows it.
 #           (Use +/- to nudge the status bar height for 24/25 row systems.)
 
+# The compiled story is checked in (force-added, since *.aastory is globally
+# ignored) so that `make test` works without the external Dialog compiler.
+# Skip the rebuild when the compiler is not installed.
+ifneq ($(shell command -v $(DIALOGC) 2>/dev/null),)
 $(STORY).aastory: $(STORY).dg
 	$(DIALOGC) -t aa -o $@ $<
-
-$(AAMBUNDLE):
-	$(MAKE) -C ../../src aambundle
+endif
 
 disks: $(STORY).aastory $(AAMBUNDLE)
 	$(AAMBUNDLE) -t apple2 -o $(STORY) $(STORY).aastory
