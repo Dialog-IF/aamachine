@@ -259,7 +259,9 @@ strow		= $1b
 scrw		= $1c	; 40 or 80
 col80		= $1d	; $80 if the //e 80-column
 			; firmware is driving COUT
-			; ($44 if unenhanced IIe)
+			; $40 if 40 columns with the
+			; alt charset (IIe and later),
+			; $44 if that IIe is unenhanced
 foldup		= $1e	; $80 to fold output to
 			; upper case
 
@@ -3118,6 +3120,8 @@ auxclrlp
 	ROMCALL(setmachid)
 #endif
 	jsr	detect
+	bit	KBDSTRB		; a key held for detect is
+				; not the first keypress
 	jsr	setupvideo
 
 	lda	#$e1
@@ -3137,7 +3141,8 @@ auxclrlp
 detect
 	; ProDOS has already worked out what it
 	; is running on, so ask it rather than
-	; poking at soft switches.
+	; poking at soft switches.  Auxiliary
+	; memory is the exception, see auxtest.
 	;
 	; MACHID
 	; (Bit 3 off) BITS 7,6- 00=II 01=II+ 10=IIe 11=///
@@ -3179,6 +3184,9 @@ notplus
 	sta	col80
 
 	; one probe answers both questions below
+	; press 6 when booting to skip it, which
+	; leaves both at no -- 40 columns, and
+	; neither the aux page cache nor undo
 	tay
 	tax			; both are < $80
 	lda	KBD
@@ -3212,7 +3220,6 @@ noauxtest
 	lda	#80
 	sta	scrw
 no80
-done
 	rts
 	.)
 
@@ -3221,9 +3228,13 @@ done
 ; put in MACHID, since under 0boot there is no
 ; ProDOS to ask and by this point in a ProDOS
 ; boot the global page is inside the heap.  Only
-; the three fields detect reads are filled in --
-; the clock bit and the bits 7,6 modifier stay
-; clear.
+; the fields detect reads are filled in -- the
+; machine, the 80-column card, and bit 2, which
+; ProDOS reserves and is borrowed here for an
+; unenhanced IIe.  Memory is always given as
+; 64K, since detect probes for the rest itself,
+; and the clock bit and the bits 7,6 modifier
+; stay clear.
 ; https://prodos8.com/docs/technote/misc/02/
 
 setmachid
@@ -3261,7 +3272,6 @@ unenh
 
 	ora	#$02		; 80 columns
 no80
-	; don't test for auxram here anymore, test in detect
 store
 	sta	MACHID
 	rts
@@ -3269,8 +3279,7 @@ store
 #endif
 
 ; Returns $80 in y if there is a full 64K bank
-; of auxiliary RAM, which turns the 64K in bits
-; 5,4 into 128K, and $80 in x if auxiliary
+; of auxiliary RAM, and $80 in x if auxiliary
 ; $0400-$07ff answers at all -- the 1 kB an
 ; 80-column display needs, which a plain
 ; 80-column card has without the rest.

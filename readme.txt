@@ -138,6 +138,10 @@ Release notes:
 		Aambundle now replaces the LOOK chunk with an internal USTY
 		chunk for 6502 targets. Use --help-all to see new warnings.
 
+		Apple II: Support 40 columns on unenhanced IIe, better
+		aux RAM testing, fixed bootup crash, check sector checksums.
+		Press '4' on boot to force 40 columns, '6' disables aux RAM.
+
 	1.0.3:
 
 		New Apple II interpreter:
