@@ -228,6 +228,28 @@ var opcodes = {
     0xfd: 'check-compare?/vbyte',
     0x7f: 'tracepoint'
 };
+var opcodes_ext0 = {
+	0x00: 'quit',
+	0x01: 'restart',
+	0x02: 'restore',
+	0x03: 'undo',
+	0x04: 'unstyle',
+	0x05: 'print-serial',
+	0x06: 'clear',
+	0x07: 'clear-all',
+	0x08: 'script-on',
+	0x09: 'script-off',
+	0x0a: 'trace-on',
+	0x0b: 'trace-off',
+	0x0c: 'inc-cwl',
+	0x0d: 'dec-cwl',
+	0x0e: 'uppercase',
+	0x0f: 'clear-links',
+	0x10: 'clear-old',
+	0x11: 'clear-div',
+	0x12: 'clear-status',
+	0x13: 'nbsp'
+};
 
 // parameter to vm_proceed_with_key:
 var keys = {
@@ -384,7 +406,7 @@ function decodestr(e, addr) {
 	return str;
 }
 
-function prepare_story(file_array, io, seed, quit, toparea, inlinearea) {
+function prepare_story(file_array, io, seed, quit, toparea, inlinearea, verbosity) {
 	var e, i, stopptr, stopend;
 
 	function findch(name, mandatory) {
@@ -455,6 +477,8 @@ function prepare_story(file_array, io, seed, quit, toparea, inlinearea) {
 		stopchars:	[],
 		nospcbefore:	[],
 		nospcafter:	[],
+
+		log_level:	verbosity,
 
 		reg:		new Uint16Array(64),
 		inst:		0,
@@ -987,7 +1011,9 @@ function vm_run(e, param) {
 		while(true) {
 			a = deref(a);
 			b = deref(b);
-			//console.log('Unifying ' + tohex(a, 2) + ' and ' + tohex(b, 2));
+			if(e.log_level >= 2) {
+				console.log('Unifying ' + tohex(a, 2) + ' and ' + tohex(b, 2));
+			}
 			if((a & 0xe000) == 0x8000 && (b & 0xe000) == 0x8000) {
 				if(e.trl <= e.aux) throw AUXFULL;
 				if(a < b) {
@@ -1528,7 +1554,9 @@ function vm_run(e, param) {
 		try {
 			while(true) {
 				op = e.code[e.inst++];
-				//console.log(tohex(e.inst - 1, 6) + ' ' + tohex(op, 2) + ' ' + opcodes[op]);
+				if(e.log_level >= 1) {
+					console.log(tohex(e.inst - 1, 6) + ' ' + tohex(op, 2) + ' ' + opcodes[op]);
+				}
 				switch(op) {
 				case 0x00: // nop
 					break;
@@ -2458,6 +2486,9 @@ function vm_run(e, param) {
 					break;
 				case 0x70: // ext0 byte
 					a1 = e.code[e.inst++];
+					if(e.log_level >= 1) {
+						console.log('      ' + ' ' + tohex(a1, 2) + ' ' + opcodes_ext0[a1]);
+					}
 					switch(a1) {
 					case 0x00: // quit
 						io.flush();
@@ -2931,8 +2962,8 @@ function vm_proceed_with_key(e, code) {
 var instance_e;
 
 var aaengine = {
-	prepare_story: function(file_array, io, seed, quit, toparea, inlinearea) {
-		instance_e = prepare_story(file_array, io, seed, quit, toparea, inlinearea);
+	prepare_story: function(file_array, io, seed, quit, toparea, inlinearea, verbosity) {
+		instance_e = prepare_story(file_array, io, seed, quit, toparea, inlinearea, verbosity);
 		this.keys = keys;
 		this.status = status
 		this.opcodes = opcodes;

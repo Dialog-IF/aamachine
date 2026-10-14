@@ -135,6 +135,8 @@ Release notes:
 
 		Web: <hr /> elements now use the --theme-medium color.
 
+		Node: New -l option logs instructions as they are executed.
+
 		Aambundle now replaces the LOOK chunk with an internal USTY
 		chunk for 6502 targets. Use --help-all to see new warnings.
 
