@@ -1707,6 +1707,8 @@ is nevertheless used by <<AUX_POP_LIST>>.
  	fail
  }
 
+TODO: explain this opcode!
+
 [[AUX_POP_LIST_MATCH]]
 === AUX_POP_LIST_MATCH
 
@@ -1737,6 +1739,8 @@ is nevertheless used by <<AUX_POP_LIST>>.
  }
 
  TOP = old_top	// return the heap memory that we used
+
+TODO: explain this opcode!
 
 [[SPLIT_LIST]]
 === SPLIT_LIST
