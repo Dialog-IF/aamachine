@@ -1450,7 +1450,7 @@ window.run_game = function(story64, options) {
 	update_globalstyle();
 
 	aaengine = window.aaengine;
-	aaengine.prepare_story(storybytes, io, undefined, false, true, true);
+	aaengine.prepare_story(storybytes, io, undefined, false, true, true, 0);
 	io.styles = aaengine.get_styles();
 	io.storage_key = aaengine.get_story_key();
 	io.style_data = [];
