@@ -278,6 +278,7 @@ const rlif = readline.createInterface({
 	crlfDelay: Infinity});
 
 var filename, seed;
+var verbosity=0;
 
 const usage = function() {
 	console.log("Usage: aamrun [OPTIONS] file.aastory");
@@ -287,6 +288,7 @@ const usage = function() {
 	console.log("    -v, -V          Show version and exit.");
 	console.log("    -T, --tag-lines Prepend output with \"  \", input with \"> \" or \") \".");
 	console.log("    -D, --dfrotz    Emulate dfrotz quirks.");
+	console.log("    -l N            Log behavior at level N (0-2, default 0).");
 }
 
 if(argv.v || argv.V) {
@@ -316,6 +318,9 @@ try {
 	if(argv.w) {
 		io.width = parseInt(argv.w);
 	}
+	if(argv.l) {
+		verbosity = parseInt(argv.l);
+	}
 } catch(e) {
 	console.error("ERROR: Unable to parse options: " + e);
 	process.exit(1);
@@ -330,7 +335,7 @@ try {
 	process.exit(1);
 }
 
-aaengine.prepare_story(storyfile, io, seed, true, false, false);
+aaengine.prepare_story(storyfile, io, seed, true, false, false, verbosity);
 io.styles = aaengine.get_styles();
 
 status = aaengine.vm_start();
