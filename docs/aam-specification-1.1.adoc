@@ -1284,10 +1284,15 @@ Do nothing.
  if(SIM < 0x8000) CHO = SIM
  INST = CONT
  
-Proceed from the continuation point (CONT).
-When the simple cutting choice point (SIM) is set, proceed with
-that as the current choice frame on the choice stack. SIM (and
-by extension all choice frames) aren't expected to naturally dip
+Proceed from the continuation point (CONT). When the simple cutting choice
+point (SIM) is set, proceed with that as the current choice frame on the
+choice stack.
+
+This instruction appears at the end of a successful query, to return to the
+calling predicate and (if it was a simple query) discard any choice points
+created in the meantime.
+
+SIM (and by extension all choice frames) aren't expected to naturally dip
 below $8000, as it would conflict with existing memory ranges.
 
 [[JMP]]
@@ -1299,7 +1304,7 @@ below $8000, as it would conflict with existing memory ranges.
 
 Perform a straightforward jump. The JMPL_* variants are akin to
 function calls, as they provide a continuation to resume from
-later.
+later—these are used for queries in Dialog.
 
 [[JMP_MULTI]]
 === JMP_MULTI
@@ -1583,6 +1588,12 @@ frame to SIM if there is no existing cutting choice point.
  		fail
  	}
  }
+
+This unusual opcode is used both to create a new pair on the heap, and to
+unpack an existing one. If arg3 is storing to a register, or unifying with
+an unbound variable, then it creates a new pair containing arg1 and arg2.
+Otherwise, it unifies arg1 and arg2 with the head and tail of the existing
+pair found in arg3.
 
 [[AUX_PUSH_VAL]]
 === AUX_PUSH_VAL
