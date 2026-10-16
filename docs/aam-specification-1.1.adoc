@@ -1718,6 +1718,8 @@ is nevertheless used by <<AUX_POP_LIST>>.
  	fail
  }
 
+TODO: explain this opcode!
+
 [[AUX_POP_LIST_MATCH]]
 === AUX_POP_LIST_MATCH
 
@@ -1748,6 +1750,8 @@ is nevertheless used by <<AUX_POP_LIST>>.
  }
 
  TOP = old_top	// return the heap memory that we used
+
+TODO: explain this opcode!
 
 [[SPLIT_LIST]]
 === SPLIT_LIST
@@ -1783,6 +1787,17 @@ is nevertheless used by <<AUX_POP_LIST>>.
  		heap[curr + 1] = empty_list
  		return <pair, first>
  	}
+
+This opcode is fairly simple, but difficult to describe concisely. Its purpose
+is to split a list in two, using a pointer into that list to mark the cutting
+point. For example, if arg1 is `[a b c d e f]` and arg2 is `[d e f]`, then
+arg3 will receive a new list containing `[a b c]`.
+
+Note, though, that the cutting point is chosen by comparing memory addresses,
+not contents! Arg2 must be _the same_ `[d e f]` that appears at the end of
+arg1, not a separate list containing those values. This opcode is usually
+emitted as part of a routine that first traverses arg1 to find the appropriate
+arg2.
 
 [[STOP]]
 === STOP

@@ -1,13 +1,18 @@
-= Å-machine 8-bit Addendum
+= Å-machine 1.1 8-bit Addendum
 
 This document describes target-specific conventions that layer on top of the
 main Å-machine specification, for the 6502 engines (Commodore 64, Apple II,
 and the aambox test platform). All other parts of the main specification apply
 unchanged.
 
-The main specification is the versioned document `aam-specification-1.1.adoc`;
+The main specification is the versioned document `aam-specification-*.adoc`;
 where this addendum and the main document disagree about a 6502 target, this
 addendum wins.
+
+Files that follow this specification should have a .ustory extension instead
+of .aastory. (Read the u as μ for "micro".) For the most part, though, .ustory
+files will not exist on their own; they will be processed into disk images for
+specific target computers.
 
 == Changes in v1.1
 
@@ -29,7 +34,7 @@ A `USTY` table is target-specific: it is built for the palette and
 capabilities of the machine it ships beside.
 
 The bundler may produce a `.ustory` file containing the `USTY` chunk for
-debugging purposes. These are not valid Aa-machine stories and should not
+debugging purposes. These are not valid Å-machine stories and should not
 be distributed.
 
 === Version byte
