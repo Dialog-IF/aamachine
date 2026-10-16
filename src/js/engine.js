@@ -97,10 +97,12 @@ var opcodes = {
     0x94: 'aux-raw-push/0',
     0x15: 'aux-raw-push/word',
     0x95: 'aux-raw-push/vbyte',
-    0x16: 'aux-val-pop',
+    0x16: 'aux-val-pop', // removed in 1.0
     0x17: 'aux-list-pop',
     0x18: 'aux-list-chk-pop',
     0x19: 'aux-list-match-pop',
+    0x1a: 'extdict-pack',
+    0x9a: 'extdict-unpack',
     0x1b: 'list-split',
     0x1c: 'stop',
     0x1d: 'stop-push',
@@ -1735,6 +1737,37 @@ function vm_run(e, param) {
 						a1 = deref(a1 - 0x3fff);
 					}
 					e.top = tmp;
+					break;
+				case 0x1a: // pack_extdict value value dest
+					a1 = deref(fvalue());
+					a2 = deref(fvalue());
+					a3 = e.code[e.inst++];
+					if(a1 < 0x2000 || a1 > 0x3eff || (a2 & 0xe000) != 0xc000) { // a1 must be dict or char, a2 must be list
+						fail();
+						break;
+					}
+					curr = e.top;
+					e.top += 2;
+					if(e.top > e.env || e.top > e.cho) throw HEAPFULL;
+					e.heapdata[curr + 0] = a1;
+					e.heapdata[curr + 1] = a2;
+					store(a3, curr | 0xe000);
+					break;
+				case 0x9a: // unpack_extdict value dest dest
+					a1 = deref(fvalue());
+					a2 = e.code[e.inst++];
+					a3 = e.code[e.inst++];
+					if((a1 & 0xe000) != 0xe000) { // must be extdict
+						fail();
+						break;
+					}
+					a1 = a1 & 0x1fff;
+					if(e.heapdata[a1] > 0x3eff) { // first word must be dict
+						fail();
+						break;
+					}
+					store(a2, e.heapdata[a1 + 0]); // essential part
+					store(a3, e.heapdata[a1 + 1]); // optional part
 					break;
 				case 0x1b: // split_list value value dest
 					a1 = deref(fvalue());

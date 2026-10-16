@@ -16,6 +16,11 @@ took over development and maintenance.
 
 <<MUL_NUM>> behavior changed to match other arithmetic instructions
 
+New opcodes:
+
+* <<PACK_EXTDICT>>
+* <<UNPACK_EXTDICT>>
+
 == Changes in v1.0
 
 New opcodes:
@@ -876,7 +881,8 @@ Opcode	Mnemonic	Args	Version
 19	<<AUX_POP_LIST_MATCH>>	<<VALUE>>	{empty}
 {empty}	{empty}	{empty}	{empty}
 
-1a	<<MAKE_EXTDICT>>	<<DEST>> <<DEST>> <<DEST>>	≥ 1.1
+1a	<<PACK_EXTDICT>>	<<VALUE>> <<VALUE>> <<DEST>>	≥ 1.1
+9a	<<UNPACK_EXTDICT>>	<<VALUE>> <<DEST>> <<DEST>>	≥ 1.1
 {empty}	{empty}	{empty}	{empty}
 
 1b	<<SPLIT_LIST>>	<<VALUE>> <<VALUE>> <<DEST>>	{empty}
@@ -1766,50 +1772,41 @@ is discarded after checking.
 In other words, this is a more complex version of <<AUX_POP_LIST_CHK>> when
 multiple keys need to be checked.
 
-[[MAKE_EXTDICT]]
-=== MAKE_EXTDICT
+[[PACK_EXTDICT]]
+=== PACK_EXTDICT
 
-*DEST DEST DEST*
+*VALUE VALUE DEST*
 
- if(arg3 is a store variant) {
- 	if(arg1 is a store variant || arg2 is a store variant) fail
- 	arg3 <- make_extdict(arg1, arg2)
- } else {
- 	local variable a3 = deref(arg3)
- 	if(a3.tag == reference) {
- 		if(arg1 is a store variant || arg2 is a store variant) fail
- 		unify(a3, make_extdict(arg1, arg2))
- 	} else if(a3.tag == extdict) {
- 		if(heap[a3.value + 0].tag == pair) { // Must be an extended word, not an unrecognized word
-			fail
-		}
- 		arg1 <- <reference, a3.value + 0>
- 		arg2 <- <reference, a3.value + 1>
- 	} else {
- 		fail
- 	}
- }
+ local variable ess = deref(arg1)
+ if(ess.tag != dict && ess.tag != char) fail
+ 
+ local variable opt = deref(arg2)
+ if(opt.tag != list) fail
+ 
+ local variable addr = TOP
+ TOP += 2
+ if(TOP > min(ENV, CHO)) runtime_error(1)
+ heap[addr+0] = ess
+ heap[addr+1] = opt
+ arg3 <- <extdict, addr>
 
- def make_extdict(required, optional):
- 	local variable addr = TOP
- 	TOP += 2
- 	if(TOP > min(ENV, CHO)) runtime_error(1)
- 	
- 	local variable r = deref(required)
- 	if(r.tag != dict) fail
- 	heap[addr + 0] = r
- 	
- 	local variable o = deref(optional)
- 	if(o.tag != pair) fail
- 	heap[addr + 1] = o
- 	
- 	return <extdict, addr>
+An "extended" dictionary word has an essential part (a dict word) and an optional
+part (a list of chars). This opcode turns those parts into a new extended word.
 
-This implementation is similar to <<MAKE_PAIR>>, with a few key changes.
-It uses the extdict tag instead of the pair tag, and some of its arguments must
-be bound: either arg3 (an existing extdict to unpack) or both arg1 and arg2
-(the parts of a new extdict to create). It is not valid to create an extdict
-containing unbound references, and any attempt to do so will fail.
+[[UNPACK_EXTDICT]]
+=== UNPACK_EXTDICT
+
+*VALUE DEST DEST*
+
+ local variable word = deref(arg1)
+ if(word.tag != extdict) fail
+ if(heap[word.value + 0] != dict && heap[word.value + 0] != char) fail
+ arg2 <- heap[word.value + 0] // essential: dict
+ arg3 <- heap[word.value + 1] // optional: list of chars
+
+See <<PACK_EXTDICT>>. This opcode only works on extended words, not unrecognized
+words; unrecognized words also have the extdict tag, but their first element
+is a list, not a dict.
 
 [[SPLIT_LIST]]
 === SPLIT_LIST
