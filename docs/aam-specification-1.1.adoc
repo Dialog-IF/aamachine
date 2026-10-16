@@ -870,10 +870,13 @@ Opcode	Mnemonic	Args	Version
 14	<<AUX_PUSH_VAL>>	<<VALUE>>	{empty}
 94	<<AUX_PUSH_RAW>>	<<ZERO>>	≥ 0.5
 15/95	<<AUX_PUSH_RAW>>	<<VWORD>>/<<VBYTE>>	{empty}
-16	AUX_POP_VAL 	<<DEST>>	< 1.0
+16	<<AUX_POP_VAL>> 	<<DEST>>	< 1.0
 17	<<AUX_POP_LIST>>	<<DEST>>	{empty}
 18	<<AUX_POP_LIST_CHK>>	<<VALUE>>	{empty}
 19	<<AUX_POP_LIST_MATCH>>	<<VALUE>>	{empty}
+{empty}	{empty}	{empty}	{empty}
+
+1a	<<MAKE_EXTDICT>>	<<DEST>> <<DEST>> <<DEST>>	≥ 1.1
 {empty}	{empty}	{empty}	{empty}
 
 1b	<<SPLIT_LIST>>	<<VALUE>> <<VALUE>> <<DEST>>	{empty}
@@ -1707,18 +1710,23 @@ is nevertheless used by <<AUX_POP_LIST>>.
 
  local variable flag = 0
  local variable key = deref(arg)
-
+ 
  while(local variable v = aux[--AUX]) {
  	if(v == key) {
  		flag = 1
  	}
  }
-
+ 
  if(!flag) {
  	fail
  }
 
-TODO: explain this opcode!
+Pop a list off the aux heap, then check if arg is found somewhere in that
+list. If not, fail. The list is discarded after use (or rather, is never
+stored on the main heap in the first place!).
+
+In other words, this is a simpler version of <<AUX_POP_LIST_MATCH>> when
+only a single key needs to be checked.
 
 [[AUX_POP_LIST_MATCH]]
 === AUX_POP_LIST_MATCH
@@ -1726,11 +1734,11 @@ TODO: explain this opcode!
 *VALUE*
 
  local variable old_top = TOP
-
+ 
  local variable key = deref(arg)
  local variable list = pop_serialized_list()
  // no need to deref the elements inside list
-
+ 
  while(key.tag == pair) {
  	local variable iter = list
  	local variable match = 0
@@ -1748,10 +1756,60 @@ TODO: explain this opcode!
  	}
  	key = heap[key.value + 1]
  }
-
+ 
  TOP = old_top	// return the heap memory that we used
 
-TODO: explain this opcode!
+Pop a list off the aux heap, then check if every value in arg can be found
+somewhere in that list. If any value in arg cannot be found, fail. The list
+is discarded after checking.
+
+In other words, this is a more complex version of <<AUX_POP_LIST_CHK>> when
+multiple keys need to be checked.
+
+[[MAKE_EXTDICT]]
+=== MAKE_EXTDICT
+
+*DEST DEST DEST*
+
+ if(arg3 is a store variant) {
+ 	if(arg1 is a store variant || arg2 is a store variant) fail
+ 	arg3 <- make_extdict(arg1, arg2)
+ } else {
+ 	local variable a3 = deref(arg3)
+ 	if(a3.tag == reference) {
+ 		if(arg1 is a store variant || arg2 is a store variant) fail
+ 		unify(a3, make_extdict(arg1, arg2))
+ 	} else if(a3.tag == extdict) {
+ 		if(heap[a3.value + 0].tag == pair) { // Must be an extended word, not an unrecognized word
+			fail
+		}
+ 		arg1 <- <reference, a3.value + 0>
+ 		arg2 <- <reference, a3.value + 1>
+ 	} else {
+ 		fail
+ 	}
+ }
+
+ def make_extdict(required, optional):
+ 	local variable addr = TOP
+ 	TOP += 2
+ 	if(TOP > min(ENV, CHO)) runtime_error(1)
+ 	
+ 	local variable r = deref(required)
+ 	if(r.tag != dict) fail
+ 	heap[addr + 0] = r
+ 	
+ 	local variable o = deref(optional)
+ 	if(o.tag != pair) fail
+ 	heap[addr + 1] = o
+ 	
+ 	return <extdict, addr>
+
+This implementation is similar to <<MAKE_PAIR>>, with a few key changes.
+It uses the extdict tag instead of the pair tag, and some of its arguments must
+be bound: either arg3 (an existing extdict to unpack) or both arg1 and arg2
+(the parts of a new extdict to create). It is not valid to create an extdict
+containing unbound references, and any attempt to do so will fail.
 
 [[SPLIT_LIST]]
 === SPLIT_LIST
