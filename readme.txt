@@ -140,6 +140,8 @@ Release notes:
 		Aambundle now replaces the LOOK chunk with an internal USTY
 		chunk for 6502 targets. Use --help-all to see new warnings.
 
+		Documentation: New "8-bit" page covering the USTY chunk.
+
 	1.0.3:
 
 		New Apple II interpreter:
