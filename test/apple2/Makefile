@@ -16,8 +16,13 @@
 # Autodetect: on PATH if installed there, otherwise ~/bin/izconsole.
 # Override with: make IZCONSOLE=/path/to/izconsole
 IZCONSOLE ?= $(shell command -v izconsole 2>/dev/null || echo "$$HOME/bin/izconsole")
+# Extra izconsole flags for every test, e.g. a different Apple II model:
+#   make test A2FLAGS="--model 2plus"
+# a2test.exp reads this from the environment; see also the test.matrix target.
+A2FLAGS ?=
 # Make sure a2test.exp (run via expect) sees it too.
 export IZCONSOLE
+export A2FLAGS
 
 DIR6502 = ../../src/6502
 # Add --verbose to trace commands and dump the emulated screen on failure.
@@ -31,7 +36,25 @@ GOSLING_PO = $(GOSLING_DIR)/Miss-Gosling-s-Last-Case-800k.po
 
 all: test
 
-test: check test.exercise test.gosling test.undo test.save test.save2
+# Undo snapshots live in auxiliary RAM, which only the 128 kB machines have.
+# The 48 kB Apple ][+ reports undo as unavailable, so skip that one test for
+# it rather than let it fail.
+UNDO_TEST = test.undo
+ifneq ($(findstring 2plus,$(A2FLAGS)),)
+UNDO_TEST =
+endif
+
+test: check test.exercise test.gosling $(UNDO_TEST) test.save test.save2
+
+# Run the whole suite once per emulated model.
+# Individual models can also be run with: make test A2FLAGS="--model 2plus"
+A2MODELS = 2e 2enh 2plus
+
+test.matrix:
+	@for m in $(A2MODELS); do \
+	  echo "=== model $$m ==="; \
+	  $(MAKE) test A2FLAGS="--model $$m" || exit 1; \
+	done
 
 # -- emulator and tool checks -------------------------------------------
 
@@ -95,4 +118,4 @@ $(GOSLING_PO): ../gosling/gosling.aastory $(AAMBUNDLE)
 clean:
 	@echo "Nothing to clean (the bundled disk images are .gitignored and left in place)."
 
-.PHONY: all test check test.exercise test.gosling test.undo test.save test.save2 clean
+.PHONY: all test test.matrix check test.exercise test.gosling test.undo test.save test.save2 clean
