@@ -144,6 +144,8 @@ Release notes:
 		aux RAM testing, fixed bootup crash, check sector checksums.
 		Press '4' on boot to force 40 columns, '6' disables aux RAM.
 
+		Documentation: New "8-bit" page covering the USTY chunk.
+
 	1.0.3:
 
 		New Apple II interpreter:
