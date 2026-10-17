@@ -6,6 +6,7 @@ mkfontdata
 aambundle
 aamshow
 *.aastory
+*.ustory
 *.bin
 aambox6502
 **/*~

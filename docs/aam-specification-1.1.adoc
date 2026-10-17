@@ -16,6 +16,11 @@ took over development and maintenance.
 
 <<MUL_NUM>> behavior changed to match other arithmetic instructions
 
+New opcodes:
+
+* <<PACK_EXTDICT>>
+* <<UNPACK_EXTDICT>>
+
 == Changes in v1.0
 
 New opcodes:
@@ -870,10 +875,14 @@ Opcode	Mnemonic	Args	Version
 14	<<AUX_PUSH_VAL>>	<<VALUE>>	{empty}
 94	<<AUX_PUSH_RAW>>	<<ZERO>>	≥ 0.5
 15/95	<<AUX_PUSH_RAW>>	<<VWORD>>/<<VBYTE>>	{empty}
-16	AUX_POP_VAL 	<<DEST>>	< 1.0
+16	<<AUX_POP_VAL>> 	<<DEST>>	< 1.0
 17	<<AUX_POP_LIST>>	<<DEST>>	{empty}
 18	<<AUX_POP_LIST_CHK>>	<<VALUE>>	{empty}
 19	<<AUX_POP_LIST_MATCH>>	<<VALUE>>	{empty}
+{empty}	{empty}	{empty}	{empty}
+
+1a	<<PACK_EXTDICT>>	<<VALUE>> <<VALUE>> <<DEST>>	≥ 1.1
+9a	<<UNPACK_EXTDICT>>	<<VALUE>> <<DEST>> <<DEST>>	≥ 1.1
 {empty}	{empty}	{empty}	{empty}
 
 1b	<<SPLIT_LIST>>	<<VALUE>> <<VALUE>> <<DEST>>	{empty}
@@ -1284,10 +1293,15 @@ Do nothing.
  if(SIM < 0x8000) CHO = SIM
  INST = CONT
  
-Proceed from the continuation point (CONT).
-When the simple cutting choice point (SIM) is set, proceed with
-that as the current choice frame on the choice stack. SIM (and
-by extension all choice frames) aren't expected to naturally dip
+Proceed from the continuation point (CONT). When the simple cutting choice
+point (SIM) is set, proceed with that as the current choice frame on the
+choice stack.
+
+This instruction appears at the end of a successful query, to return to the
+calling predicate and (if it was a simple query) discard any choice points
+created in the meantime.
+
+SIM (and by extension all choice frames) aren't expected to naturally dip
 below $8000, as it would conflict with existing memory ranges.
 
 [[JMP]]
@@ -1299,7 +1313,7 @@ below $8000, as it would conflict with existing memory ranges.
 
 Perform a straightforward jump. The JMPL_* variants are akin to
 function calls, as they provide a continuation to resume from
-later.
+later—these are used for queries in Dialog.
 
 [[JMP_MULTI]]
 === JMP_MULTI
@@ -1584,6 +1598,12 @@ frame to SIM if there is no existing cutting choice point.
  	}
  }
 
+This unusual opcode is used both to create a new pair on the heap, and to
+unpack an existing one. If arg3 is storing to a register, or unifying with
+an unbound variable, then it creates a new pair containing arg1 and arg2.
+Otherwise, it unifies arg1 and arg2 with the head and tail of the existing
+pair found in arg3.
+
 [[AUX_PUSH_VAL]]
 === AUX_PUSH_VAL
 
@@ -1696,18 +1716,23 @@ is nevertheless used by <<AUX_POP_LIST>>.
 
  local variable flag = 0
  local variable key = deref(arg)
-
+ 
  while(local variable v = aux[--AUX]) {
  	if(v == key) {
  		flag = 1
  	}
  }
-
+ 
  if(!flag) {
  	fail
  }
 
-TODO: explain this opcode!
+Pop a list off the aux heap, then check if arg is found somewhere in that
+list. If not, fail. The list is discarded after use (or rather, is never
+stored on the main heap in the first place!).
+
+In other words, this is a simpler version of <<AUX_POP_LIST_MATCH>> when
+only a single key needs to be checked.
 
 [[AUX_POP_LIST_MATCH]]
 === AUX_POP_LIST_MATCH
@@ -1715,11 +1740,11 @@ TODO: explain this opcode!
 *VALUE*
 
  local variable old_top = TOP
-
+ 
  local variable key = deref(arg)
  local variable list = pop_serialized_list()
  // no need to deref the elements inside list
-
+ 
  while(key.tag == pair) {
  	local variable iter = list
  	local variable match = 0
@@ -1737,10 +1762,51 @@ TODO: explain this opcode!
  	}
  	key = heap[key.value + 1]
  }
-
+ 
  TOP = old_top	// return the heap memory that we used
 
-TODO: explain this opcode!
+Pop a list off the aux heap, then check if every value in arg can be found
+somewhere in that list. If any value in arg cannot be found, fail. The list
+is discarded after checking.
+
+In other words, this is a more complex version of <<AUX_POP_LIST_CHK>> when
+multiple keys need to be checked.
+
+[[PACK_EXTDICT]]
+=== PACK_EXTDICT
+
+*VALUE VALUE DEST*
+
+ local variable ess = deref(arg1)
+ if(ess.tag != dict && ess.tag != char) fail
+ 
+ local variable opt = deref(arg2)
+ if(opt.tag != list) fail
+ 
+ local variable addr = TOP
+ TOP += 2
+ if(TOP > min(ENV, CHO)) runtime_error(1)
+ heap[addr+0] = ess
+ heap[addr+1] = opt
+ arg3 <- <extdict, addr>
+
+An "extended" dictionary word has an essential part (a dict word) and an optional
+part (a list of chars). This opcode turns those parts into a new extended word.
+
+[[UNPACK_EXTDICT]]
+=== UNPACK_EXTDICT
+
+*VALUE DEST DEST*
+
+ local variable word = deref(arg1)
+ if(word.tag != extdict) fail
+ if(heap[word.value + 0] != dict && heap[word.value + 0] != char) fail
+ arg2 <- heap[word.value + 0] // essential: dict
+ arg3 <- heap[word.value + 1] // optional: list of chars
+
+See <<PACK_EXTDICT>>. This opcode only works on extended words, not unrecognized
+words; unrecognized words also have the extdict tag, but their first element
+is a list, not a dict.
 
 [[SPLIT_LIST]]
 === SPLIT_LIST
