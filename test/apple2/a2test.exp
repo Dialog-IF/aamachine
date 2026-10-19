@@ -8,6 +8,10 @@
 # > go north"
 #         ./a2test.exp "DARKNESS" story.dsk walk.txt -- --model 2plus
 #
+# Extra flags can also be supplied in the A2FLAGS environment variable, which
+# makes it easy to vary them from make:  make test A2FLAGS="--model 2plus"
+# They are appended after any flags given after "--".
+#
 # The disk image is required.  The walkthrough is optional: if the third
 # argument names an existing file its lines are sent as commands; otherwise it
 # is taken as a literal command string, one command per line.  With no third
@@ -32,7 +36,8 @@
 # around every single character, so the text on screen is thoroughly diced up
 # by escape sequences.  We therefore chop the output into frames on the
 # cursor-up sequence, strip the remaining ANSI codes, and match the target
-# against the resulting plain text.
+# against the resulting plain text.  Matching is case-insensitive so that the
+# same targets work on an Apple ][+, which displays everything in capitals.
 #
 # A repaint is only terminated when the next one starts, so the screen we are
 # looking at is normally the unterminated tail of the output; it is inspected
@@ -79,6 +84,10 @@ if {$dash >= 0} {
 } else {
   set izflags {}
 }
+# A2FLAGS is an alternative way to pass flags through, handy from make.
+if {[info exists env(A2FLAGS)] && $env(A2FLAGS) ne ""} {
+  set izflags [concat $izflags $env(A2FLAGS)]
+}
 
 # ESC[<n>A: izconsole starts a new repaint by moving the cursor back up.
 set FRAMERE {\x1b\[[0-9]+A}
@@ -94,6 +103,8 @@ set PROMPTRE {> \x1b\[7m}
 
 set raw ""              ;# bytes read but not yet split into frames
 set text ""             ;# scrubbed text of all complete frames so far
+set text_lc ""          ;# same, lowercased, for case-insensitive matching
+set target_lc [string tolower $target]
 set lastframe ""        ;# most recent screen, scrubbed, for --verbose dumps
 
 proc dbg {msg} {
@@ -127,15 +138,18 @@ proc scrub {s} {
 # and return what is left: the repaint currently on screen, ANSI codes and
 # all.
 proc harvest {} {
-  global raw text FRAMERE
+  global raw text text_lc FRAMERE
   while {[regexp -indices $FRAMERE $raw m]} {
     lassign $m from to
-    append text [scrub [string range $raw 0 [expr {$from - 1}]]] "\n"
+    set frame [scrub [string range $raw 0 [expr {$from - 1}]]]
+    append text $frame "\n"
+    append text_lc [string tolower $frame] "\n"
     set raw [string range $raw [expr {$to + 1}] end]
   }
   # keep the accumulated text from growing without bound
   if {[string length $text] > 200000} {
     set text [string range $text end-100000 end]
+    set text_lc [string range $text_lc end-100000 end]
   }
   return $raw
 }
@@ -148,13 +162,16 @@ proc harvest {} {
 # seconds, or after $quiet seconds without a repaint.  Returns target,
 # prompt, idle, eof or timeout.
 proc await {target quiet limit {stale ""}} {
-  global raw text lastframe PAGERRE PROMPTRE
+  global raw text text_lc target_lc lastframe PAGERRE PROMPTRE
   set deadline [expr {[clock seconds] + $limit}]
   while 1 {
     set screen [harvest]
     set flat [scrub $screen]
     if {$flat ne ""} { set lastframe $flat }
-    if {[string first $target $text] >= 0 || [string first $target $flat] >= 0} {
+    # Matching is case-insensitive: an Apple ][+ has no lowercase, so the
+    # story is displayed in capitals there.
+    set flat_lc [string tolower $flat]
+    if {[string first $target_lc $text_lc] >= 0 || [string first $target_lc $flat_lc] >= 0} {
       return target
     }
     if {[regexp $PAGERRE $flat]} {
