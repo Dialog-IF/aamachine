@@ -3623,11 +3623,15 @@ SAVEADDR = ((initsegment + $ff) >> 8) << 8
 prorwts2_init = * + $2000 - $800 + boothdrlen + himem_end - himem_start
 #endif
 
+#print himem_end
 ; Make sure the engine fits in the language card area
 .assert himem_start == $d000, "A2_ENGINE_HIMEM: engine code must start at $d000"
 .assert himem_end <= $f800, "A2_ENGINE_HIMEM: engine code exceeds LC RAM"
 
 #ifndef DEBUG
 ; Discourage programmers from expanding the resident code yet another 256 bytes
-.assert SAVEADDR <= $1a00, "HEY! The Apple II port is getting big! Either optimize some code (cool) or add $100 to this value (uncool)"
+#print SAVEADDR
+; .assert SAVEADDR <= $1a00, "HEY! The Apple II port is getting big! Either optimize some code (cool) or add $100 to this value (uncool)"
+.assert SAVEADDR <= $1b00, "HEY! The Apple II port is getting big! Either optimize some code (cool) or add $100 to this value (uncool)"
+// :( this is bad, but I don't know another way to fix it
 #endif

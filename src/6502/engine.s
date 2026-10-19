@@ -99,7 +99,7 @@ heapsz	= $ca	; word, b-e
 auxsz	= $cc	; word, b-e
 ramsz	= $ce	; word, b-e
 
-zporg	= $d0	; 24 bytes of code
+zporg	= $d0	; 24 bytes of code (d0-e8) - at the end of engine.s
 
 #if FGCOLOR
 rfgcol  = $f2	; current fg color
@@ -1317,13 +1317,16 @@ wrap3
 ldystorefetchnext
 	ldy	`pclsb
 storefetchnext
+	jsr storethere
+	jmp fetchnext
+
+storethere ; factored out from the above because UNPACK_EXTDICT has two store operands
 	.(
 	iny
 	beq	wrap1
 postwrap1
 	lda	(phypc),y
-	jsr	storehere
-	jmp	fetchnext
+	jmp	storehere ; the rts in storehere will return from dostore
 wrap1
 	jsr	pcwrap
 	beq	postwrap1
@@ -2184,12 +2187,6 @@ listdone
 	rts
 	.)
 
-#ifdef A2_ENGINE_HIMEM
-engine_reloc = *
-* = $d000
-himem_start = *
-#endif
-
 error
 	.(
 	sta	regs+1
@@ -2239,6 +2236,32 @@ yes
 no
 	rts
 	.)
+
+printnumber
+	; input ioparam (l-e)
+	; clobbers ioparam
+
+	.(
+	jsr	convertnumber
+	ldy	#0
+loop
+	sty	count
+	lda	(ioparam),y
+	beq	done
+
+	jsr	vio_putc
+	ldy	count
+	iny
+	jmp	loop
+done
+	rts
+	.)
+
+#ifdef A2_ENGINE_HIMEM
+engine_reloc = *
+* = $d000
+himem_start = *
+#endif
 
 printvalue
 	; input oper0 (clobbered)
@@ -2490,26 +2513,6 @@ listloop
 properend
 	lda	#']'
 	jmp	vio_putc
-	.)
-
-printnumber
-	; input ioparam (l-e)
-	; clobbers ioparam
-
-	.(
-	jsr	convertnumber
-	ldy	#0
-loop
-	sty	count
-	lda	(ioparam),y
-	beq	done
-
-	jsr	vio_putc
-	ldy	count
-	iny
-	jmp	loop
-done
-	rts
 	.)
 
 find_dict
@@ -5417,6 +5420,84 @@ op_mul_num
 	jmp	ldystorefetchnext
 fail
 	jmp	failure
+	.)
+
+op_pack_extdict
+	.(
+	bcs unpack
+	
+	; pack
+	jsr	fetchvalderef ; essential part
+	jsr	fetchvalderef ; optional part
+	sty	`pclsb
+	
+	; check the type of the operands
+	lda	opermsb+0 ; must be ≥ $20 and < $3f
+	cmp	#$20
+	bcc	fail
+	cmp	#$3f
+	bcs	fail
+	lda	opermsb+1 ; this & e0 must be c0
+	and	#$e0
+	cmp	#$c0
+	bne	fail
+	
+	; make a new heap cell
+	jsr	alloc_pair
+	lda	rpair+0
+	ora	#$e0 ; need extdict tag, not pair tag
+	sta	result+0
+	lda	rpair+1
+	sta	result+1
+	
+	; and fill it in
+	ldy	#0
+	lda	opermsb+0
+	sta	(phydata),y
+	iny
+	lda	operlsb+0
+	sta	(phydata),y
+	iny
+	lda	opermsb+1
+	sta	(phydata),y
+	iny
+	lda	operlsb+1
+	sta	(phydata),y
+	
+	jmp	ldystorefetchnext
+	
+fail
+	jmp	failure
+	
+unpack
+	jsr	fetchvalderef ; extdict
+	
+	; check the types to confirm this
+	lda	opermsb+0
+	cmp	#$e0
+	bcs	fail
+	
+	sty	`pclsb
+	ldy	#0
+	lda	(phydata),y ; high byte of first cell
+	cmp	#$3f ; too big to be char or word, and objects and numbers can't be in extdict cells
+	bcs	fail
+	
+	; store first result
+	sta	result
+	iny
+	lda	(phydata),y ; low byte of first cell
+	sta	result+1
+	ldy	`pclsb
+	jsr	storethere
+	
+	ldy	#2
+	lda	(phydata),y	; high byte of second cell
+	sta	result
+	iny
+	lda	(phydata),y	; low byte of second cell
+	sta	result+1
+	jmp	ldystorefetchnext
 	.)
 
 op_pop_choice
@@ -9484,7 +9565,7 @@ optable
 	.word	op_aux_pop_list	; 17
 	.word	op_aux_pop_chk	; 18
 	.word	op_aux_pop_mtch	; 19
-	.word	op_bad		; 1a
+	.word	op_pack_extdict	; 1a
 	.word	op_split_list	; 1b
 	.word	op_stop		; 1c
 	.word	op_push_stop	; 1d
