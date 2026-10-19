@@ -3630,6 +3630,8 @@ prorwts2_init = * + $2000 - $800 + boothdrlen + himem_end - himem_start
 
 #ifndef DEBUG
 ; Discourage programmers from expanding the resident code yet another 256 bytes
-#print SAVEADDR
-.assert SAVEADDR <= $1a00, "HEY! The Apple II port is getting big! Either optimize some code (cool) or add $100 to this value (uncool)"
+#print hex(SAVEADDR)
+; .assert SAVEADDR <= $1a00, "HEY! The Apple II port is getting big! Either optimize some code (cool) or add $100 to this value (uncool)"
+.assert SAVEADDR <= $1b00, "HEY! The Apple II port is getting big! Either optimize some code (cool) or add $100 to this value (uncool)"
+; :( this is bad, but I don't know another way to fix it
 #endif

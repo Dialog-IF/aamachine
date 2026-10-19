@@ -1317,27 +1317,16 @@ wrap3
 ldystorefetchnext
 	ldy	`pclsb
 storefetchnext
-	.(
-	iny
-	beq	wrap1
-postwrap1
-	lda	(phypc),y
-	jsr	storehere
-	jmp	fetchnext
-wrap1
-	jsr	pcwrap
-	beq	postwrap1
-	.)
+	jsr storethere
+	jmp fetchnext
 
-ldystore ; A copy of the above that doesn't fetch right after, for the one instruction that stores twice in a row (UNPACK_EXTDICT) - call it with jsr, not jmp
+storethere ; factored out from the above because UNPACK_EXTDICT has two store operands
 	.(
-	ldy	`pclsb
 	iny
 	beq	wrap1
 postwrap1
 	lda	(phypc),y
-	jsr	storehere
-	rts
+	jmp	storehere ; the rts in storehere will return from dostore
 wrap1
 	jsr	pcwrap
 	beq	postwrap1
@@ -2198,12 +2187,6 @@ listdone
 	rts
 	.)
 
-#ifdef A2_ENGINE_HIMEM
-engine_reloc = *
-* = $d000
-himem_start = *
-#endif
-
 error
 	.(
 	sta	regs+1
@@ -2253,6 +2236,32 @@ yes
 no
 	rts
 	.)
+
+printnumber
+	; input ioparam (l-e)
+	; clobbers ioparam
+
+	.(
+	jsr	convertnumber
+	ldy	#0
+loop
+	sty	count
+	lda	(ioparam),y
+	beq	done
+
+	jsr	vio_putc
+	ldy	count
+	iny
+	jmp	loop
+done
+	rts
+	.)
+
+#ifdef A2_ENGINE_HIMEM
+engine_reloc = *
+* = $d000
+himem_start = *
+#endif
 
 printvalue
 	; input oper0 (clobbered)
@@ -2504,26 +2513,6 @@ listloop
 properend
 	lda	#']'
 	jmp	vio_putc
-	.)
-
-printnumber
-	; input ioparam (l-e)
-	; clobbers ioparam
-
-	.(
-	jsr	convertnumber
-	ldy	#0
-loop
-	sty	count
-	lda	(ioparam),y
-	beq	done
-
-	jsr	vio_putc
-	ldy	count
-	iny
-	jmp	loop
-done
-	rts
 	.)
 
 find_dict
@@ -5440,6 +5429,7 @@ op_pack_extdict
 	; pack
 	jsr	fetchvalderef ; essential part
 	jsr	fetchvalderef ; optional part
+	sty	`pclsb
 	
 	; check the type of the operands
 	lda	opermsb+0 ; must be ≥ $20 and < $3f
@@ -5477,7 +5467,7 @@ op_pack_extdict
 	jmp	ldystorefetchnext
 	
 fail
-	jmp failure
+	jmp	failure
 	
 unpack
 	jsr	fetchvalderef ; extdict
@@ -5490,7 +5480,7 @@ unpack
 	sty	`pclsb
 	ldy	#0
 	lda	(phydata),y ; high byte of first cell
-	cmp	#$3f ; too big to be char or word - must be list
+	cmp	#$3f ; too big to be char or word, and objects and numbers can't be in extdict cells
 	bcs	fail
 	
 	; store first result
@@ -5498,7 +5488,8 @@ unpack
 	iny
 	lda	(phydata),y ; low byte of first cell
 	sta	result+1
-	jsr	ldystore
+	ldy	`pclsb
+	jsr	storethere
 	
 	ldy	#2
 	lda	(phydata),y	; high byte of second cell
