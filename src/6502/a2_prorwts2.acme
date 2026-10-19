@@ -35,7 +35,7 @@ ver_02 = 1
                                         ;seeking with aligned_read=1 requires non-zero offset
                 allow_multi  = 1        ;set to 1 to allow multiple floppies
                 allow_zerovol= 1        ;set to 1 to support volume 0 (=last used volume)
-                check_chksum = 0        ;set to 1 to enforce checksum verification for floppies
+                check_chksum = 1        ;set to 1 to enforce checksum verification for floppies
                 allow_subdir = 0        ;set to 1 to allow opening subdirectories to access files
                 might_exist  = 1        ;set to 1 if file is not known to always exist already
                                         ;makes use of status to indicate success or failure

@@ -43,7 +43,7 @@ $(AAMFRONTEND): $(DIR6502)/aambox_frontend.s $(DIR6502)/engine.s
 	$(MAKE) -C $(DIR6502) aambox_frontend.bin
 
 $(AAMBUNDLE):
-	$(MAKE) -C ../src aambundle
+	$(MAKE) -C ../../src aambundle
 
 all: test
 
