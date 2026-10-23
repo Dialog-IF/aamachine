@@ -16,6 +16,11 @@ took over development and maintenance.
 
 <<MUL_NUM>> behavior changed to match other arithmetic instructions
 
+New opcodes:
+
+* <<RAND_SEED>>
+* <<RAND_UNSEED>>
+
 == Changes in v1.0
 
 New opcodes:
@@ -955,6 +960,7 @@ d8	<<INC_NUM>>	<<VALUE>> <<DEST>>	{empty}
 59	<<SUB_NUM>>	<<VALUE>> <<VALUE>> <<DEST>>	{empty}
 d9	<<DEC_NUM>>	<<VALUE>> <<DEST>>	{empty}
 5a	<<RAND_NUM>>	<<VALUE>> <<VALUE>> <<DEST>>	{empty}
+da	<<RAND_SEED>>	<<VALUE>>	≥ 1.1
 5b	<<MUL_NUM>>	<<VALUE>> <<VALUE>> <<DEST>>	{empty}
 5c	<<DIV_NUM>>	<<VALUE>> <<VALUE>> <<DEST>>	{empty}
 5d	<<MOD_NUM>>	<<VALUE>> <<VALUE>> <<DEST>>	{empty}
@@ -1077,6 +1083,7 @@ fd	<<CHECK_EQ_2>>	<<VBYTE>> <<VBYTE>> <<CODE>>	≥ 0.4
 * 11: <<CLEAR_DIV>> (≥ 0.5)
 * 12: <<CLEAR_STATUS>> (≥ 1.0)
 * 13: <<NBSP>> (≥ 1.0)
+* 14: <<RAND_UNSEED>> (≥ 1.1)
 
 [[vminfo-values]]
 ‡ <<VM_INFO>> byte values:
@@ -2475,6 +2482,14 @@ since no known story files make use of this behavior, this is not required.
  local variable result = unbox_int(arg1) % unbox_int(arg2)
  arg3 <- box_int(result)
 
+[[RAND_RAW]]
+=== RAND_RAW
+
+*BYTE DEST*
+
+ // any timer-seeded PRNG can be used:
+ arg2 <- (rand() % (arg1 + 1)) & 0xffff
+
 [[RAND_NUM]]
 === RAND_NUM
 
@@ -2487,13 +2502,40 @@ since no known story files make use of this behavior, this is not required.
  local variable result = start + (rand() % range)
  arg3 <- box_int(result)
 
-[[RAND_RAW]]
-=== RAND_RAW
+[[RAND_SEED]]
+=== RAND_SEED
 
-*BYTE DEST*
+*VALUE*
 
- // any timer-seeded PRNG can be used:
- arg2 <- (rand() % (arg1 + 1)) & 0xffff
+ local variable seed = deref(arg) // should be a number
+ seed_rand(seed)
+
+This opcode seeds the pseudo-random-number generator used for <<RAND_RAW>>
+and <<RAND_NUM>>, making their behavior reproducible. That is, the sequence
+`RAND_SEED #42; RAND_NUM #0 #10 >R3f` should produce the same random number
+every time it is executed, though that number need not be consistent between
+interpreters or between computers.
+
+If an interpreter cannot provide this consistency, this opcode should fail.
+
+The behavior when arg is not a number is unspecified. It can fail, or it
+can seed the PRNG with some interpreter-specific hash of the argument.
+
+[[RAND_UNSEED]]
+=== RAND_UNSEED
+
+ seed_rand(time())
+
+This undoes the effects of <<RAND_SEED>> and makes the results of <<RAND_RAW>>
+and <<RAND_NUM>> truly random again—or at least, as random as the interpreter
+can provide.
+
+[[INC_RAW]]
+=== INC_RAW
+
+*RAW DEST*
+
+ arg2 <- (arg1 + 1) & 0xffff
 
 [[INC_NUM]]
 === INC_NUM
@@ -2503,6 +2545,13 @@ since no known story files make use of this behavior, this is not required.
  local variable result = unbox_int(arg1) + 1
  arg2 <- box_int(result)
 
+[[DEC_RAW]]
+=== DEC_RAW
+
+*RAW DEST*
+
+ arg2 <- (arg1 - 1) & 0xffff
+
 [[DEC_NUM]]
 === DEC_NUM
 
@@ -2510,20 +2559,6 @@ since no known story files make use of this behavior, this is not required.
 
  local variable result = unbox_int(arg1) - 1
  arg2 <- box_int(result)
-
-[[INC_RAW]]
-=== INC_RAW
-
-*RAW DEST*
-
- arg2 <- (arg1 + 1) & 0xffff
-
-[[DEC_RAW]]
-=== DEC_RAW
-
-*RAW DEST*
-
- arg2 <- (arg1 - 1) & 0xffff
 
 [[PRINT_A_STR_A]]
 === PRINT_A_STR_A
