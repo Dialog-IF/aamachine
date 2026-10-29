@@ -146,6 +146,9 @@ Release notes:
 
 		Documentation: New "8-bit" page covering the USTY chunk.
 
+		Apple II: Give disk seek head a few ms to settle down to
+		prevent read errors. (via @danielgaskell and @peterferrie/qkumba)
+
 	1.0.3:
 
 		New Apple II interpreter:

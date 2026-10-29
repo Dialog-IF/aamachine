@@ -1940,6 +1940,8 @@ trackd1 = * + 1
                 sta     trackd1
   } ;allow_multi = 1
                 jsr     seek
+                lda     #$10    ; added
+                jsr     delay   ; added
 
                 ;match or read/write sector
 
